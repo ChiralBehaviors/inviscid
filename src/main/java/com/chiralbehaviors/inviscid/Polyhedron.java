@@ -16,11 +16,17 @@
 
 package com.chiralbehaviors.inviscid;
 
+import static com.chiralbehaviors.inviscid.PhiCoordinates.*;
+
+import java.util.Arrays;
+
+import javafx.scene.shape.TriangleMesh;
+
 /**
  * @author halhildebrand
  *
  */
-public class Polyhedron {
+abstract public class Polyhedron {
     protected final int[] edges;
     protected final int[] faces;
     protected final int[] vertices;
@@ -29,5 +35,30 @@ public class Polyhedron {
         this.vertices = vertices;
         this.edges = edges;
         this.faces = faces;
+    }
+
+    public TriangleMesh constructMesh(int[] texIndices, float[] texCoords) {
+        TriangleMesh newMesh = new TriangleMesh();
+        newMesh.getPoints()
+               .addAll(MeshPoints);
+        newMesh.getTexCoords()
+               .addAll(texCoords);
+        int[] facesAndTexCoords = new int[faces.length * 2];
+        int i = 0;
+        for (int j = 0; j < faces.length; j++) {
+            facesAndTexCoords[i] = faces[j];
+            facesAndTexCoords[i++] = texIndices[j];
+        }
+        newMesh.getFaces()
+               .addAll(facesAndTexCoords);
+        return newMesh;
+    }
+
+    public TriangleMesh constructRegularTexturedMesh() {
+        int[] indices = new int[faces.length];
+        Arrays.fill(indices, 1);
+        float[] texCoords = new float[2];
+        Arrays.fill(texCoords, 0.5f);
+        return constructMesh(indices, MeshPoints);
     }
 }

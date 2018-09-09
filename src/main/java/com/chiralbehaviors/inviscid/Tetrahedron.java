@@ -1,3 +1,4 @@
+
 /**
  * Copyright (c) 2016 Chiral Behaviors, LLC, all rights reserved.
  *
@@ -13,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.chiralbehaviors.inviscid;
 
 /**

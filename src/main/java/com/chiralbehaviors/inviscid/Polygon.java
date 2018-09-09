@@ -20,7 +20,7 @@ package com.chiralbehaviors.inviscid;
  * @author halhildebrand
  *
  */
-public class Polygon {
+abstract public class Polygon {
     protected final int[] vertices;
     protected final int[] edges;
     protected final int[] triangles;
