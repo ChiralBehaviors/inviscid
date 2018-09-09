@@ -22,7 +22,7 @@ package com.chiralbehaviors.inviscid;
  */
 public class Icosahedron extends Polyhedron {
 
-    public Icosahedron(int[] vertices, int[] edges, int[] faces) {
+    protected Icosahedron(int[] vertices, int[] edges, int[] faces) {
         super(vertices, edges, faces);
     }
 

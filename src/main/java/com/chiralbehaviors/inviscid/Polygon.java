@@ -25,7 +25,7 @@ public class Polygon {
     protected final int[] edges;
     protected final int[] triangles;
 
-    public Polygon(int[] vertices, int[] edges, int[] triangles) {
+    protected Polygon(int[] vertices, int[] edges, int[] triangles) {
         this.vertices = vertices;
         this.edges = edges;
         this.triangles = triangles;

@@ -22,7 +22,7 @@ package com.chiralbehaviors.inviscid;
  */
 public class Pentagon extends Polygon {
 
-    public Pentagon(int[] vertices, int[] edges, int[] triangles) {
+    protected Pentagon(int[] vertices, int[] edges, int[] triangles) {
         super(vertices, edges, triangles);
     }
 

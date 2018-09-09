@@ -24,7 +24,7 @@ public class Edge {
     @SuppressWarnings("unused")
     private final int[] endpoints;
 
-    public Edge(int[] endpoints) {
+    protected Edge(int[] endpoints) {
         this.endpoints = endpoints;
     }
 }

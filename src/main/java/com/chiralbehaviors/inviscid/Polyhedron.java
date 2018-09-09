@@ -25,7 +25,7 @@ public class Polyhedron {
     protected final int[] faces;
     protected final int[] vertices;
 
-    public Polyhedron(int[] vertices, int[] edges, int[] faces) {
+    protected Polyhedron(int[] vertices, int[] edges, int[] faces) {
         this.vertices = vertices;
         this.edges = edges;
         this.faces = faces;

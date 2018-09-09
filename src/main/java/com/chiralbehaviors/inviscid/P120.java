@@ -22,7 +22,7 @@ package com.chiralbehaviors.inviscid;
  */
 public class P120 extends Polyhedron {
 
-    public P120(int[] vertices, int[] edges, int[] faces) {
+    protected P120(int[] vertices, int[] edges, int[] faces) {
         super(vertices, edges, faces);
     }
 

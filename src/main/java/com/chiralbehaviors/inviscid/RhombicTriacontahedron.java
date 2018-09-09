@@ -22,7 +22,7 @@ package com.chiralbehaviors.inviscid;
  */
 public class RhombicTriacontahedron extends Polyhedron {
 
-    public RhombicTriacontahedron(int[] vertices, int[] edges, int[] faces) {
+    protected RhombicTriacontahedron(int[] vertices, int[] edges, int[] faces) {
         super(vertices, edges, faces);
     }
 

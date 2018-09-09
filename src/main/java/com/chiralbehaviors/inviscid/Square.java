@@ -22,7 +22,7 @@ package com.chiralbehaviors.inviscid;
  */
 public class Square extends Polygon {
 
-    public Square(int[] vertices, int[] edges, int[] triangles) {
+    protected Square(int[] vertices, int[] edges, int[] triangles) {
         super(vertices, edges, triangles);
     }
 }

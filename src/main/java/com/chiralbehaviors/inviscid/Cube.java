@@ -22,7 +22,7 @@ package com.chiralbehaviors.inviscid;
  */
 public class Cube extends Polyhedron {
 
-    public Cube(int[] vertices, int[] edges, int[] faces) {
+    protected Cube(int[] vertices, int[] edges, int[] faces) {
         super(vertices, edges, faces);
     }
 

@@ -22,7 +22,7 @@ package com.chiralbehaviors.inviscid;
  */
 public class Tetrahedron extends Polyhedron {
 
-    public Tetrahedron(int[] vertices, int[] edges, int[] faces) {
+    protected Tetrahedron(int[] vertices, int[] edges, int[] faces) {
         super(vertices, edges, faces);
     }
 }
