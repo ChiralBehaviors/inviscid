@@ -22,8 +22,8 @@ package com.chiralbehaviors.inviscid;
  */
 public class Cube extends Polyhedron {
 
-    public Cube(double[] vertices) {
-        super(vertices);
+    public Cube(int[] vertices, int[] edges, int[] faces) {
+        super(vertices, edges, faces);
     }
 
 }

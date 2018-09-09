@@ -20,14 +20,10 @@ package com.chiralbehaviors.inviscid;
  * @author halhildebrand
  *
  */
-public class Polyhedron {
-    protected final int[] edges;
-    protected final int[] faces;
-    protected final int[] vertices;
+public class RhombicTriacontahedron extends Polyhedron {
 
-    public Polyhedron(int[] vertices, int[] edges, int[] faces) {
-        this.vertices = vertices;
-        this.edges = edges;
-        this.faces = faces;
+    public RhombicTriacontahedron(int[] vertices, int[] edges, int[] faces) {
+        super(vertices, edges, faces);
     }
+
 }

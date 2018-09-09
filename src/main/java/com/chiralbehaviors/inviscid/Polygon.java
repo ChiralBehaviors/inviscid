@@ -20,14 +20,14 @@ package com.chiralbehaviors.inviscid;
  * @author halhildebrand
  *
  */
-public class Polyhedron {
-    protected final int[] edges;
-    protected final int[] faces;
+public class Polygon {
     protected final int[] vertices;
+    protected final int[] edges;
+    protected final int[] triangles;
 
-    public Polyhedron(int[] vertices, int[] edges, int[] faces) {
+    public Polygon(int[] vertices, int[] edges, int[] triangles) {
         this.vertices = vertices;
         this.edges = edges;
-        this.faces = faces;
+        this.triangles = triangles;
     }
 }

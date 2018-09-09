@@ -22,8 +22,8 @@ package com.chiralbehaviors.inviscid;
  */
 public class Octahedron extends Polyhedron {
  
-    public Octahedron(double[] vertices) {
-        super(vertices); 
+    public Octahedron(int[] vertices, int[] edges, int[] faces) {
+        super(vertices, edges, faces);
     }
 
 }

@@ -22,8 +22,8 @@ package com.chiralbehaviors.inviscid;
  */
 public class RegularDodecahedron extends Polyhedron {
 
-    public RegularDodecahedron(double[] vertices) {
-        super(vertices);
+    public RegularDodecahedron(int[] vertices, int[] edges, int[] faces) {
+        super(vertices, edges, faces);
     }
 
 }
