@@ -1,18 +1,17 @@
 /**
- * Copyright (C) 2018 Chiral Behaviors, LLC. All rights reserved.
+ * Copyright (c) 2016 Chiral Behaviors, LLC, all rights reserved.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.chiralbehaviors.inviscid;
@@ -170,99 +169,67 @@ public class PhiCoordinates {
                                                         { 11, 16, 47, 52 },
                                                         { 13, 18, 45, 50 } };
 
-    public static int[][][] TetrahedronEdgeMap      = { { { 4, 34 }, { 4, 38 },
-                                                          { 4, 47 }, { 34, 38 },
-                                                          { 34, 47 },
-                                                          { 38, 47 } },
-                                                        { { 18, 23 },
-                                                          { 18, 28 },
-                                                          { 18, 60 },
-                                                          { 23, 28 },
-                                                          { 23, 60 },
-                                                          { 28, 60 } },
-                                                        { { 4, 36 }, { 4, 41 },
-                                                          { 4, 45 }, { 36, 41 },
-                                                          { 36, 45 },
-                                                          { 41, 45 } },
-                                                        { { 16, 20 },
-                                                          { 16, 30 },
-                                                          { 16, 60 },
-                                                          { 20, 30 },
-                                                          { 20, 60 },
-                                                          { 30, 60 } },
-                                                        { { 8, 28 }, { 8, 41 },
-                                                          { 8, 52 }, { 28, 41 },
-                                                          { 28, 52 },
-                                                          { 41, 52 } },
-                                                        { { 13, 20 },
-                                                          { 13, 34 },
-                                                          { 13, 56 },
-                                                          { 20, 34 },
-                                                          { 20, 56 },
-                                                          { 34, 56 } },
-                                                        { { 8, 30 }, { 8, 38 },
-                                                          { 8, 50 }, { 30, 38 },
-                                                          { 30, 50 },
-                                                          { 38, 50 } },
-                                                        { { 11, 23 },
-                                                          { 11, 36 },
-                                                          { 11, 56 },
-                                                          { 23, 36 },
-                                                          { 23, 56 },
-                                                          { 36, 56 } },
-                                                        { { 11, 16 },
-                                                          { 11, 47 },
-                                                          { 11, 52 },
-                                                          { 16, 47 },
-                                                          { 16, 52 },
-                                                          { 47, 52 } },
-                                                        { { 13, 18 },
-                                                          { 13, 45 },
-                                                          { 13, 50 },
-                                                          { 18, 45 },
-                                                          { 18, 50 },
-                                                          { 45, 50 } } };
+    public static int[][]   TetrahedronEdgeMap      = { { 4, 34, 4, 38, 4, 47,
+                                                          34, 38, 34, 47, 38,
+                                                          47 },
+                                                        { 18, 23, 18, 28, 18,
+                                                          60, 23, 28, 23, 60,
+                                                          28, 60 },
+                                                        { 4, 36, 4, 41, 4, 45,
+                                                          36, 41, 36, 45, 41,
+                                                          45 },
+                                                        { 16, 20, 16, 30, 16,
+                                                          60, 20, 30, 20, 60,
+                                                          30, 60 },
+                                                        { 8, 28, 8, 41, 8, 52,
+                                                          28, 41, 28, 52, 41,
+                                                          52 },
+                                                        { 13, 20, 13, 34, 13,
+                                                          56, 20, 34, 20, 56,
+                                                          34, 56 },
+                                                        { 8, 30, 8, 38, 8, 50,
+                                                          30, 38, 30, 50, 38,
+                                                          50 },
+                                                        { 11, 23, 11, 36, 11,
+                                                          56, 23, 36, 23, 56,
+                                                          36, 56 },
+                                                        { 11, 16, 11, 47, 11,
+                                                          52, 16, 47, 16, 52,
+                                                          47, 52 },
+                                                        { 13, 18, 13, 45, 13,
+                                                          50, 18, 45, 18, 50,
+                                                          45, 50 } };
 
-    public static int[][][] TetrahedronFaceMap      = { { { 4, 34, 47 },
-                                                          { 4, 38, 34 },
-                                                          { 4, 47, 38 },
-                                                          { 34, 38, 47 } },
-                                                        { { 18, 23, 28 },
-                                                          { 18, 23, 60 },
-                                                          { 18, 28, 60 },
-                                                          { 23, 28, 60 } },
-                                                        { { 4, 41, 36 },
-                                                          { 4, 36, 45 },
-                                                          { 4, 45, 41 },
-                                                          { 36, 41, 45 } },
-                                                        { { 16, 20, 30 },
-                                                          { 16, 20, 60 },
-                                                          { 16, 30, 60 },
-                                                          { 20, 30, 60 } },
-                                                        { { 8, 28, 41 },
-                                                          { 8, 28, 52 },
-                                                          { 8, 41, 52 },
-                                                          { 28, 41, 52 } },
-                                                        { { 13, 20, 34 },
-                                                          { 13, 20, 56 },
-                                                          { 13, 34, 56 },
-                                                          { 20, 34, 56 } },
-                                                        { { 8, 30, 38 },
-                                                          { 8, 30, 50 },
-                                                          { 8, 38, 50 },
-                                                          { 30, 38, 50 } },
-                                                        { { 11, 23, 36 },
-                                                          { 11, 23, 56 },
-                                                          { 11, 36, 56 },
-                                                          { 23, 36, 56 } },
-                                                        { { 47, 16, 11 },
-                                                          { 52, 47, 11 },
-                                                          { 16, 52, 11 },
-                                                          { 47, 52, 16 } },
-                                                        { { 13, 18, 45 },
-                                                          { 13, 18, 50 },
-                                                          { 13, 45, 50 },
-                                                          { 18, 45, 50 } } };
+    public static int[][]   TetrahedronFaceMap      = { { 4, 34, 47, 4, 38, 34,
+                                                          4, 47, 38, 34, 38,
+                                                          47 },
+                                                        { 18, 23, 28, 18, 23,
+                                                          60, 18, 28, 60, 23,
+                                                          28, 60 },
+                                                        { 4, 41, 36, 4, 36, 45,
+                                                          4, 45, 41, 36, 41,
+                                                          45 },
+                                                        { 16, 20, 30, 16, 20,
+                                                          60, 16, 30, 60, 20,
+                                                          30, 60 },
+                                                        { 8, 28, 41, 8, 28, 52,
+                                                          8, 41, 52, 28, 41,
+                                                          52 },
+                                                        { 13, 20, 34, 13, 20,
+                                                          56, 13, 34, 56, 20,
+                                                          34, 56 },
+                                                        { 8, 30, 38, 8, 30, 50,
+                                                          8, 38, 50, 30, 38,
+                                                          50 },
+                                                        { 11, 23, 36, 11, 23,
+                                                          56, 11, 36, 56, 23,
+                                                          36, 56 },
+                                                        { 47, 16, 11, 52, 47,
+                                                          11, 16, 52, 11, 47,
+                                                          52, 16 },
+                                                        { 13, 18, 45, 13, 18,
+                                                          50, 13, 45, 50, 18,
+                                                          45, 50 } };
 
     // 5 different cubes
     public static int[][]   CubeVertices            = { { 4, 18, 23, 28, 34, 38,

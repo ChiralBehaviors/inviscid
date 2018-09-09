@@ -14,22 +14,17 @@
  * limitations under the License.
  */
 
-package com.chiralbehaviors.inviscid;
 
-import javafx.geometry.Point3D;
+package com.chiralbehaviors.inviscid;
 
 /**
  * @author halhildebrand
  *
  */
-public class Triangle {
-    public final Point3D a;
-    public final Point3D b;
-    public final Point3D c;
+public class Polyhedron {
+    protected final double[] vertices;
 
-    public Triangle(Point3D a, Point3D b, Point3D c) {
-        this.a = a;
-        this.b = b;
-        this.c = c;
+    public Polyhedron(double[] vertices) {
+        this.vertices = vertices;
     }
 }
