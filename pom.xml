@@ -1,0 +1,89 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.chiralbehaviors.inviscid</groupId>
+	<artifactId>inviscid</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>Inviscid</name>
+	<description>Cellular automata using jitterbugs</description>
+	<licenses>
+		<license>
+			<name>Apache License Version 2.0</name>
+			<url>http://www.apache.org/licenses/</url>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<name>Hal Hildebrand</name>
+			<email>hal.hildebrand@me.com</email>
+			<organization>Chiral Behaviors</organization>
+		</developer>
+	</developers>
+
+	<scm>
+		<connection>git://github.com/ChiralBehaviors/inviscid.git</connection>
+		<url>https://github.com/ChiralBehaviors/inviscid</url>
+	</scm>
+
+	<repositories>
+		<repository>
+			<id>chiralbehaviors-snapshots</id>
+			<url>http://repository-chiralbehaviors.forge.cloudbees.com/snapshot/</url>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>chiralbehaviors-release</id>
+			<url>http://repository-chiralbehaviors.forge.cloudbees.com/release/</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.chiralbehaviors.javafx</groupId>
+			<artifactId>3dviewer</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+	</dependencies>
+	
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.7.0</version>
+				<configuration>
+					<compilerArgs>
+						<arg>-XDstringConcat=inline</arg>
+					</compilerArgs>
+					<encoding>UTF-8</encoding>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>2.2.1</version>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<goals>
+							<goal>jar-no-fork</goal>
+							<goal>test-jar-no-fork</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<attach>true</attach>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>
