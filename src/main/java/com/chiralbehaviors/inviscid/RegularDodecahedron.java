@@ -20,7 +20,7 @@ package com.chiralbehaviors.inviscid;
  * @author halhildebrand
  *
  */
-public class RegularDodecahedron extends Polyhedron {
+public class RegularDodecahedron extends RegularPolyhedron<Pentagon> {
 
     protected RegularDodecahedron(int[] vertices, int[] edges, int[] faces) {
         super(vertices, edges, faces);

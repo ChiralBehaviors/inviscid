@@ -20,9 +20,10 @@ package com.chiralbehaviors.inviscid;
  * @author halhildebrand
  *
  */
-public class Cube extends RegularPolyhedron<Square> {
+abstract public class RegularPolyhedron<Face extends Polygon>
+        extends Polyhedron {
 
-    protected Cube(int[] vertices, int[] edges, int[] faces) {
+    protected RegularPolyhedron(int[] vertices, int[] edges, int[] faces) {
         super(vertices, edges, faces);
     }
 

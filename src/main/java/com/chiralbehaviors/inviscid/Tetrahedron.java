@@ -20,7 +20,7 @@ package com.chiralbehaviors.inviscid;
  * @author halhildebrand
  *
  */
-public class Tetrahedron extends Polyhedron {
+public class Tetrahedron extends RegularPolyhedron<Triangle> {
 
     protected Tetrahedron(int[] vertices, int[] edges, int[] faces) {
         super(vertices, edges, faces);

@@ -20,7 +20,7 @@ package com.chiralbehaviors.inviscid;
  * @author halhildebrand
  *
  */
-public class Icosahedron extends Polyhedron {
+public class Icosahedron extends RegularPolyhedron<Triangle> {
 
     protected Icosahedron(int[] vertices, int[] edges, int[] faces) {
         super(vertices, edges, faces);

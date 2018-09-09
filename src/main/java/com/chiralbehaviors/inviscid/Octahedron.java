@@ -20,8 +20,8 @@ package com.chiralbehaviors.inviscid;
  * @author halhildebrand
  *
  */
-public class Octahedron extends Polyhedron {
- 
+public class Octahedron extends RegularPolyhedron<Triangle> {
+
     protected Octahedron(int[] vertices, int[] edges, int[] faces) {
         super(vertices, edges, faces);
     }
