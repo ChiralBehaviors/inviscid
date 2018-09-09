@@ -16,13 +16,36 @@
  */
 package com.chiralbehaviors.inviscid;
 
+import static com.chiralbehaviors.inviscid.PhiCoordinates.*;
+
 /**
  * @author halhildebrand
  *
  */
 public class Tetrahedron extends RegularPolyhedron<Triangle> {
 
-    protected Tetrahedron(int[] vertices, int[] edges, int[] faces) {
-        super(vertices, edges, faces);
+    protected Tetrahedron(int index, int[] vertices, int[] edges, int[] faces) {
+        super(index, vertices, edges, faces);
+    }
+
+    @Override
+    protected Triangle[] constructFaces(int index) {
+        Triangle[] faces = new Triangle[4];
+        for (int i = 0; i < 4; i++) {
+            faces[i] = newFace(index, i);
+        }
+        return faces;
+    }
+
+    private static Triangle newFace(int tet, int index) {
+        int[] vertices = new int[3];
+        for (int i = index * 3; i < (index + 1) * 3; i++) {
+            vertices[i] = TetrahedronVertices[tet][i];
+        }
+        int[] edges = new int[6];
+        for (int i = 0; i < 3; i++) {
+            edges[i] = new int[] {};
+        }
+        return new Triangle(vertices, edges, TetrahedronFaceMap[index]);
     }
 }

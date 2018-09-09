@@ -16,32 +16,18 @@
 
 package com.chiralbehaviors.inviscid;
 
+import org.junit.Test;
+
 /**
  * @author halhildebrand
  *
  */
-abstract public class Polygon {
-    protected final Edge[] edges;
-    protected final int[]  triangles;
-    protected final int[]  vertices;
+public class PhiCoordinatesTest {
 
-    protected Polygon(int[] vertices, int[] edges, int[] triangles) {
-        this.vertices = vertices;
-        this.triangles = triangles;
-        this.edges = constructEdges(edges);
+    @Test
+    public void testStaticInitialization() {
+        @SuppressWarnings("unused")
+        Tetrahedron prime = PhiCoordinates.Tetrahedrons[0];
     }
 
-    public Edge[] getEdges() {
-        return edges;
-    }
-
-    private Edge[] constructEdges(int[] edges) {
-        Edge[] e = new Edge[edges.length / 2];
-        int j = 0;
-        for (int i = 0; i < edges.length; i++) {
-            e[j] = new Edge(new int[] { edges[1], edges[i++] });
-            j++;
-        }
-        return e;
-    }
 }

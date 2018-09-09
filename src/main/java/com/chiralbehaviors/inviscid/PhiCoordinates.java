@@ -28,86 +28,86 @@ import javafx.geometry.Point3D;
  *         (http://www.rwgrayprojects.com/Lynn/NCH/coordinates.html)
  *
  */
-public class PhiCoordinates {
-    public static double        p     = (1.0 + Math.sqrt(5.0)) / 2.0;
-    public static double        p2    = p * p;
-    public static double        p3    = p * p * p;
+public final class PhiCoordinates {
+    protected static double        p     = (1.0 + Math.sqrt(5.0)) / 2.0;
+    protected static double        p2    = p * p;
+    protected static double        p3    = p * p * p;
 
-    public static Point3D[]     p120v = { new Point3D(0.0, 0.0, 0.0),                       // 00 center of volume
+    protected static Point3D[]     p120v = { new Point3D(0.0, 0.0, 0.0),                       // 00 center of volume
 
-                                          new Point3D(0.0, 0.0, 2.0 * p2),                  // 01
+                                             new Point3D(0.0, 0.0, 2.0 * p2),                  // 01
 
-                                          new Point3D(p2, 0.0, p3),                         // 02
-                                          new Point3D(p, p2, p3),                           // 03
-                                          new Point3D(0.0, p, p3),                          // 04
-                                          new Point3D(-p, p2, p3),                          // 05
-                                          new Point3D(-p2, 0.0, p3),                        // 06
-                                          new Point3D(-p, -p2, p3),                         // 07
-                                          new Point3D(0.0, -p, p3),                         // 08
-                                          new Point3D(p, -p2, p3),                          // 09
+                                             new Point3D(p2, 0.0, p3),                         // 02
+                                             new Point3D(p, p2, p3),                           // 03
+                                             new Point3D(0.0, p, p3),                          // 04
+                                             new Point3D(-p, p2, p3),                          // 05
+                                             new Point3D(-p2, 0.0, p3),                        // 06
+                                             new Point3D(-p, -p2, p3),                         // 07
+                                             new Point3D(0.0, -p, p3),                         // 08
+                                             new Point3D(p, -p2, p3),                          // 09
 
-                                          new Point3D(p3, p, p2),                           // 10
-                                          new Point3D(p2, p2, p2),                          // 11
-                                          new Point3D(0.0, p3, p2),                         // 12
-                                          new Point3D(-p2, p2, p2),                         // 13
-                                          new Point3D(-p3, p, p2),                          // 14
-                                          new Point3D(-p3, -p, p2),                         // 15
-                                          new Point3D(-p2, -p2, p2),                        // 16
-                                          new Point3D(0.0, -p3, p2),                        // 17
-                                          new Point3D(p2, -p2, p2),                         // 18
-                                          new Point3D(p3, -p, p2),                          // 19
+                                             new Point3D(p3, p, p2),                           // 10
+                                             new Point3D(p2, p2, p2),                          // 11
+                                             new Point3D(0.0, p3, p2),                         // 12
+                                             new Point3D(-p2, p2, p2),                         // 13
+                                             new Point3D(-p3, p, p2),                          // 14
+                                             new Point3D(-p3, -p, p2),                         // 15
+                                             new Point3D(-p2, -p2, p2),                        // 16
+                                             new Point3D(0.0, -p3, p2),                        // 17
+                                             new Point3D(p2, -p2, p2),                         // 18
+                                             new Point3D(p3, -p, p2),                          // 19
 
-                                          new Point3D(p3, 0.0, p),                          // 20
-                                          new Point3D(p2, p3, p),                           // 21
-                                          new Point3D(-p2, p3, p),                          // 22
-                                          new Point3D(-p3, 0.0, p),                         // 23
-                                          new Point3D(-p2, -p3, p),                         // 24
-                                          new Point3D(p2, -p3, p),                          // 25
+                                             new Point3D(p3, 0.0, p),                          // 20
+                                             new Point3D(p2, p3, p),                           // 21
+                                             new Point3D(-p2, p3, p),                          // 22
+                                             new Point3D(-p3, 0.0, p),                         // 23
+                                             new Point3D(-p2, -p3, p),                         // 24
+                                             new Point3D(p2, -p3, p),                          // 25
 
-                                          new Point3D(2.0 * p2, 0.0, 0.0),                  // 26
-                                          new Point3D(p3, p2, 0.0),                         // 27
-                                          new Point3D(p, p3, 0.0),                          // 28
-                                          new Point3D(0.0, 2.0 * p2, 0.0),                  // 29
-                                          new Point3D(-p, p3, 0.0),                         // 30
-                                          new Point3D(-p3, p2, 0.0),                        // 31
-                                          new Point3D(-2.0 * p2, 0.0, 0.0),                 // 32
-                                          new Point3D(-p3, -p2, 0.0),                       // 33
-                                          new Point3D(-p, -p3, 0.0),                        // 34
-                                          new Point3D(0.0, -2.0 * p2, 0.0),                 // 35
-                                          new Point3D(p, -p3, 0.0),                         // 36
-                                          new Point3D(p3, -p2, 0.0),                        // 37
+                                             new Point3D(2.0 * p2, 0.0, 0.0),                  // 26
+                                             new Point3D(p3, p2, 0.0),                         // 27
+                                             new Point3D(p, p3, 0.0),                          // 28
+                                             new Point3D(0.0, 2.0 * p2, 0.0),                  // 29
+                                             new Point3D(-p, p3, 0.0),                         // 30
+                                             new Point3D(-p3, p2, 0.0),                        // 31
+                                             new Point3D(-2.0 * p2, 0.0, 0.0),                 // 32
+                                             new Point3D(-p3, -p2, 0.0),                       // 33
+                                             new Point3D(-p, -p3, 0.0),                        // 34
+                                             new Point3D(0.0, -2.0 * p2, 0.0),                 // 35
+                                             new Point3D(p, -p3, 0.0),                         // 36
+                                             new Point3D(p3, -p2, 0.0),                        // 37
 
-                                          new Point3D(p3, 0.0, -p),                         // 38
-                                          new Point3D(p2, p3, -p),                          // 39
-                                          new Point3D(-p2, p3, -p),                         // 40
-                                          new Point3D(-p3, 0.0, -p),                        // 41
-                                          new Point3D(-p2, -p3, -p),                        // 42
-                                          new Point3D(p2, -p3, -p),                         // 43
+                                             new Point3D(p3, 0.0, -p),                         // 38
+                                             new Point3D(p2, p3, -p),                          // 39
+                                             new Point3D(-p2, p3, -p),                         // 40
+                                             new Point3D(-p3, 0.0, -p),                        // 41
+                                             new Point3D(-p2, -p3, -p),                        // 42
+                                             new Point3D(p2, -p3, -p),                         // 43
 
-                                          new Point3D(p3, p, -p2),                          // 44
-                                          new Point3D(p2, p2, -p2),                         // 45
-                                          new Point3D(0.0, p3, -p2),                        // 46
-                                          new Point3D(-p2, p2, -p2),                        // 47
-                                          new Point3D(-p3, p, -p2),                         // 48
-                                          new Point3D(-p3, -p, -p2),                        // 49
-                                          new Point3D(-p2, -p2, -p2),                       // 50
-                                          new Point3D(0.0, -p3, -p2),                       // 51
-                                          new Point3D(p2, -p2, -p2),                        // 52
-                                          new Point3D(p3, -p, -p2),                         // 53
+                                             new Point3D(p3, p, -p2),                          // 44
+                                             new Point3D(p2, p2, -p2),                         // 45
+                                             new Point3D(0.0, p3, -p2),                        // 46
+                                             new Point3D(-p2, p2, -p2),                        // 47
+                                             new Point3D(-p3, p, -p2),                         // 48
+                                             new Point3D(-p3, -p, -p2),                        // 49
+                                             new Point3D(-p2, -p2, -p2),                       // 50
+                                             new Point3D(0.0, -p3, -p2),                       // 51
+                                             new Point3D(p2, -p2, -p2),                        // 52
+                                             new Point3D(p3, -p, -p2),                         // 53
 
-                                          new Point3D(p2, 0.0, -p3),                        // 54
-                                          new Point3D(p, p2, -p3),                          // 55
-                                          new Point3D(0.0, p, -p3),                         // 56
-                                          new Point3D(-p, p2, -p3),                         // 57
-                                          new Point3D(-p2, 0.0, -p3),                       // 58
-                                          new Point3D(-p, -p2, -p3),                        // 59
-                                          new Point3D(0.0, -p, -p3),                        // 60
-                                          new Point3D(p, -p2, -p3),                         // 61
+                                             new Point3D(p2, 0.0, -p3),                        // 54
+                                             new Point3D(p, p2, -p3),                          // 55
+                                             new Point3D(0.0, p, -p3),                         // 56
+                                             new Point3D(-p, p2, -p3),                         // 57
+                                             new Point3D(-p2, 0.0, -p3),                       // 58
+                                             new Point3D(-p, -p2, -p3),                        // 59
+                                             new Point3D(0.0, -p, -p3),                        // 60
+                                             new Point3D(p, -p2, -p3),                         // 61
 
-                                          new Point3D(0.0, 0.0, -2.0 * p2)                  // 62
+                                             new Point3D(0.0, 0.0, -2.0 * p2)                  // 62
     };
 
-    public static final float[] MeshPoints;
+    protected static final float[] MeshPoints;
 
     static {
         MeshPoints = new float[p120v.length * 3];
@@ -121,7 +121,7 @@ public class PhiCoordinates {
     }
 
     // 10 different tetrahedra
-    public static int[][]             TetrahedronVertices     = { { 4, 34, 38,
+    protected static int[][]          TetrahedronVertices     = { { 4, 34, 38,
                                                                     47 },
                                                                   { 18, 23, 28,
                                                                     60 },
@@ -142,7 +142,7 @@ public class PhiCoordinates {
                                                                   { 13, 18, 45,
                                                                     50 } };
 
-    public static int[][]             TetrahedronEdgeMap      = { { 4, 34, 4,
+    protected static int[][]          TetrahedronEdgeMap      = { { 4, 34, 4,
                                                                     38, 4, 47,
                                                                     34, 38, 34,
                                                                     47, 38,
@@ -193,7 +193,7 @@ public class PhiCoordinates {
                                                                     50, 45,
                                                                     50 } };
 
-    public static int[][]             TetrahedronFaceMap      = { { 4, 34, 47,
+    protected static int[][]          TetrahedronFaceMap      = { { 4, 34, 47,
                                                                     4, 38, 34,
                                                                     4, 47, 38,
                                                                     34, 38,
@@ -245,7 +245,7 @@ public class PhiCoordinates {
                                                                     50 } };
 
     // 5 different cubes
-    public static int[][]             CubeVertices            = { { 4, 18, 23,
+    protected static int[][]          CubeVertices            = { { 4, 18, 23,
                                                                     28, 34, 38,
                                                                     47, 60 },
                                                                   { 4, 16, 20,
@@ -261,7 +261,7 @@ public class PhiCoordinates {
                                                                     18, 45, 47,
                                                                     50, 52 } };
 
-    public static int[][]             CubeEdgeMap             = { { 4, 18, 18,
+    protected static int[][]          CubeEdgeMap             = { { 4, 18, 18,
                                                                     38, 38, 28,
                                                                     28, 4, 4,
                                                                     23, 18, 34,
@@ -307,7 +307,7 @@ public class PhiCoordinates {
                                                                     52, 52,
                                                                     45 } };
 
-    public static int[][]             CubeFaceMap             = { { 4, 18, 38,
+    protected static int[][]          CubeFaceMap             = { { 4, 18, 38,
                                                                     38, 28, 4,
                                                                     4, 23, 18,
                                                                     18, 23, 34,
@@ -374,7 +374,7 @@ public class PhiCoordinates {
                                                                     50 } };
 
     // 5 differnet octahedra
-    public static int[][]             OctahedronVertices      = { { 7, 10, 22,
+    protected static int[][]          OctahedronVertices      = { { 7, 10, 22,
                                                                     43, 49,
                                                                     55 },
                                                                   { 9, 14, 21,
@@ -390,7 +390,7 @@ public class PhiCoordinates {
                                                                     32, 35,
                                                                     62 } };
 
-    public static int[][]             OctahedronEdgeMap       = { { 7, 10, 7,
+    protected static int[][]          OctahedronEdgeMap       = { { 7, 10, 7,
                                                                     22, 7, 43,
                                                                     7, 49, 10,
                                                                     22, 10, 43,
@@ -437,7 +437,7 @@ public class PhiCoordinates {
 
     };
 
-    public static int[][]             OctahedronFaceMap       = { { 7, 10, 43,
+    protected static int[][]          OctahedronFaceMap       = { { 7, 10, 43,
                                                                     7, 22, 10,
                                                                     7, 43, 49,
                                                                     7, 49, 22,
@@ -485,14 +485,14 @@ public class PhiCoordinates {
     };
 
     // 1 regular dodecahedron
-    public static int[]               RegDodecahedronVertices = { 4, 8, 11, 13,
+    protected static int[]            RegDodecahedronVertices = { 4, 8, 11, 13,
                                                                   16, 18, 20,
                                                                   23, 28, 30,
                                                                   34, 36, 38,
                                                                   41, 45, 47,
                                                                   50, 52, 56,
                                                                   60 };
-    public static int[]               RegDodecahedronEdgeMap  = { 4, 8, 4, 11,
+    protected static int[]            RegDodecahedronEdgeMap  = { 4, 8, 4, 11,
                                                                   4, 13, 8, 16,
                                                                   8, 18, 11, 20,
                                                                   11, 28, 13,
@@ -511,7 +511,7 @@ public class PhiCoordinates {
                                                                   56, 47, 56,
                                                                   50, 60, 52,
                                                                   60, 56, 60 };
-    public static int[]               RegDodecahedronFaceMap  = { 4, 8, 11, 11,
+    protected static int[]            RegDodecahedronFaceMap  = { 4, 8, 11, 11,
                                                                   8, 18, 11, 18,
                                                                   20, 4, 13, 23,
                                                                   4, 23, 8, 8,
@@ -547,7 +547,7 @@ public class PhiCoordinates {
                                                                   50 };
 
     // 5 rhombic dodecahedra
-    public static int[][]             RhDodecahedronVertices  = { { 4, 7, 10,
+    protected static int[][]          RhDodecahedronVertices  = { { 4, 7, 10,
                                                                     18, 22, 23,
                                                                     28, 34, 38,
                                                                     43, 47, 49,
@@ -572,7 +572,7 @@ public class PhiCoordinates {
                                                                     29, 32, 35,
                                                                     45, 47, 50,
                                                                     52, 62 } };
-    public static int[][]             RhDodecahedronEdgeMap   = { { 7, 4, 7, 18,
+    protected static int[][]          RhDodecahedronEdgeMap   = { { 7, 4, 7, 18,
                                                                     7, 23, 7,
                                                                     34, 10, 4,
                                                                     10, 18, 10,
@@ -653,7 +653,7 @@ public class PhiCoordinates {
                                                                     62, 47, 62,
                                                                     50, 62,
                                                                     52 } };
-    public static int[][]             RhDodecahedronFaceMap   = { { 7, 4, 18,
+    protected static int[][]          RhDodecahedronFaceMap   = { { 7, 4, 18,
                                                                     10, 4, 18,
                                                                     7, 18, 34,
                                                                     43, 18, 34,
@@ -784,12 +784,12 @@ public class PhiCoordinates {
                                                                     62 } };
 
     // 1 icosahedron
-    public static int[]               IcosaVertices           = { 2, 6, 12, 17,
+    protected static int[]            IcosaVertices           = { 2, 6, 12, 17,
                                                                   27, 31, 33,
                                                                   37, 46, 51,
                                                                   54, 58 };
 
-    public static int[]               IcosaEdgeMap            = { 2, 6, 2, 12,
+    protected static int[]            IcosaEdgeMap            = { 2, 6, 2, 12,
                                                                   2, 17, 2, 37,
                                                                   2, 27, 6, 12,
                                                                   6, 17, 6, 31,
@@ -809,7 +809,7 @@ public class PhiCoordinates {
                                                                   51, 58, 54,
                                                                   58 };
 
-    public static int[]               IcosaFaceMap            = { 2, 6, 17, 2,
+    protected static int[]            IcosaFaceMap            = { 2, 6, 17, 2,
                                                                   12, 6, 2, 17,
                                                                   37, 2, 37, 27,
                                                                   2, 27, 12, 37,
@@ -829,7 +829,7 @@ public class PhiCoordinates {
                                                                   58, 51, 33 };
 
     // 1 rhombic triacontahedron
-    public static int[]               RhTriaVertices          = { 2, 4, 6, 8,
+    protected static int[]            RhTriaVertices          = { 2, 4, 6, 8,
                                                                   11, 12, 13,
                                                                   16, 17, 18,
                                                                   20, 23, 27,
@@ -841,7 +841,7 @@ public class PhiCoordinates {
                                                                   54, 56, 58,
                                                                   60 };
 
-    public static int[]               RhTriaEdgeMap           = { 2, 4, 4, 6, 6,
+    protected static int[]            RhTriaEdgeMap           = { 2, 4, 4, 6, 6,
                                                                   8, 8, 2, 2,
                                                                   11, 11, 12, 4,
                                                                   12, 12, 13,
@@ -880,7 +880,7 @@ public class PhiCoordinates {
                                                                   36, 37, 33,
                                                                   34 };
 
-    public static int[]               RhTriaFaceMap           = { 2, 4, 6, 6, 8,
+    protected static int[]            RhTriaFaceMap           = { 2, 4, 6, 6, 8,
                                                                   2, 2, 11, 4,
                                                                   4, 11, 12, 4,
                                                                   12, 13, 4, 13,
@@ -938,7 +938,7 @@ public class PhiCoordinates {
                                                                   34 };
 
     // 1 120 Polyhedron 
-    public static int[]               P120Vertices            = { 1, 2, 3, 4, 5,
+    protected static int[]            P120Vertices            = { 1, 2, 3, 4, 5,
                                                                   6, 7, 8, 9,
                                                                   10, 11, 12,
                                                                   13, 14, 15,
@@ -959,7 +959,7 @@ public class PhiCoordinates {
                                                                   58, 59, 60,
                                                                   61, 62 };
 
-    public static int[]               P120EdgeMap             = { 1, 2, 1, 4, 1,
+    protected static int[]            P120EdgeMap             = { 1, 2, 1, 4, 1,
                                                                   6, 1, 8, 2, 3,
                                                                   2, 4, 2, 8, 2,
                                                                   9, 2, 10, 2,
@@ -1074,7 +1074,7 @@ public class PhiCoordinates {
                                                                   60, 61, 60,
                                                                   62, };
 
-    public static int[]               P120FaceMap             = { 1, 2, 4, 2, 3,
+    protected static int[]            P120FaceMap             = { 1, 2, 4, 2, 3,
                                                                   4, 2, 20, 10,
                                                                   2, 10, 11, 2,
                                                                   11, 3, 3, 11,
@@ -1191,7 +1191,7 @@ public class PhiCoordinates {
 
     static {
         for (int i = 0; i < TetrahedronVertices.length; i++) {
-            Tetrahedrons[i] = new Tetrahedron(TetrahedronVertices[i],
+            Tetrahedrons[i] = new Tetrahedron(i, TetrahedronVertices[i],
                                               TetrahedronEdgeMap[i],
                                               TetrahedronFaceMap[i]);
         }
@@ -1201,7 +1201,7 @@ public class PhiCoordinates {
 
     static {
         for (int i = 0; i < OctahedronVertices.length; i++) {
-            Octahedrons[i] = new Octahedron(OctahedronVertices[i],
+            Octahedrons[i] = new Octahedron(i, OctahedronVertices[i],
                                             OctahedronEdgeMap[i],
                                             OctahedronFaceMap[i]);
         }
@@ -1211,12 +1211,13 @@ public class PhiCoordinates {
 
     static {
         for (int i = 0; i < CubeVertices.length; i++) {
-            Cubes[i] = new Cube(CubeVertices[i], CubeEdgeMap[i],
+            Cubes[i] = new Cube(i, CubeVertices[i], CubeEdgeMap[i],
                                 CubeFaceMap[i]);
         }
     }
 
-    public final static Icosahedron           Icosahedron          = new Icosahedron(IcosaVertices,
+    public final static Icosahedron           Icosahedron          = new Icosahedron(0,
+                                                                                     IcosaVertices,
                                                                                      IcosaEdgeMap,
                                                                                      IcosaFaceMap);
 
@@ -1224,17 +1225,21 @@ public class PhiCoordinates {
 
     static {
         for (int i = 0; i < RhDodecahedronVertices.length; i++) {
-            RhombicDodecahedrons[i] = new RhombicDodecahedron(RhDodecahedronVertices[i],
+            RhombicDodecahedrons[i] = new RhombicDodecahedron(i,
+                                                              RhDodecahedronVertices[i],
                                                               RhDodecahedronEdgeMap[i],
                                                               RhDodecahedronFaceMap[i]);
         }
     }
 
-    public final static RhombicTriacontahedron RhombicTriacontahedron = new RhombicTriacontahedron(IcosaVertices,
-                                                                                                   IcosaEdgeMap,
-                                                                                                   IcosaFaceMap);
+    public final static RhombicTriacontahedron RhombicTriacontahedron = new RhombicTriacontahedron(RhTriaVertices,
+                                                                                                   RhTriaEdgeMap,
+                                                                                                   RhTriaFaceMap);
 
     public final static P120                   P120                   = new P120(P120Vertices,
                                                                                  P120EdgeMap,
                                                                                  P120FaceMap);
+
+    private PhiCoordinates() {
+    }
 }

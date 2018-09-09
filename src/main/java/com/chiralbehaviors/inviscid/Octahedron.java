@@ -22,8 +22,14 @@ package com.chiralbehaviors.inviscid;
  */
 public class Octahedron extends RegularPolyhedron<Triangle> {
 
-    protected Octahedron(int[] vertices, int[] edges, int[] faces) {
-        super(vertices, edges, faces);
+    protected Octahedron(int index, int[] vertices, int[] edges, int[] faces) {
+        super(index, vertices, edges, faces);
+    }
+
+    @Override
+    protected Triangle[] constructFaces(int index) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

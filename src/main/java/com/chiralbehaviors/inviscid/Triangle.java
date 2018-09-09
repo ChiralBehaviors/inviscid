@@ -24,5 +24,7 @@ public class Triangle extends Polygon {
 
     protected Triangle(int[] vertices, int[] edges, int[] triangles) {
         super(vertices, edges, triangles);
+        assert vertices.length == 3 && edges.length == 3
+               && triangles.length == 1;
     }
 }

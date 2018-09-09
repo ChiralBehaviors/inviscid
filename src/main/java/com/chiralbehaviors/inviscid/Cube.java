@@ -22,8 +22,14 @@ package com.chiralbehaviors.inviscid;
  */
 public class Cube extends RegularPolyhedron<Square> {
 
-    protected Cube(int[] vertices, int[] edges, int[] faces) {
-        super(vertices, edges, faces);
+    protected Cube(int index, int[] vertices, int[] edges, int[] faces) {
+        super(index, vertices, edges, faces);
+    }
+
+    @Override
+    protected Square[] constructFaces(int index) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

@@ -22,8 +22,14 @@ package com.chiralbehaviors.inviscid;
  */
 public class Icosahedron extends RegularPolyhedron<Triangle> {
 
-    protected Icosahedron(int[] vertices, int[] edges, int[] faces) {
-        super(vertices, edges, faces);
+    protected Icosahedron(int index, int[] vertices, int[] edges, int[] faces) {
+        super(index, vertices, edges, faces);
+    }
+
+    @Override
+    protected Triangle[] constructFaces(int index) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

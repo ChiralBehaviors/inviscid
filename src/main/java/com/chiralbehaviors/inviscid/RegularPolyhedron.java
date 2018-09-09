@@ -23,8 +23,17 @@ package com.chiralbehaviors.inviscid;
 abstract public class RegularPolyhedron<Face extends Polygon>
         extends Polyhedron {
 
-    protected RegularPolyhedron(int[] vertices, int[] edges, int[] faces) {
+    protected final Face[] facePolygons;
+
+    protected RegularPolyhedron(int index, int[] vertices, int[] edges,
+                                int[] faces) {
         super(vertices, edges, faces);
+        facePolygons = constructFaces(index);
     }
 
+    abstract protected Face[] constructFaces(int index);
+
+    public Face[] getFaces() {
+        return facePolygons;
+    }
 }

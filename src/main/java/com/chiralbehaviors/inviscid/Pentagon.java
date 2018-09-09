@@ -25,5 +25,5 @@ public class Pentagon extends Polygon {
     protected Pentagon(int[] vertices, int[] edges, int[] triangles) {
         super(vertices, edges, triangles);
     }
-
+    
 }

@@ -22,8 +22,14 @@ package com.chiralbehaviors.inviscid;
  */
 public class RhombicDodecahedron extends RegularPolyhedron<Pentagon> {
 
-    protected RhombicDodecahedron(int[] vertices, int[] edges, int[] faces) {
-        super(vertices, edges, faces);
+    protected RhombicDodecahedron(int index, int[] vertices, int[] edges, int[] faces) {
+        super(index, vertices, edges, faces);
+    }
+
+    @Override
+    protected Pentagon[] constructFaces(int index) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }
