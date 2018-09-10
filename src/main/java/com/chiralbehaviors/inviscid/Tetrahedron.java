@@ -29,23 +29,20 @@ public class Tetrahedron extends RegularPolyhedron<Triangle> {
     }
 
     @Override
-    protected Triangle[] constructFaces(int index) {
+    protected Triangle[] constructFaces(int tet) {
         Triangle[] faces = new Triangle[4];
         for (int i = 0; i < 4; i++) {
-            faces[i] = newFace(index, i);
+            faces[i] = newFace(tet, i);
         }
         return faces;
     }
 
     private static Triangle newFace(int tet, int index) {
-        int[] vertices = new int[3];
-        for (int i = index * 3; i < (index + 1) * 3; i++) {
-            vertices[i] = TetrahedronVertices[tet][i];
-        }
-        int[] edges = new int[6];
+        int[] triangles = new int[3];
         for (int i = 0; i < 3; i++) {
-            edges[i] = new int[] {};
+            triangles[i] = TetrahedronFaceMap[index][i + (index * 3)];
         }
-        return new Triangle(vertices, edges, TetrahedronFaceMap[index]);
+
+        return new Triangle(triangles);
     }
 }

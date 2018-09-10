@@ -31,7 +31,16 @@ abstract public class RegularPolyhedron<Face extends Polygon>
         facePolygons = constructFaces(index);
     }
 
-    abstract protected Face[] constructFaces(int index);
+    protected RegularPolyhedron(int index, int[] vertices, int[] edges,
+                                int[] faces, Face[] facePolygons) {
+        super(vertices, edges, faces);
+        this.facePolygons = facePolygons;
+    }
+
+    protected Face[] constructFaces(int index) {
+        // TODO Auto-generated method stub
+        return null;
+    }
 
     public Face[] getFaces() {
         return facePolygons;
