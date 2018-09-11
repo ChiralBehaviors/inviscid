@@ -20,14 +20,23 @@ package com.chiralbehaviors.inviscid;
 import com.chiralbehaviors.jfx.viewer3d.ContentModel;
 import com.chiralbehaviors.jfx.viewer3d.Jfx3dViewerApp;
 
+import javafx.scene.shape.MeshView;
+import javafx.scene.shape.TriangleMesh;
+
 /**
  * @author halhildebrand
  *
  */
 public class TestHarness extends Jfx3dViewerApp {
+    public static void main(String[] args) {
+        launch(args);
+    }
 
     @Override
     protected ContentModel createContentModel() {
-        return super.createContentModel();
+        ContentModel content = super.createContentModel();
+        TriangleMesh mesh = PhiCoordinates.Tetrahedrons[0].constructRegularTexturedMesh();
+        content.setContent(new MeshView(mesh));
+        return content;
     }
 }

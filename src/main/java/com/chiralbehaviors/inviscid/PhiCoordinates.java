@@ -1224,12 +1224,12 @@ public final class PhiCoordinates {
     public final static RhombicDodecahedron[] RhombicDodecahedrons = new RhombicDodecahedron[RhDodecahedronVertices.length];
 
     static {
-        for (int i = 0; i < RhDodecahedronVertices.length; i++) {
-            RhombicDodecahedrons[i] = new RhombicDodecahedron(i,
-                                                              RhDodecahedronVertices[i],
-                                                              RhDodecahedronEdgeMap[i],
-                                                              RhDodecahedronFaceMap[i]);
-        }
+//        for (int i = 0; i < RhDodecahedronVertices.length; i++) {
+//            RhombicDodecahedrons[i] = new RhombicDodecahedron(i,
+//                                                              RhDodecahedronVertices[i],
+//                                                              RhDodecahedronEdgeMap[i],
+//                                                              RhDodecahedronFaceMap[i]);
+//        }
     }
 
     public final static RhombicTriacontahedron RhombicTriacontahedron = new RhombicTriacontahedron(RhTriaVertices,

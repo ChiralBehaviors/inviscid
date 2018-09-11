@@ -16,20 +16,40 @@
 
 package com.chiralbehaviors.inviscid;
 
+import static com.chiralbehaviors.inviscid.PhiCoordinates.RhDodecahedronFaceMap;
+import static com.chiralbehaviors.inviscid.PhiCoordinates.RhDodecahedronVertices;
+
 /**
  * @author halhildebrand
  *
  */
-public class RhombicDodecahedron extends RegularPolyhedron<Pentagon> {
+public class RhombicDodecahedron extends RegularPolyhedron<Quadrilateral> {
 
     protected RhombicDodecahedron(int index, int[] vertices, int[] edges, int[] faces) {
         super(index, vertices, edges, faces);
     }
 
     @Override
-    protected Pentagon[] constructFaces(int index) {
-        // TODO Auto-generated method stub
-        return null;
+    protected Quadrilateral[] constructFaces(int rh) {
+        Quadrilateral[] faces = new Quadrilateral[6];
+        for (int i = 0; i < 4; i++) {
+            faces[i] = newFace(rh, i);
+        }
+        return faces;
+    }
+
+    private static Quadrilateral newFace(int d, int index) {
+        int[] vertices = new int[4];
+        for (int i = 0; i < 4; i++) {
+            vertices[i] = RhDodecahedronVertices[d][i + (index * 5)];
+        }
+
+        int[] triangles = new int[6];
+        for (int i = 0; i < 6; i++) {
+            triangles[i] = RhDodecahedronFaceMap[index][i + (index * 6)];
+        }
+
+        return new Quadrilateral(vertices, triangles);
     }
 
 }

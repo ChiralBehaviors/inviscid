@@ -22,22 +22,22 @@ import static com.chiralbehaviors.inviscid.PhiCoordinates.*;
  * @author halhildebrand
  *
  */
-public class Cube extends RegularPolyhedron<Square> {
+public class Cube extends RegularPolyhedron<Quadrilateral> {
 
     protected Cube(int index, int[] vertices, int[] edges, int[] faces) {
         super(index, vertices, edges, faces);
     }
 
     @Override
-    protected Square[] constructFaces(int cube) {
-        Square[] faces = new Square[6];
+    protected Quadrilateral[] constructFaces(int cube) {
+        Quadrilateral[] faces = new Quadrilateral[6];
         for (int i = 0; i < 4; i++) {
             faces[i] = newFace(cube, i);
         }
         return faces;
     }
 
-    private static Square newFace(int cube, int index) {
+    private static Quadrilateral newFace(int cube, int index) {
         int[] vertices = new int[4];
         for (int i = 0; i < 4; i++) {
             vertices[i] = CubeEdgeMap[cube][i + (index * 4)];
@@ -48,7 +48,7 @@ public class Cube extends RegularPolyhedron<Square> {
             triangles[i] = CubeFaceMap[index][i + (index * 6)];
         }
 
-        return new Square(vertices, triangles);
+        return new Quadrilateral(vertices, triangles);
     }
 
 }
