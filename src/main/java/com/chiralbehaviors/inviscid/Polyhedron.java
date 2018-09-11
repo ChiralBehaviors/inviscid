@@ -18,8 +18,13 @@ package com.chiralbehaviors.inviscid;
 
 import static com.chiralbehaviors.inviscid.PhiCoordinates.*;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
+import javafx.geometry.Point3D;
+import javafx.scene.paint.Material;
+import javafx.scene.shape.Sphere;
 import javafx.scene.shape.TriangleMesh;
 
 /**
@@ -57,8 +62,23 @@ abstract public class Polyhedron {
     public TriangleMesh constructRegularTexturedMesh() {
         int[] indices = new int[faces.length];
         Arrays.fill(indices, 1);
-        float[] texCoords = new float[2];
+        float[] texCoords = new float[faces.length];
         Arrays.fill(texCoords, 0.5f);
-        return constructMesh(indices, MeshPoints);
+        return constructMesh(indices, texCoords);
+    }
+
+    public List<Sphere> getVertices(double radius, Material material) {
+        List<Sphere> spheres = new ArrayList<>();
+        for (int index : vertices) {
+            Sphere sphere = new Sphere();
+            sphere.setRadius(radius);
+            Point3D vertex = p120v[index];
+            sphere.setTranslateX(vertex.getX());
+            sphere.setTranslateY(vertex.getY());
+            sphere.setTranslateZ(vertex.getZ());
+            sphere.setMaterial(material);
+            spheres.add(sphere);
+        }
+        return spheres;
     }
 }

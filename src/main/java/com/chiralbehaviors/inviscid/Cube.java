@@ -31,7 +31,7 @@ public class Cube extends RegularPolyhedron<Quadrilateral> {
     @Override
     protected Quadrilateral[] constructFaces(int cube) {
         Quadrilateral[] faces = new Quadrilateral[6];
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 6; i++) {
             faces[i] = newFace(cube, i);
         }
         return faces;
@@ -39,16 +39,8 @@ public class Cube extends RegularPolyhedron<Quadrilateral> {
 
     private static Quadrilateral newFace(int cube, int index) {
         int[] vertices = new int[4];
-        for (int i = 0; i < 4; i++) {
-            vertices[i] = CubeEdgeMap[cube][i + (index * 4)];
-        }
-
-        int[] triangles = new int[6];
-        for (int i = 0; i < 6; i++) {
-            triangles[i] = CubeFaceMap[index][i + (index * 6)];
-        }
-
-        return new Quadrilateral(vertices, triangles);
+        Quadrilateral faces = new Quadrilateral(vertices, CubeFaceMap[cube]);
+        return faces;
     }
 
 }

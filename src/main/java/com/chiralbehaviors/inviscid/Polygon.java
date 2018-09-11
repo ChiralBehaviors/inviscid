@@ -16,6 +16,15 @@
 
 package com.chiralbehaviors.inviscid;
 
+import static com.chiralbehaviors.inviscid.PhiCoordinates.p120v;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javafx.geometry.Point3D;
+import javafx.scene.paint.Material;
+import javafx.scene.shape.Sphere;
+
 /**
  * @author halhildebrand
  *
@@ -33,6 +42,21 @@ abstract public class Polygon {
 
     public Edge[] getEdges() {
         return edges;
+    }
+
+    public List<Sphere> getVertices(double radius, Material material) {
+        List<Sphere> spheres = new ArrayList<>();
+        for (int index : vertices) {
+            Sphere sphere = new Sphere();
+            sphere.setRadius(radius);
+            Point3D vertex = p120v[index];
+            sphere.setTranslateX(vertex.getX());
+            sphere.setTranslateY(vertex.getY());
+            sphere.setTranslateZ(vertex.getZ());
+            sphere.setMaterial(material);
+            spheres.add(sphere);
+        }
+        return spheres;
     }
 
     private Edge[] constructEdges(int[] edges) {

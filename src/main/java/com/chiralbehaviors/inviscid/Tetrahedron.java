@@ -16,7 +16,7 @@
  */
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.PhiCoordinates.*;
+import java.util.Arrays;
 
 /**
  * @author halhildebrand
@@ -30,19 +30,12 @@ public class Tetrahedron extends RegularPolyhedron<Triangle> {
 
     @Override
     protected Triangle[] constructFaces(int tet) {
-        Triangle[] faces = new Triangle[4];
+        Triangle[] triangles = new Triangle[4];
         for (int i = 0; i < 4; i++) {
-            faces[i] = newFace(tet, i);
+            int offset = i * 3;
+            triangles[i] = new Triangle(Arrays.copyOfRange(faces, offset,
+                                                           offset + 3));
         }
-        return faces;
-    }
-
-    private static Triangle newFace(int tet, int index) {
-        int[] triangles = new int[3];
-        for (int i = 0; i < 3; i++) {
-            triangles[i] = TetrahedronFaceMap[index][i + (index * 3)];
-        }
-
-        return new Triangle(triangles);
+        return triangles;
     }
 }

@@ -17,17 +17,53 @@
 
 package com.chiralbehaviors.inviscid;
 
+import static javafx.scene.paint.Color.*;
+import static javafx.scene.paint.Color.RED;
+
 import com.chiralbehaviors.jfx.viewer3d.ContentModel;
 import com.chiralbehaviors.jfx.viewer3d.Jfx3dViewerApp;
 
-import javafx.scene.shape.MeshView;
-import javafx.scene.shape.TriangleMesh;
+import javafx.scene.Group;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.Sphere;
 
 /**
  * @author halhildebrand
  *
  */
 public class TestHarness extends Jfx3dViewerApp {
+    protected static final PhongMaterial   redMaterial;
+    protected static final PhongMaterial   blueMaterial;
+    protected static final PhongMaterial   greenMaterial;
+
+    protected static final PhongMaterial[] materials;
+
+    static {
+        redMaterial = new PhongMaterial();
+        redMaterial.setDiffuseColor(new Color(DARKRED.getRed(),
+                                              DARKRED.getGreen(),
+                                              DARKRED.getBlue(), 0.6));
+        redMaterial.setSpecularColor(new Color(RED.getRed(), RED.getGreen(),
+                                               RED.getBlue(), 0.6));
+
+        blueMaterial = new PhongMaterial();
+        blueMaterial.setDiffuseColor(new Color(DARKBLUE.getRed(),
+                                               DARKBLUE.getGreen(),
+                                               DARKBLUE.getBlue(), 0.6));
+        blueMaterial.setSpecularColor(new Color(BLUE.getRed(), BLUE.getGreen(),
+                                                BLUE.getBlue(), 0.6));
+        greenMaterial = new PhongMaterial();
+        greenMaterial.setDiffuseColor(new Color(DARKGREEN.getRed(),
+                                                DARKGREEN.getGreen(),
+                                                DARKGREEN.getBlue(), 0.6));
+        greenMaterial.setSpecularColor(new Color(GREEN.getRed(),
+                                                 GREEN.getGreen(),
+                                                 GREEN.getBlue(), 0.6));
+        materials = new PhongMaterial[] { greenMaterial, redMaterial,
+                                          blueMaterial };
+    }
+
     public static void main(String[] args) {
         launch(args);
     }
@@ -35,8 +71,19 @@ public class TestHarness extends Jfx3dViewerApp {
     @Override
     protected ContentModel createContentModel() {
         ContentModel content = super.createContentModel();
-        TriangleMesh mesh = PhiCoordinates.Tetrahedrons[0].constructRegularTexturedMesh();
-        content.setContent(new MeshView(mesh));
+        Group group = new Group();
+        for (Triangle t : PhiCoordinates.Tetrahedrons[0].getFaces()) {
+            for (Sphere s : t.getVertices(0.5, blueMaterial)) {
+                group.getChildren()
+                     .add(s);
+            }
+        }
+//        for (Sphere s : PhiCoordinates.Tetrahedrons[0].getVertices(0.5,
+//                                                                   redMaterial)) {
+//            group.getChildren()
+//                 .add(s);
+//        }
+        content.setContent(group);
         return content;
     }
 }
