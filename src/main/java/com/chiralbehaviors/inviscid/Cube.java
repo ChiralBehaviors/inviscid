@@ -16,6 +16,8 @@
 
 package com.chiralbehaviors.inviscid;
 
+import static com.chiralbehaviors.inviscid.PhiCoordinates.*;
+
 /**
  * @author halhildebrand
  *
@@ -27,9 +29,26 @@ public class Cube extends RegularPolyhedron<Square> {
     }
 
     @Override
-    protected Square[] constructFaces(int index) {
-        // TODO Auto-generated method stub
-        return null;
+    protected Square[] constructFaces(int cube) {
+        Square[] faces = new Square[6];
+        for (int i = 0; i < 4; i++) {
+            faces[i] = newFace(cube, i);
+        }
+        return faces;
+    }
+
+    private static Square newFace(int cube, int index) {
+        int[] vertices = new int[4];
+        for (int i = 0; i < 4; i++) {
+            vertices[i] = CubeEdgeMap[cube][i + (index * 4)];
+        }
+
+        int[] triangles = new int[6];
+        for (int i = 0; i < 6; i++) {
+            triangles[i] = CubeFaceMap[index][i + (index * 6)];
+        }
+
+        return new Square(vertices, triangles);
     }
 
 }

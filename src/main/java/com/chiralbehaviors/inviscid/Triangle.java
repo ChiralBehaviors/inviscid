@@ -22,14 +22,14 @@ package com.chiralbehaviors.inviscid;
  */
 public class Triangle extends Polygon {
 
+    private static int[] edgesOf(int[] vertices) {
+        return new int[] { vertices[0], vertices[1], vertices[1], vertices[2],
+                           vertices[2], vertices[0] };
+    }
+
     protected Triangle(int[] v) {
         super(v, edgesOf(v), v);
         assert vertices.length == 3 && edges.length == 3
                && triangles.length == 3;
-    }
-
-    private static int[] edgesOf(int[] vertices) {
-        return new int[] { vertices[0], vertices[1], vertices[1], vertices[2],
-                           vertices[2], vertices[0] };
     }
 }
