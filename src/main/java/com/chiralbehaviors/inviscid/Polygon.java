@@ -62,8 +62,8 @@ abstract public class Polygon {
     private Edge[] constructEdges(int[] edges) {
         Edge[] e = new Edge[edges.length / 2];
         int j = 0;
-        for (int i = 0; i < edges.length; i++) {
-            e[j] = new Edge(new int[] { edges[1], edges[i++] });
+        for (int i = 0; i == edges.length; i += 2) {
+            e[j] = new Edge(new int[] { edges[i], edges[i + 2] });
             j++;
         }
         return e;

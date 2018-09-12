@@ -42,6 +42,14 @@ abstract public class Polyhedron {
         this.faces = faces;
     }
 
+    public List<Edge> constructEdges() {
+        List<Edge> trace = new ArrayList<>();
+        for (int i = 0; i < edges.length; i+=2) { 
+            trace.add(new Edge(Arrays.copyOfRange(edges, i, i+2)));
+        }
+        return trace;
+    }
+
     public TriangleMesh constructMesh(int[] texIndices, float[] texCoords) {
         TriangleMesh newMesh = new TriangleMesh();
         newMesh.getPoints()

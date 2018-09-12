@@ -16,7 +16,7 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.PhiCoordinates.*;
+import java.util.Arrays;
 
 /**
  * @author halhildebrand
@@ -30,17 +30,15 @@ public class Cube extends RegularPolyhedron<Quadrilateral> {
 
     @Override
     protected Quadrilateral[] constructFaces(int cube) {
-        Quadrilateral[] faces = new Quadrilateral[6];
+        Quadrilateral[] squares = new Quadrilateral[6];
         for (int i = 0; i < 6; i++) {
-            faces[i] = newFace(cube, i);
+            int offset = i * 6;
+            int[] vertices = new int[4];
+            squares[i] = new Quadrilateral(vertices,
+                                           Arrays.copyOfRange(faces, offset,
+                                                              offset + 6));
         }
-        return faces;
-    }
-
-    private static Quadrilateral newFace(int cube, int index) {
-        int[] vertices = new int[4];
-        Quadrilateral faces = new Quadrilateral(vertices, CubeFaceMap[cube]);
-        return faces;
+        return squares;
     }
 
 }

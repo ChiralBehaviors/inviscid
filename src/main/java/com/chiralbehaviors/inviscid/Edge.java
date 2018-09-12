@@ -31,10 +31,11 @@ public class Edge {
     private final int[] endpoints;
 
     protected Edge(int[] endpoints) {
+        assert endpoints != null && endpoints.length == 2;
         this.endpoints = endpoints;
     }
 
-    public Cylinder createLine() {
+    public Cylinder createLine(double radius) {
         Point3D diff = p120v[endpoints[1]].subtract(p120v[endpoints[0]]);
 
         Point3D mid = p120v[endpoints[1]].midpoint(p120v[endpoints[0]]);
@@ -48,7 +49,7 @@ public class Edge {
         Rotate rotateAroundCenter = new Rotate(-Math.toDegrees(angle),
                                                axisOfRotation);
 
-        Cylinder line = new Cylinder(0.001, diff.magnitude());
+        Cylinder line = new Cylinder(radius, diff.magnitude());
 
         line.getTransforms()
             .addAll(moveToMidpoint, rotateAroundCenter);

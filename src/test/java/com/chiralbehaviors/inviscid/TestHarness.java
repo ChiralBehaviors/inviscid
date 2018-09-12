@@ -72,17 +72,17 @@ public class TestHarness extends Jfx3dViewerApp {
     protected ContentModel createContentModel() {
         ContentModel content = super.createContentModel();
         Group group = new Group();
-        for (Triangle t : PhiCoordinates.Tetrahedrons[0].getFaces()) {
-            for (Sphere s : t.getVertices(0.5, blueMaterial)) {
+        for (int i = 0 ; i < 5; i ++) {
+            Tetrahedron tetrahedron = PhiCoordinates.Tetrahedrons[i];
+            for (Sphere s : tetrahedron.getVertices(0.5, blueMaterial)) {
                 group.getChildren()
                      .add(s);
             }
+            for (Edge e : tetrahedron.constructEdges()) {
+                group.getChildren()
+                     .add(e.createLine(0.1));
+            }
         }
-//        for (Sphere s : PhiCoordinates.Tetrahedrons[0].getVertices(0.5,
-//                                                                   redMaterial)) {
-//            group.getChildren()
-//                 .add(s);
-//        }
         content.setContent(group);
         return content;
     }
