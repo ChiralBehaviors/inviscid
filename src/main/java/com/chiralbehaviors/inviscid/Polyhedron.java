@@ -50,6 +50,14 @@ abstract public class Polyhedron {
         return trace;
     }
 
+    public List<Triangle> constructFaceTriangles() {
+        List<Triangle> trace = new ArrayList<>();
+        for (int i = 0; i < faces.length; i+=3) { 
+            trace.add(new Triangle(Arrays.copyOfRange(faces, i, i+3)));
+        }
+        return trace;
+    }
+
     public TriangleMesh constructMesh(int[] texIndices, float[] texCoords) {
         TriangleMesh newMesh = new TriangleMesh();
         newMesh.getPoints()
@@ -60,7 +68,7 @@ abstract public class Polyhedron {
         int i = 0;
         for (int j = 0; j < faces.length; j++) {
             facesAndTexCoords[i] = faces[j];
-            facesAndTexCoords[i++] = texIndices[j];
+            facesAndTexCoords[++i] = texIndices[j];
         }
         newMesh.getFaces()
                .addAll(facesAndTexCoords);
@@ -70,7 +78,7 @@ abstract public class Polyhedron {
     public TriangleMesh constructRegularTexturedMesh() {
         int[] indices = new int[faces.length];
         Arrays.fill(indices, 1);
-        float[] texCoords = new float[faces.length];
+        float[] texCoords = new float[faces.length * 2];
         Arrays.fill(texCoords, 0.5f);
         return constructMesh(indices, texCoords);
     }

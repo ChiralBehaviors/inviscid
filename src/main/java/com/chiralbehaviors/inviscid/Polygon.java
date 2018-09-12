@@ -19,10 +19,10 @@ package com.chiralbehaviors.inviscid;
 import static com.chiralbehaviors.inviscid.PhiCoordinates.p120v;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javafx.geometry.Point3D;
-import javafx.scene.paint.Material;
 import javafx.scene.shape.Sphere;
 
 /**
@@ -38,13 +38,17 @@ abstract public class Polygon {
         this.vertices = vertices;
         this.triangles = triangles;
         this.edges = constructEdges(edges);
+        assert this.edges.length > 0;
+        for (Edge e : this.edges) {
+            assert e != null;
+        }
     }
 
     public Edge[] getEdges() {
         return edges;
     }
 
-    public List<Sphere> getVertices(double radius, Material material) {
+    public List<Sphere> getVertices(double radius) {
         List<Sphere> spheres = new ArrayList<>();
         for (int index : vertices) {
             Sphere sphere = new Sphere();
@@ -53,17 +57,16 @@ abstract public class Polygon {
             sphere.setTranslateX(vertex.getX());
             sphere.setTranslateY(vertex.getY());
             sphere.setTranslateZ(vertex.getZ());
-            sphere.setMaterial(material);
             spheres.add(sphere);
         }
         return spheres;
     }
 
-    private Edge[] constructEdges(int[] edges) {
+    private static Edge[] constructEdges(int[] edges) {
         Edge[] e = new Edge[edges.length / 2];
         int j = 0;
-        for (int i = 0; i == edges.length; i += 2) {
-            e[j] = new Edge(new int[] { edges[i], edges[i + 2] });
+        for (int i = 0; i < edges.length; i += 2) {
+            e[j] = new Edge(Arrays.copyOfRange(edges, i, i + 2));
             j++;
         }
         return e;

@@ -17,8 +17,15 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static javafx.scene.paint.Color.*;
+import static javafx.scene.paint.Color.BLUE;
+import static javafx.scene.paint.Color.DARKBLUE;
+import static javafx.scene.paint.Color.DARKGREEN;
+import static javafx.scene.paint.Color.DARKRED;
+import static javafx.scene.paint.Color.GREEN;
 import static javafx.scene.paint.Color.RED;
+import static javafx.scene.paint.Color.YELLOW;
+
+import java.util.List;
 
 import com.chiralbehaviors.jfx.viewer3d.ContentModel;
 import com.chiralbehaviors.jfx.viewer3d.Jfx3dViewerApp;
@@ -36,6 +43,7 @@ public class TestHarness extends Jfx3dViewerApp {
     protected static final PhongMaterial   redMaterial;
     protected static final PhongMaterial   blueMaterial;
     protected static final PhongMaterial   greenMaterial;
+    protected static final PhongMaterial   yellowMaterial;
 
     protected static final PhongMaterial[] materials;
 
@@ -60,8 +68,16 @@ public class TestHarness extends Jfx3dViewerApp {
         greenMaterial.setSpecularColor(new Color(GREEN.getRed(),
                                                  GREEN.getGreen(),
                                                  GREEN.getBlue(), 0.6));
-        materials = new PhongMaterial[] { greenMaterial, redMaterial,
-                                          blueMaterial };
+        yellowMaterial = new PhongMaterial();
+        yellowMaterial.setDiffuseColor(new Color(YELLOW.getRed(),
+                                                 YELLOW.getGreen(),
+                                                 YELLOW.getBlue(), 0.6));
+        yellowMaterial.setSpecularColor(new Color(YELLOW.getRed(),
+                                                  YELLOW.getGreen(),
+                                                  YELLOW.getBlue(), 0.6));
+
+        materials = new PhongMaterial[] { redMaterial, blueMaterial,
+                                          greenMaterial, yellowMaterial };
     }
 
     public static void main(String[] args) {
@@ -72,17 +88,21 @@ public class TestHarness extends Jfx3dViewerApp {
     protected ContentModel createContentModel() {
         ContentModel content = super.createContentModel();
         Group group = new Group();
-        for (int i = 0 ; i < 5; i ++) {
-            Tetrahedron tetrahedron = PhiCoordinates.Tetrahedrons[i];
-            for (Sphere s : tetrahedron.getVertices(0.5, blueMaterial)) {
-                group.getChildren()
-                     .add(s);
-            }
-            for (Edge e : tetrahedron.constructEdges()) {
-                group.getChildren()
-                     .add(e.createLine(0.1));
-            }
+        Tetrahedron tetrahedron = PhiCoordinates.Tetrahedrons[1];
+        int index = 0;
+        for (Sphere s : tetrahedron.getVertices(0.5, blueMaterial)) {
+            s.setMaterial(materials[index++]);
+            group.getChildren()
+                 .add(s);
         }
+        //        for (Edge e : tetrahedron.constructEdges()) {
+        //            group.getChildren()
+        //                 .add(e.createLine(0.1));
+        //        } 
+                List<Triangle> faces = tetrahedron.constructFaceTriangles();
+                group.getChildren()
+                     .add(faces.get(0)
+                               .constructFace(0.5, materials, 0.1, materials));
         content.setContent(group);
         return content;
     }

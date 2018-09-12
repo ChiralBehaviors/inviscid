@@ -16,6 +16,13 @@
 
 package com.chiralbehaviors.inviscid;
 
+import java.util.List;
+
+import javafx.scene.Group;
+import javafx.scene.paint.Material;
+import javafx.scene.shape.Cylinder;
+import javafx.scene.shape.Sphere;
+
 /**
  * @author halhildebrand
  *
@@ -31,5 +38,24 @@ public class Triangle extends Polygon {
         super(v, edgesOf(v), v);
         assert vertices.length == 3 && edges.length == 3
                && triangles.length == 3;
+    }
+
+    public Group constructFace(double vertexRadius, Material[] vertexMaterial,
+                               double edgeRadius, Material edgeMaterial[]) {
+        Group group = new Group();
+        int i = 0;
+        for (Edge edge : getEdges()) {
+            Cylinder l = edge.createLine(edgeRadius);
+            l.setMaterial(edgeMaterial[i++]);
+            group.getChildren().add(l);
+        }
+        List<Sphere> spheres = getVertices(vertexRadius);
+        i = 0;
+        for (Sphere s : spheres) {
+            s.setMaterial(vertexMaterial[i++]);
+        }
+        group.getChildren()
+             .addAll(spheres);
+        return group;
     }
 }
