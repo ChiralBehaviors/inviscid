@@ -47,7 +47,8 @@ public class Triangle extends Polygon {
         for (Edge edge : getEdges()) {
             Cylinder l = edge.createLine(edgeRadius);
             l.setMaterial(edgeMaterial[i++]);
-            group.getChildren().add(l);
+            group.getChildren()
+                 .add(l);
         }
         List<Sphere> spheres = getVertices(vertexRadius);
         i = 0;

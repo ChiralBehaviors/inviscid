@@ -20,10 +20,10 @@ import javafx.geometry.Point3D;
 
 /**
  * @author halhildebrand
- * 
+ *
  *         Coordinates for all the polyhedra in the 120 face polyhedron, in phi
  *         coordinates.
- * 
+ *
  *         Originally from Richard Gray
  *         (http://www.rwgrayprojects.com/Lynn/NCH/coordinates.html)
  *
@@ -936,7 +936,7 @@ public final class PhiCoordinates {
                                                                   50, 50, 51,
                                                                   34 };
 
-    // 1 120 Polyhedron 
+    // 1 120 Polyhedron
     protected static int[]            P120Vertices            = { 1, 2, 3, 4, 5,
                                                                   6, 7, 8, 9,
                                                                   10, 11, 12,

@@ -16,7 +16,8 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.PhiCoordinates.*;
+import static com.chiralbehaviors.inviscid.PhiCoordinates.MeshPoints;
+import static com.chiralbehaviors.inviscid.PhiCoordinates.p120v;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,16 +45,16 @@ abstract public class Polyhedron {
 
     public List<Edge> constructEdges() {
         List<Edge> trace = new ArrayList<>();
-        for (int i = 0; i < edges.length; i+=2) { 
-            trace.add(new Edge(Arrays.copyOfRange(edges, i, i+2)));
+        for (int i = 0; i < edges.length; i += 2) {
+            trace.add(new Edge(Arrays.copyOfRange(edges, i, i + 2)));
         }
         return trace;
     }
 
     public List<Triangle> constructFaceTriangles() {
         List<Triangle> trace = new ArrayList<>();
-        for (int i = 0; i < faces.length; i+=3) { 
-            trace.add(new Triangle(Arrays.copyOfRange(faces, i, i+3)));
+        for (int i = 0; i < faces.length; i += 3) {
+            trace.add(new Triangle(Arrays.copyOfRange(faces, i, i + 3)));
         }
         return trace;
     }

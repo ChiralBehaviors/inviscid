@@ -25,7 +25,8 @@ import static com.chiralbehaviors.inviscid.PhiCoordinates.RhDodecahedronVertices
  */
 public class RhombicDodecahedron extends RegularPolyhedron<Quadrilateral> {
 
-    protected RhombicDodecahedron(int index, int[] vertices, int[] edges, int[] faces) {
+    protected RhombicDodecahedron(int index, int[] vertices, int[] edges,
+                                  int[] faces) {
         super(index, vertices, edges, faces);
     }
 

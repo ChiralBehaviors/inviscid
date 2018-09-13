@@ -22,12 +22,12 @@ package com.chiralbehaviors.inviscid;
  */
 public class RegularDodecahedron extends RegularPolyhedron<Pentagon> {
 
-    protected RegularDodecahedron(int[] vertices, int[] edges,
-                                  int[] faces) {
+    protected RegularDodecahedron(int[] vertices, int[] edges, int[] faces) {
         super(0, vertices, edges, faces);
     }
 
     @Override
     protected Pentagon[] constructFaces(int index) {
         return null;
-    }}
+    }
+}

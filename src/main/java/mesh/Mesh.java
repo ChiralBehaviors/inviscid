@@ -12,6 +12,8 @@ import java.util.Set;
 
 import javax.vecmath.Vector3d;
 
+import javafx.scene.paint.Material;
+import javafx.scene.shape.Sphere;
 import javafx.scene.shape.TriangleMesh;
 
 /**
@@ -19,7 +21,7 @@ import javafx.scene.shape.TriangleMesh;
  * in which each face's vertex positions are specified by indexes in a list of
  * all vertex positions used. The mesh is designed for the OBJ file format; any
  * mesh can be written to a file using toObjFile().
- * 
+ *
  * @author Brian Yao
  */
 public class Mesh {
@@ -41,7 +43,7 @@ public class Mesh {
     /**
      * Add the specified face to this mesh. This sets the face's mesh field to
      * point to this mesh.
-     * 
+     *
      * @param face
      *            The face to add to this mesh.
      */
@@ -52,7 +54,7 @@ public class Mesh {
 
     /**
      * Add the specified faces to this mesh. Calls addFace() on each face.
-     * 
+     *
      * @param faces
      *            The faces to add to this mesh.
      */
@@ -64,7 +66,7 @@ public class Mesh {
 
     /**
      * Add the specified faces to this mesh. Calls addFace() on each face.
-     * 
+     *
      * @param faces
      *            The faces to add to this mesh.
      */
@@ -78,7 +80,7 @@ public class Mesh {
      * Add a new vertex normal (simply a vector in 3D space). This is added to
      * the end of the list of vertex normals, so it takes a new highest vertex
      * normal index.
-     * 
+     *
      * @param normal
      *            The 3D vertex normal to store in this mesh's data.
      */
@@ -88,7 +90,7 @@ public class Mesh {
 
     /**
      * Add multiple vertex normals to this mesh. See addVertexPosition().
-     * 
+     *
      * @param normals
      *            The collection of vertex normals to add to this mesh.
      */
@@ -100,7 +102,7 @@ public class Mesh {
 
     /**
      * Add multiple vertex normals to this mesh. See addVertexPosition().
-     * 
+     *
      * @param normals
      *            The array of vertex normals to add to this mesh.
      */
@@ -114,7 +116,7 @@ public class Mesh {
      * Add a new vertex position (simply a point in 3D space). This is added to
      * the end of the list of vertex positions, so it takes a new highest vertex
      * position index.
-     * 
+     *
      * @param position
      *            The 3D vertex position to store in this mesh's data.
      */
@@ -124,7 +126,7 @@ public class Mesh {
 
     /**
      * Add multiple vertex positions to this mesh. See addVertexPosition().
-     * 
+     *
      * @param positions
      *            The collection of vertex positions to add to this mesh.
      */
@@ -136,7 +138,7 @@ public class Mesh {
 
     /**
      * Add multiple vertex positions to this mesh. See addVertexPosition().
-     * 
+     *
      * @param positions
      *            The array of vertex positions to add to this mesh.
      */
@@ -221,6 +223,20 @@ public class Mesh {
         return vertexPositions;
     }
 
+    public List<Sphere> getVertices(double radius, Material material) {
+        List<Sphere> spheres = new ArrayList<>();
+        for (Vector3d vertex : getVertexPositions()) {
+            Sphere sphere = new Sphere();
+            sphere.setRadius(radius);
+            sphere.setTranslateX(vertex.x);
+            sphere.setTranslateY(vertex.y);
+            sphere.setTranslateZ(vertex.z);
+            sphere.setMaterial(material);
+            spheres.add(sphere);
+        }
+        return spheres;
+    }
+
     /**
      * @return The number of vertex positions stored in this mesh.
      */
@@ -230,7 +246,7 @@ public class Mesh {
 
     /**
      * Set the vertex normals.
-     * 
+     *
      * @param normals
      *            The new vertex normals.
      */
@@ -257,7 +273,7 @@ public class Mesh {
 
     /**
      * Set the vertex positions.
-     * 
+     *
      * @param positions
      *            The new vertex positions.
      */
@@ -267,7 +283,7 @@ public class Mesh {
 
     /**
      * Write this mesh to a file on the OBJ format.
-     * 
+     *
      * @param outFile
      *            The file to write to.
      */
@@ -304,7 +320,7 @@ public class Mesh {
      * already a triangle mesh, this method returns a copy of it. Otherwise, in
      * the new mesh, each polygon is divided into triangles using the
      * divideToTriangle() method in Face.
-     * 
+     *
      * @return A triangle mesh whose geometry is the same as this one's.
      */
     public Mesh toTriangleMesh() {
@@ -321,5 +337,4 @@ public class Mesh {
         }
         return triangleMesh;
     }
-
 }

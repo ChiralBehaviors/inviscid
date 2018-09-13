@@ -31,9 +31,9 @@ import com.chiralbehaviors.jfx.viewer3d.Jfx3dViewerApp;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
-import mesh.polyhedra.plato.Icosahedron;
+import mesh.polyhedra.archimedes.Cuboctahedron;
+import mesh.polyhedra.archimedes.Icosidodecahedron;
 
 /**
  * @author halhildebrand
@@ -86,18 +86,19 @@ public class TestHarness extends Jfx3dViewerApp {
 
     @Override
     protected ContentModel createContentModel() {
-        ContentModel content = super.createContentModel(); 
-        MeshView view = new MeshView(new Icosahedron(5D).constructRegularTexturedMesh());
+        ContentModel content = super.createContentModel();
+        Group group = new Group();
+        Icosidodecahedron poly = new Icosidodecahedron(5D);
+        MeshView view = new MeshView(poly.toTriangleMesh().constructRegularTexturedMesh());
         view.setMaterial(redMaterial);
-        content.setContent(view);
-        return content;
-    }
-
-    private void addMesh(Group group, Tetrahedron tetrahedron) {
-        MeshView view = new MeshView(tetrahedron.constructRegularTexturedMesh());
-        view.setMaterial(redMaterial);
-        view.setCullFace(CullFace.NONE);
         group.getChildren()
              .add(view);
+        group.getChildren()
+             .addAll(poly.getVertices(0.5, blueMaterial));
+        poly.getEdges()
+            .forEach(e -> group.getChildren()
+                               .addAll(e.createLine(.1)));
+        content.setContent(group);
+        return content;
     }
 }
