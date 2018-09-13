@@ -89,6 +89,33 @@ public class Dodecahedron extends PlatonicSolid {
         addFaces(faces);
         setVertexNormalsToFaceNormals();
     }
+    
+    public Dodecahedron(double edgeLength, Vector3d[] vertices) {
+        super(edgeLength);
+        addVertexPositions(vertices);
+
+        Face[] faces = new Face[12];
+        for (int i = 0; i < faces.length; i++) {
+            faces[i] = new Face(5);
+        }
+
+        // Construct faces
+        faces[0].setAllVertexIndices(0, 16, 2, 14, 12);
+        faces[1].setAllVertexIndices(1, 13, 15, 3, 18);
+        faces[2].setAllVertexIndices(4, 12, 14, 6, 17);
+        faces[3].setAllVertexIndices(5, 19, 7, 15, 13);
+        faces[4].setAllVertexIndices(0, 12, 4, 10, 8);
+        faces[5].setAllVertexIndices(2, 9, 11, 6, 14);
+        faces[6].setAllVertexIndices(1, 8, 10, 5, 13);
+        faces[7].setAllVertexIndices(3, 15, 7, 11, 9);
+        faces[8].setAllVertexIndices(0, 8, 1, 18, 16);
+        faces[9].setAllVertexIndices(4, 17, 19, 5, 10);
+        faces[10].setAllVertexIndices(2, 16, 18, 3, 9);
+        faces[11].setAllVertexIndices(6, 11, 7, 19, 17);
+
+        addFaces(faces);
+        setVertexNormalsToFaceNormals();
+    }
 
     /**
      * Construct a dodecahedron mesh with the specified circumradius.

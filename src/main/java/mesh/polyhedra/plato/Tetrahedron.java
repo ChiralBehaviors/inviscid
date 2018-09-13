@@ -13,17 +13,7 @@ public class Tetrahedron extends PlatonicSolid {
 
     private static final double RADIUS_FACTOR = Math.sqrt(6.0) / 4.0;
 
-    /**
-     * Construct a tetrahedron mesh centered at the origin with the specified
-     * edge length.
-     * 
-     * @param edgeLength
-     *            The length of each edge of this mesh.
-     */
-    public Tetrahedron(double edgeLength) {
-        super(edgeLength);
-
-        // Vertex positions
+    public static Vector3d[] stdPositions(double edgeLength) {// Vertex positions
         double edgeScaleFactor = edgeLength / (2.0 * Math.sqrt(2.0));
         Vector3d v0 = new Vector3d(1.0, 1.0, 1.0);
         Vector3d v1 = new Vector3d(1.0, -1.0, -1.0);
@@ -33,7 +23,34 @@ public class Tetrahedron extends PlatonicSolid {
         v1.scale(edgeScaleFactor);
         v2.scale(edgeScaleFactor);
         v3.scale(edgeScaleFactor);
-        addVertexPositions(v0, v1, v2, v3);
+        return new Vector3d[] {v0, v1, v2, v3};
+    }
+    /**
+     * Construct a tetrahedron mesh centered at the origin with the specified
+     * edge length.
+     * 
+     * @param edgeLength
+     *            The length of each edge of this mesh.
+     */
+    public Tetrahedron(double edgeLength) {
+        this(edgeLength, stdPositions(edgeLength));
+    }
+    /**
+     * Construct a tetrahedron mesh with the specified circumradius.
+     * 
+     * @param circumradius
+     *            The circumradius this polyhedron will have.
+     * @param dummy
+     *            A dummy variable.
+     */
+    public Tetrahedron(double circumradius, boolean dummy) {
+        this(circumradius / RADIUS_FACTOR);
+    }
+
+    public Tetrahedron(double edgeLength, Vector3d... vectors ) {
+        super(edgeLength);
+        assert vectors != null && vectors.length == 4;
+        addVertexPositions(vectors[0], vectors[1], vectors[2], vectors[3]);
 
         // Create faces
         Face f0 = new Face(3);
@@ -50,18 +67,6 @@ public class Tetrahedron extends PlatonicSolid {
 
         addFaces(f0, f1, f2, f3);
         setVertexNormalsToFaceNormals();
-    }
-
-    /**
-     * Construct a tetrahedron mesh with the specified circumradius.
-     * 
-     * @param circumradius
-     *            The circumradius this polyhedron will have.
-     * @param dummy
-     *            A dummy variable.
-     */
-    public Tetrahedron(double circumradius, boolean dummy) {
-        this(circumradius / RADIUS_FACTOR);
     }
 
 }

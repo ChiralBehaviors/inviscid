@@ -30,21 +30,23 @@ import com.chiralbehaviors.jfx.viewer3d.Jfx3dViewerApp;
 
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.MeshView;
-import mesh.polyhedra.plato.Cube;
+import javafx.scene.shape.Sphere;
+import mesh.polyhedra.Polyhedron;
 
 /**
  * @author halhildebrand
  *
  */
 public class TestHarness extends Jfx3dViewerApp {
-    protected static final PhongMaterial   redMaterial;
     protected static final PhongMaterial   blueMaterial;
     protected static final PhongMaterial   greenMaterial;
-    protected static final PhongMaterial   yellowMaterial;
-
     protected static final PhongMaterial[] materials;
+    protected static final PhongMaterial   redMaterial;
+
+    protected static final PhongMaterial   yellowMaterial;
 
     static {
         redMaterial = new PhongMaterial();
@@ -83,20 +85,32 @@ public class TestHarness extends Jfx3dViewerApp {
         launch(args);
     }
 
-    @Override
-    protected ContentModel createContentModel() {
-        ContentModel content = super.createContentModel();
-        Group group = new Group();
-        Cube poly = new Cube(5D);
-        MeshView view = new MeshView(poly.toTriangleMesh().constructRegularTexturedMesh());
-        view.setMaterial(redMaterial);
+    public void addPolyhedron(Group group, Polyhedron poly,
+                              Material meshMaterial) {
+        MeshView view = new MeshView(poly.toTriangleMesh()
+                                         .constructRegularTexturedMesh());
+        view.setMaterial(meshMaterial);
         group.getChildren()
              .add(view);
-        group.getChildren()
-             .addAll(poly.getVertices(0.5, blueMaterial));
+        int i = 0;
+        for (Sphere s : poly.getVertices(0.25)) {
+            s.setMaterial(materials[i]);
+            i = (i + 1) % materials.length;
+            group.getChildren()
+                 .add(s);
+        }
         poly.getEdges()
             .forEach(e -> group.getChildren()
-                               .addAll(e.createLine(.1)));
+                               .addAll(e.createLine(.01)));
+    }
+
+    @Override
+    protected ContentModel createContentModel() {
+
+        ContentModel content = super.createContentModel();
+        Group group = new Group();
+        addPolyhedron(group, PhiCoordinates.tetrahedrons()[0], redMaterial);
+        addPolyhedron(group, PhiCoordinates.tetrahedrons()[1], blueMaterial);
         content.setContent(group);
         return content;
     }

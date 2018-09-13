@@ -11,18 +11,7 @@ import mesh.Face;
  */
 public class Cube extends PlatonicSolid {
 
-    private static final double RADIUS_FACTOR = Math.sqrt(3.0) / 2;
-
-    /**
-     * Construct a cube mesh centered at the origin with the specified edge
-     * length.
-     * 
-     * @param edgeLength
-     *            The length of each edge of this mesh.
-     */
-    public Cube(double edgeLength) {
-        super(edgeLength);
-
+    public static Vector3d[] standardPositions(double edgeLength) {
         // Generate vertex positions
         double halfEdgeLength = edgeLength / 2.0;
         Vector3d[] vs = new Vector3d[8];
@@ -33,6 +22,22 @@ public class Cube extends PlatonicSolid {
             current.z = ((i >> 2) & 1) == 1 ? halfEdgeLength : -halfEdgeLength;
             vs[i] = current;
         }
+        return vs;
+    }
+
+    /**
+     * Construct a cube mesh centered at the origin with the specified edge
+     * length.
+     * 
+     * @param edgeLength
+     *            The length of each edge of this mesh.
+     */
+    public Cube(double edgeLength) {
+        this(edgeLength, standardPositions(edgeLength));
+    }
+
+    public Cube(double edgeLength, Vector3d[] vs) {
+        super(edgeLength);
         addVertexPositions(vs);
 
         // Construct faces
@@ -57,17 +62,4 @@ public class Cube extends PlatonicSolid {
         addFaces(f0, f1, f2, f3, f4, f5);
         setVertexNormalsToFaceNormals();
     }
-
-    /**
-     * Construct a cube mesh with the specified circumradius.
-     * 
-     * @param circumradius
-     *            The circumradius this polyhedron will have.
-     * @param dummy
-     *            A dummy variable.
-     */
-    public Cube(double circumRadius, boolean dummy) {
-        this(circumRadius / RADIUS_FACTOR);
-    }
-
 }

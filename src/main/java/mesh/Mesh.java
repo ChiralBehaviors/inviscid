@@ -12,7 +12,6 @@ import java.util.Set;
 
 import javax.vecmath.Vector3d;
 
-import javafx.scene.paint.Material;
 import javafx.scene.shape.Sphere;
 import javafx.scene.shape.TriangleMesh;
 
@@ -223,7 +222,7 @@ public class Mesh {
         return vertexPositions;
     }
 
-    public List<Sphere> getVertices(double radius, Material material) {
+    public List<Sphere> getVertices(double radius) {
         List<Sphere> spheres = new ArrayList<>();
         for (Vector3d vertex : getVertexPositions()) {
             Sphere sphere = new Sphere();
@@ -231,7 +230,6 @@ public class Mesh {
             sphere.setTranslateX(vertex.x);
             sphere.setTranslateY(vertex.y);
             sphere.setTranslateZ(vertex.z);
-            sphere.setMaterial(material);
             spheres.add(sphere);
         }
         return spheres;
