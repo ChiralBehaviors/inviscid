@@ -32,8 +32,7 @@ import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.MeshView;
-import mesh.polyhedra.archimedes.Cuboctahedron;
-import mesh.polyhedra.archimedes.Icosidodecahedron;
+import mesh.polyhedra.plato.Cube;
 
 /**
  * @author halhildebrand
@@ -88,7 +87,7 @@ public class TestHarness extends Jfx3dViewerApp {
     protected ContentModel createContentModel() {
         ContentModel content = super.createContentModel();
         Group group = new Group();
-        Icosidodecahedron poly = new Icosidodecahedron(5D);
+        Cube poly = new Cube(5D);
         MeshView view = new MeshView(poly.toTriangleMesh().constructRegularTexturedMesh());
         view.setMaterial(redMaterial);
         group.getChildren()

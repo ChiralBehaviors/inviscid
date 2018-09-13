@@ -27,7 +27,7 @@ public class PhiCoordinatesTest {
     @Test
     public void testStaticInitialization() {
         @SuppressWarnings("unused")
-        Tetrahedron prime = PhiCoordinates.Tetrahedrons[0];
+        int[] prime = PhiCoordinates.TetrahedronFaceMap[0];
     }
 
 }

@@ -1186,62 +1186,6 @@ public final class PhiCoordinates {
                                                                   61, 60, 54,
                                                                   60, 62 };
 
-    public final static Tetrahedron[] Tetrahedrons            = new Tetrahedron[TetrahedronVertices.length];
-
-    static {
-        for (int i = 0; i < TetrahedronVertices.length; i++) {
-            Tetrahedrons[i] = new Tetrahedron(i, TetrahedronVertices[i],
-                                              TetrahedronEdgeMap[i],
-                                              TetrahedronFaceMap[i]);
-        }
-    }
-
-    public final static Octahedron[] Octahedrons = new Octahedron[OctahedronVertices.length];
-
-    static {
-        for (int i = 0; i < OctahedronVertices.length; i++) {
-            Octahedrons[i] = new Octahedron(i, OctahedronVertices[i],
-                                            OctahedronEdgeMap[i],
-                                            OctahedronFaceMap[i]);
-        }
-    }
-
-    public final static Cube[] Cubes = new Cube[CubeVertices.length];
-
-    static {
-        for (int i = 0; i < CubeVertices.length; i++) {
-            Cubes[i] = new Cube(i, CubeVertices[i], CubeEdgeMap[i],
-                                CubeFaceMap[i]);
-        }
-    }
-
-    public final static Icosahedron           Icosahedron          = new Icosahedron(0,
-                                                                                     IcosaVertices,
-                                                                                     IcosaEdgeMap,
-                                                                                     IcosaFaceMap);
-
-    public final static RhombicDodecahedron[] RhombicDodecahedrons = new RhombicDodecahedron[RhDodecahedronVertices.length];
-
-    static {
-        //        for (int i = 0; i < RhDodecahedronVertices.length; i++) {
-        //            RhombicDodecahedrons[i] = new RhombicDodecahedron(i,
-        //                                                              RhDodecahedronVertices[i],
-        //                                                              RhDodecahedronEdgeMap[i],
-        //                                                              RhDodecahedronFaceMap[i]);
-        //        }
-    }
-    public final static RegularDodecahedron    RegularDodecahedron    = new RegularDodecahedron(RegDodecahedronVertices,
-                                                                                                RegDodecahedronEdgeMap,
-                                                                                                RegDodecahedronFaceMap);
-
-    public final static RhombicTriacontahedron RhombicTriacontahedron = new RhombicTriacontahedron(RhTriaVertices,
-                                                                                                   RhTriaEdgeMap,
-                                                                                                   RhTriaFaceMap);
-
-    public final static P120                   P120                   = new P120(P120Vertices,
-                                                                                 P120EdgeMap,
-                                                                                 P120FaceMap);
-
     private PhiCoordinates() {
     }
 }
