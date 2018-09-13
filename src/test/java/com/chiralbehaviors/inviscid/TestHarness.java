@@ -33,6 +33,7 @@ import com.chiralbehaviors.jfx.viewer3d.Jfx3dViewerApp;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Sphere;
 
 /**
@@ -88,22 +89,26 @@ public class TestHarness extends Jfx3dViewerApp {
     protected ContentModel createContentModel() {
         ContentModel content = super.createContentModel();
         Group group = new Group();
-        Tetrahedron tetrahedron = PhiCoordinates.Tetrahedrons[1];
-        int index = 0;
-        for (Sphere s : tetrahedron.getVertices(0.5, blueMaterial)) {
-            s.setMaterial(materials[index++]);
-            group.getChildren()
-                 .add(s);
-        }
+        Tetrahedron tetrahedron = PhiCoordinates.Tetrahedrons[0];
+//        int index = 0;
+//        for (Sphere s : tetrahedron.getVertices(0.5, blueMaterial)) {
+//            s.setMaterial(materials[index++]);
+//            group.getChildren()
+//                 .add(s);
+//        }
         //        for (Edge e : tetrahedron.constructEdges()) {
         //            group.getChildren()
         //                 .add(e.createLine(0.1));
         //        } 
-                List<Triangle> faces = tetrahedron.constructFaceTriangles();
-                group.getChildren()
-                     .add(faces.get(0)
-                               .constructFace(0.5, materials, 0.1, materials));
-        content.setContent(group);
+//        Triangle[] theFaces = tetrahedron.getFaces();
+//        List<Triangle> faces = tetrahedron.constructFaceTriangles();
+//        group.getChildren()
+//        .add(theFaces[3]
+//                  .constructFace(0.5, materials, 0.1, materials));
+//        group.getChildren()
+//             .add(faces.get(1)
+//                       .constructFace(0.5, materials, 0.1, materials));
+        content.setContent(new MeshView(tetrahedron.constructRegularTexturedMesh()));
         return content;
     }
 }
