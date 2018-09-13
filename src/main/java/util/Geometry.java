@@ -1,60 +1,51 @@
 package util;
 
-import javafx.geometry.Point3D;
+import javax.vecmath.Vector3d;
 
 /**
  * A utility class involving geometric computations.
- *
+ * 
  * @author Brian Yao
  */
 public class Geometry {
-
-    /**
-     * Computes the square of the distance from a point to a line in 3D.
-     * 
-     * @param point
-     *            The point we are calculating distance from.
-     * @param linePoint1
-     *            The first of two points defining the line.
-     * @param linePoint2
-     *            The second of two points defining the line.
-     * @return The square of the distance of point from the line defined by the
-     *         two line points.
-     */
-    public static double pointLineDistSq(Point3D point, Point3D linePoint1,
-                                         Point3D linePoint2) {
-        Point3D lineVector = linePoint2.subtract(linePoint1);
-        Point3D linePointVector = linePoint1.subtract(point);
-        
-        double magnitude = lineVector.magnitude();
-        double lineVectorLengthSq = magnitude * magnitude;
-
-        if (lineVectorLengthSq == 0) {
-            double magnitude2 = linePointVector.magnitude();
-            return magnitude2 * magnitude2;
-        } else {
-            Point3D scaledLineVector = lineVector.multiply(linePointVector.dotProduct(lineVector));
-            Point3D distanceVector = linePointVector.subtract(scaledLineVector);
-            double magnitude2 = distanceVector.magnitude();
-            return magnitude2 * magnitude2;
-        }
-    }
-
-    /**
-     * Computes the distance from a point to a line in 3D.
-     * 
-     * @param point
-     *            The point we are calculating distance from.
-     * @param linePoint1
-     *            The first of two points defining the line.
-     * @param linePoint2
-     *            The second of two points defining the line.
-     * @return The distance of point from the line defined by the two line
-     *         points.
-     */
-    public static double pointLineDist(Point3D point, Point3D linePoint1,
-                                       Point3D linePoint2) {
-        return Math.sqrt(pointLineDistSq(point, linePoint1, linePoint2));
-    }
-
+	
+	/**
+	 * Computes the square of the distance from a point to a line in 3D.
+	 * 
+	 * @param point      The point we are calculating distance from.
+	 * @param linePoint1 The first of two points defining the line.
+	 * @param linePoint2 The second of two points defining the line.
+	 * @return The square of the distance of point from the line defined by
+	 *         the two line points.
+	 */
+	public static double pointLineDistSq(Vector3d point, Vector3d linePoint1, Vector3d linePoint2) {
+		Vector3d lineVector = new Vector3d();
+		lineVector.sub(linePoint2, linePoint1);
+		Vector3d linePointVector = new Vector3d();
+		linePointVector.sub(linePoint1, point);
+		double lineVectorLengthSq = lineVector.lengthSquared();
+		
+		if (lineVectorLengthSq == 0) {
+			return linePointVector.lengthSquared();
+		} else {
+			Vector3d scaledLineVector = new Vector3d();
+			scaledLineVector.scale(linePointVector.dot(lineVector), lineVector);
+			Vector3d distanceVector = new Vector3d();
+			distanceVector.sub(linePointVector, scaledLineVector);
+			return distanceVector.lengthSquared();
+		}
+	}
+	
+	/**
+	 * Computes the distance from a point to a line in 3D.
+	 * 
+	 * @param point      The point we are calculating distance from.
+	 * @param linePoint1 The first of two points defining the line.
+	 * @param linePoint2 The second of two points defining the line.
+	 * @return The distance of point from the line defined by the two line points.
+	 */
+	public static double pointLineDist(Vector3d point, Vector3d linePoint1, Vector3d linePoint2) {
+		return Math.sqrt(pointLineDistSq(point, linePoint1, linePoint2));
+	}
+	
 }

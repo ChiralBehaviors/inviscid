@@ -33,6 +33,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
+import mesh.polyhedra.plato.Icosahedron;
 
 /**
  * @author halhildebrand
@@ -50,30 +51,30 @@ public class TestHarness extends Jfx3dViewerApp {
         redMaterial = new PhongMaterial();
         redMaterial.setDiffuseColor(new Color(DARKRED.getRed(),
                                               DARKRED.getGreen(),
-                                              DARKRED.getBlue(), 0.6));
+                                              DARKRED.getBlue(), 1));
         redMaterial.setSpecularColor(new Color(RED.getRed(), RED.getGreen(),
-                                               RED.getBlue(), 0.6));
+                                               RED.getBlue(), 1));
 
         blueMaterial = new PhongMaterial();
         blueMaterial.setDiffuseColor(new Color(DARKBLUE.getRed(),
                                                DARKBLUE.getGreen(),
-                                               DARKBLUE.getBlue(), 0.6));
+                                               DARKBLUE.getBlue(), 1));
         blueMaterial.setSpecularColor(new Color(BLUE.getRed(), BLUE.getGreen(),
-                                                BLUE.getBlue(), 0.6));
+                                                BLUE.getBlue(), 1));
         greenMaterial = new PhongMaterial();
         greenMaterial.setDiffuseColor(new Color(DARKGREEN.getRed(),
                                                 DARKGREEN.getGreen(),
-                                                DARKGREEN.getBlue(), 0.6));
+                                                DARKGREEN.getBlue(), 1));
         greenMaterial.setSpecularColor(new Color(GREEN.getRed(),
                                                  GREEN.getGreen(),
-                                                 GREEN.getBlue(), 0.6));
+                                                 GREEN.getBlue(), 1));
         yellowMaterial = new PhongMaterial();
         yellowMaterial.setDiffuseColor(new Color(YELLOW.getRed(),
                                                  YELLOW.getGreen(),
-                                                 YELLOW.getBlue(), 0.6));
+                                                 YELLOW.getBlue(), 1));
         yellowMaterial.setSpecularColor(new Color(YELLOW.getRed(),
                                                   YELLOW.getGreen(),
-                                                  YELLOW.getBlue(), 0.6));
+                                                  YELLOW.getBlue(), 1));
 
         materials = new PhongMaterial[] { redMaterial, blueMaterial,
                                           greenMaterial, yellowMaterial };
@@ -85,11 +86,10 @@ public class TestHarness extends Jfx3dViewerApp {
 
     @Override
     protected ContentModel createContentModel() {
-        ContentModel content = super.createContentModel();
-        Group group = new Group();
-        addMesh(group, PhiCoordinates.Tetrahedrons[8]);
-        addMesh(group, PhiCoordinates.Tetrahedrons[9]);
-        content.setContent(group);
+        ContentModel content = super.createContentModel(); 
+        MeshView view = new MeshView(new Icosahedron(5D).constructRegularTexturedMesh());
+        view.setMaterial(redMaterial);
+        content.setContent(view);
         return content;
     }
 
