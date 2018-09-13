@@ -79,7 +79,7 @@ abstract public class Polyhedron {
         int[] indices = new int[faces.length];
         Arrays.fill(indices, 1);
         float[] texCoords = new float[faces.length * 2];
-        Arrays.fill(texCoords, 0.5f);
+        Arrays.fill(texCoords, 1f);
         return constructMesh(indices, texCoords);
     }
 

@@ -1,0 +1,324 @@
+package mesh;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import javafx.geometry.Point3D;
+
+import javafx.scene.shape.TriangleMesh;
+
+/**
+ * A class for polygon meshes. The mesh is represented by an indexed structure,
+ * in which each face's vertex positions are specified by indexes in a list of
+ * all vertex positions used. The mesh is designed for the OBJ file format; any
+ * mesh can be written to a file using toObjFile().
+ *
+ * @author Brian Yao
+ */
+public class Mesh {
+
+    protected List<Face>     faces;
+    protected List<Point3D> vertexNormals;
+    protected List<Point3D> vertexPositions;
+
+    /**
+     * Create an empty mesh.
+     */
+    public Mesh() {
+        faces = new ArrayList<Face>();
+        vertexPositions = new ArrayList<Point3D>();
+        vertexNormals = new ArrayList<Point3D>();
+    }
+
+    /**
+     * Add the specified face to this mesh. This sets the face's mesh field to
+     * point to this mesh.
+     *
+     * @param face
+     *            The face to add to this mesh.
+     */
+    public void addFace(Face face) {
+        faces.add(face);
+        face.setMesh(this);
+    }
+
+    /**
+     * Add the specified faces to this mesh. Calls addFace() on each face.
+     *
+     * @param faces
+     *            The faces to add to this mesh.
+     */
+    public void addFaces(Collection<Face> faces) {
+        for (Face face : faces) {
+            addFace(face);
+        }
+    }
+
+    /**
+     * Add the specified faces to this mesh. Calls addFace() on each face.
+     *
+     * @param faces
+     *            The faces to add to this mesh.
+     */
+    public void addFaces(Face... faces) {
+        for (Face face : faces) {
+            addFace(face);
+        }
+    }
+
+    /**
+     * Add a new vertex normal (simply a vector in 3D space). This is added to
+     * the end of the list of vertex normals, so it takes a new highest vertex
+     * normal index.
+     *
+     * @param normal
+     *            The 3D vertex normal to store in this mesh's data.
+     */
+    public void addVertexNormal(Point3D normal) {
+        vertexNormals.add(normal);
+    }
+
+    /**
+     * Add multiple vertex normals to this mesh. See addVertexPosition().
+     *
+     * @param normals
+     *            The collection of vertex normals to add to this mesh.
+     */
+    public void addVertexNormals(Collection<Point3D> normals) {
+        for (Point3D normal : normals) {
+            vertexNormals.add(normal);
+        }
+    }
+
+    /**
+     * Add multiple vertex normals to this mesh. See addVertexPosition().
+     *
+     * @param normals
+     *            The array of vertex normals to add to this mesh.
+     */
+    public void addVertexNormals(Point3D... normals) {
+        for (Point3D normal : normals) {
+            vertexNormals.add(normal);
+        }
+    }
+
+    /**
+     * Add a new vertex position (simply a point in 3D space). This is added to
+     * the end of the list of vertex positions, so it takes a new highest vertex
+     * position index.
+     *
+     * @param position
+     *            The 3D vertex position to store in this mesh's data.
+     */
+    public void addVertexPosition(Point3D position) {
+        vertexPositions.add(position);
+    }
+
+    /**
+     * Add multiple vertex positions to this mesh. See addVertexPosition().
+     *
+     * @param positions
+     *            The collection of vertex positions to add to this mesh.
+     */
+    public void addVertexPositions(Collection<Point3D> positions) {
+        for (Point3D position : positions) {
+            vertexPositions.add(position);
+        }
+    }
+
+    /**
+     * Add multiple vertex positions to this mesh. See addVertexPosition().
+     *
+     * @param positions
+     *            The array of vertex positions to add to this mesh.
+     */
+    public void addVertexPositions(Point3D... positions) {
+        for (Point3D position : positions) {
+            vertexPositions.add(position);
+        }
+    }
+
+    public TriangleMesh constructMesh(int[] texIndices, float[] texCoords) {
+        TriangleMesh newMesh = new TriangleMesh();
+        float[] meshPoints = new float[vertexPositions.size() * 3];
+        int i = 0;
+        for (Point3D v : vertexPositions) {
+            meshPoints[i++] = (float) v.getX();
+            meshPoints[i++] = (float) v.getY();
+            meshPoints[i++] = (float) v.getZ();
+        }
+        newMesh.getPoints()
+               .addAll(meshPoints);
+        newMesh.getTexCoords()
+               .addAll(texCoords);
+        int[] facesAndTexCoords = new int[getTexIndicesCount() * 2];
+        i = 0;
+        for (Face f : faces) {
+            int[] indices = f.getVertexIndices();
+            for (int j : indices) {
+                facesAndTexCoords[i++] = j;
+                facesAndTexCoords[i++] = texIndices[j];
+            }
+        }
+        newMesh.getFaces()
+               .addAll(facesAndTexCoords);
+        return newMesh;
+    }    
+    
+    public TriangleMesh constructRegularTexturedMesh() {
+        int[] indices = new int[getTexIndicesCount()];
+        Arrays.fill(indices, 1);
+        float[] texCoords = new float[getTexIndicesCount() * 2];
+        Arrays.fill(texCoords, 1f);
+        return constructMesh(indices, texCoords);
+    }
+
+    /**
+     * @return The set of all edges in this mesh.
+     */
+    public Set<Edge> getEdges() {
+        Set<Edge> edges = new HashSet<>();
+        for (Face face : faces) {
+            for (Edge edge : face.getEdges()) {
+                edges.add(edge);
+            }
+        }
+        return edges;
+    }
+
+    /**
+     * @return A list of all faces stored in this mesh.
+     */
+    public List<Face> getFaces() {
+        return faces;
+    }
+
+    public int getTexIndicesCount() {
+        return faces.stream()
+                    .mapToInt(f -> f.numVertices())
+                    .sum();
+    }
+
+    /**
+     * @return A list of all vertex normals stored in this mesh.
+     */
+    public List<Point3D> getVertexNormals() {
+        return vertexNormals;
+    }
+
+    /**
+     * @return A list of all vertex positions stored in this mesh.
+     */
+    public List<Point3D> getVertexPositions() {
+        return vertexPositions;
+    }
+
+    /**
+     * @return The number of vertex positions stored in this mesh.
+     */
+    public int numVertexPositions() {
+        return vertexPositions.size();
+    }
+
+    /**
+     * Set the vertex normals.
+     *
+     * @param normals
+     *            The new vertex normals.
+     */
+    public void setVertexNormals(List<Point3D> normals) {
+        vertexNormals = normals;
+    }
+
+    /**
+     * For each face of the mesh, set the normals at the face vertices to be the
+     * normal of the face itself (since the face is a polygon, it lies in a
+     * plane). These normals replace any previously stored vertex normals in the
+     * mesh.
+     */
+    public void setVertexNormalsToFaceNormals() {
+        vertexNormals.clear();
+        for (int i = 0; i < faces.size(); i++) {
+            Point3D faceNormal = faces.get(i)
+                                       .getFaceNormal();
+            addVertexNormal(faceNormal);
+            faces.get(i)
+                 .setAllVertexIndicesTo(i);
+        }
+    }
+
+    /**
+     * Set the vertex positions.
+     *
+     * @param positions
+     *            The new vertex positions.
+     */
+    public void setVertexPositions(List<Point3D> positions) {
+        vertexPositions = positions;
+    }
+
+    /**
+     * Write this mesh to a file on the OBJ format.
+     *
+     * @param outFile
+     *            The file to write to.
+     */
+    public void toObjFile(File outFile) {
+        try {
+            outFile.createNewFile();
+            FileWriter outWriter = new FileWriter(outFile);
+            for (Point3D vertexPos : vertexPositions) {
+                outWriter.write(String.format("v %f %f %f\n", vertexPos.getX(),
+                                              vertexPos.getY(), vertexPos.getZ()));
+            }
+            for (Point3D normal : vertexNormals) {
+                outWriter.write(String.format("vn %f %f %f\n", normal.getX(),
+                                              normal.getY(), normal.getZ()));
+            }
+            for (Face face : faces) {
+                outWriter.write(face.toOBJString());
+                outWriter.write('\n');
+            }
+            outWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Vertices:%s\nNormals:%s\nFaces:%s\n",
+                             vertexPositions, vertexNormals, faces);
+    }
+
+    /**
+     * Compute the equivalent triangle mesh of this mesh. If this mesh is
+     * already a triangle mesh, this method returns a copy of it. Otherwise, in
+     * the new mesh, each polygon is divided into triangles using the
+     * divideToTriangle() method in Face.
+     *
+     * @return A triangle mesh whose geometry is the same as this one's.
+     */
+    public Mesh toTriangleMesh() {
+        Mesh triangleMesh = new Mesh();
+        triangleMesh.vertexPositions.addAll(vertexPositions);
+        triangleMesh.vertexNormals.addAll(vertexNormals);
+        for (Face face : faces) {
+            if (face.numVertices() == 3) {
+                triangleMesh.addFace(face);
+            } else {
+                Face[] triangles = face.divideIntoTriangles();
+                triangleMesh.addFaces(triangles);
+            }
+        }
+        return triangleMesh;
+    }
+
+}
