@@ -67,8 +67,8 @@ abstract public class Polyhedron {
         int[] facesAndTexCoords = new int[faces.length * 2];
         int i = 0;
         for (int j = 0; j < faces.length; j++) {
-            facesAndTexCoords[i] = faces[j];
-            facesAndTexCoords[++i] = texIndices[j];
+            facesAndTexCoords[i++] = faces[j];
+            facesAndTexCoords[i++] = texIndices[j];
         }
         newMesh.getFaces()
                .addAll(facesAndTexCoords);

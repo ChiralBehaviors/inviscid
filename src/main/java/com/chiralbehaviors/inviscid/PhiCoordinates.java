@@ -113,10 +113,9 @@ public final class PhiCoordinates {
         MeshPoints = new float[p120v.length * 3];
         int i = 0;
         for (Point3D v : p120v) {
-            MeshPoints[i] = (float) v.getX();
+            MeshPoints[i++] = (float) v.getX();
             MeshPoints[i++] = (float) v.getY();
             MeshPoints[i++] = (float) v.getZ();
-            i++;
         }
     }
 

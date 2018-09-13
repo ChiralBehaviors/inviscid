@@ -25,16 +25,14 @@ import static javafx.scene.paint.Color.GREEN;
 import static javafx.scene.paint.Color.RED;
 import static javafx.scene.paint.Color.YELLOW;
 
-import java.util.List;
-
 import com.chiralbehaviors.jfx.viewer3d.ContentModel;
 import com.chiralbehaviors.jfx.viewer3d.Jfx3dViewerApp;
 
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
-import javafx.scene.shape.Sphere;
 
 /**
  * @author halhildebrand
@@ -89,26 +87,17 @@ public class TestHarness extends Jfx3dViewerApp {
     protected ContentModel createContentModel() {
         ContentModel content = super.createContentModel();
         Group group = new Group();
-        Tetrahedron tetrahedron = PhiCoordinates.Tetrahedrons[0];
-//        int index = 0;
-//        for (Sphere s : tetrahedron.getVertices(0.5, blueMaterial)) {
-//            s.setMaterial(materials[index++]);
-//            group.getChildren()
-//                 .add(s);
-//        }
-        //        for (Edge e : tetrahedron.constructEdges()) {
-        //            group.getChildren()
-        //                 .add(e.createLine(0.1));
-        //        } 
-//        Triangle[] theFaces = tetrahedron.getFaces();
-//        List<Triangle> faces = tetrahedron.constructFaceTriangles();
-//        group.getChildren()
-//        .add(theFaces[3]
-//                  .constructFace(0.5, materials, 0.1, materials));
-//        group.getChildren()
-//             .add(faces.get(1)
-//                       .constructFace(0.5, materials, 0.1, materials));
-        content.setContent(new MeshView(tetrahedron.constructRegularTexturedMesh()));
+        addMesh(group, PhiCoordinates.Tetrahedrons[8]);
+        addMesh(group, PhiCoordinates.Tetrahedrons[9]);
+        content.setContent(group);
         return content;
+    }
+
+    private void addMesh(Group group, Tetrahedron tetrahedron) {
+        MeshView view = new MeshView(tetrahedron.constructRegularTexturedMesh());
+        view.setMaterial(redMaterial);
+        view.setCullFace(CullFace.NONE);
+        group.getChildren()
+             .add(view);
     }
 }
