@@ -123,10 +123,11 @@ public class Face {
      */
     public Face[] divideIntoTriangles() {
         Face[] triangles = new Face[numVertices - 2];
+        int v2 = numVertices - 1;
+        
         for (int i = 0; i < numVertices - 2; i++) {
             int v0 = i;
             int v1 = i + 1;
-            int v2 = numVertices - 1;
             Face triangle = new Face(3);
             triangle.setAllVertexIndices(vertexIndices[v0], vertexIndices[v1],
                                          vertexIndices[v2]);

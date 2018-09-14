@@ -1,11 +1,14 @@
 package mesh;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.vecmath.Vector3d;
 
 import javafx.geometry.Point3D;
 import javafx.scene.shape.Cylinder;
+import javafx.scene.shape.Sphere;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
 
@@ -90,6 +93,19 @@ public class Edge {
         endLocations[0] = mesh.vertexPositions.get(ends[0]);
         endLocations[1] = mesh.vertexPositions.get(ends[1]);
         return endLocations;
+    }
+
+    public List<Sphere> getEndpointSpheres(double radius) {
+        List<Sphere> spheres = new ArrayList<>();
+        for (Vector3d vertex : getEndLocations()) {
+            Sphere sphere = new Sphere();
+            sphere.setRadius(radius);
+            sphere.setTranslateX(vertex.x);
+            sphere.setTranslateY(vertex.y);
+            sphere.setTranslateZ(vertex.z);
+            spheres.add(sphere);
+        }
+        return spheres;
     }
 
     /**

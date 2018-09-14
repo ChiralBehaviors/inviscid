@@ -36,19 +36,6 @@ import mesh.polyhedra.plato.Tetrahedron;
  */
 public final class PhiCoordinates {
 
-    // 5 different cubes
-    private static int[][]       CubeVertices            = { { 4, 18, 23, 28,
-                                                               34, 38, 47, 60 },
-                                                             { 4, 16, 20, 30,
-                                                               36, 41, 45, 60 },
-                                                             { 8, 13, 20, 28,
-                                                               34, 41, 52, 56 },
-                                                             { 8, 11, 23, 30,
-                                                               36, 38, 50, 56 },
-                                                             { 11, 13, 16, 18,
-                                                               45, 47, 50,
-                                                               52 } };
-
     // 1 icosahedron
     private static int[]         IcosaVertices           = { 2, 6, 12, 17, 27,
                                                              31, 33, 37, 46, 51,
@@ -477,15 +464,15 @@ public final class PhiCoordinates {
     // 10 different tetrahedra
     private static int[][]       TetrahedronVertices     = { { 4, 34, 38, 47 },
                                                              { 23, 18, 28, 60 },
-                                                             { 36, 4, 41, 45 },
                                                              { 16, 20, 30, 60 },
+                                                             { 36, 4, 41, 45 },
                                                              { 8, 28, 41, 52 },
                                                              { 20, 13, 34, 56 },
-                                                             { 30, 8, 38, 50 },
                                                              { 11, 23, 36, 56 },
-                                                             { 16, 11, 47, 52 },
-                                                             { 13, 18, 45,
-                                                               50 } };
+                                                             { 30, 8, 38, 50 },
+                                                             { 13, 18, 45, 50 },
+                                                             { 16, 11, 47,
+                                                               52 } };
 
     static {
         MeshPoints = new float[POLY_120_VECTORS.length * 3];
@@ -498,10 +485,14 @@ public final class PhiCoordinates {
     }
 
     public static Cube[] cubes() {
-        Cube[] cubes = new Cube[CubeVertices.length];
-        int i = 0;
-        for (int[] coordinates : CubeVertices) {
-            cubes[i++] = new Cube(5D, pointsFrom(coordinates));
+        Cube[] cubes = new Cube[5];
+        int j = 0;
+        for (int i = 0; i < TetrahedronVertices.length / 2; i++) {
+            int[] a = TetrahedronVertices[i * 2];
+            int[] b = TetrahedronVertices[i * 2 + 1];
+            int[] coordinates = new int[] { b[3], a[2], a[3], b[2], a[1], b[1],
+                                            b[0], a[0] };
+            cubes[j++] = new Cube(5D, pointsFrom(coordinates));
         }
         return cubes;
     }
