@@ -502,7 +502,7 @@ public final class PhiCoordinates {
     }
 
     public static Icosahedron icosahedron() {
-        return new Icosahedron(PHI);
+        return new Icosahedron(pointsFrom(IcosaVertices));
     }
 
     public static Dodecahedron dodecahedron() {

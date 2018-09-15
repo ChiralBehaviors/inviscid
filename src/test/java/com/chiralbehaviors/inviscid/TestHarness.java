@@ -121,7 +121,7 @@ public class TestHarness extends Jfx3dViewerApp {
 
         ContentModel content = super.createContentModel();
         Group group = new Group();
-        Octahedron octahedron = PhiCoordinates.octahedrons()[4];
+        //        Octahedron octahedron = PhiCoordinates.octahedrons()[4];
         //        Octahedron octahedron = new Octahedron(5);
         //                int i = 0;
         //                for (Sphere s : octahedron.getVertices(0.25)) {
@@ -140,12 +140,13 @@ public class TestHarness extends Jfx3dViewerApp {
         //                             .add(e.createLine(.05));
         //                    }
         //                }
-        addPolyhedron(group, octahedron, yellowMaterial, materials);
+        addPolyhedron(group, PhiCoordinates.icosahedron(), blueMaterial,
+                      materials);
         //        addPolyhedron(group, PhiCoordinates.cubes()[0], redMaterial, materials);
-        addPolyhedron(group, PhiCoordinates.tetrahedrons()[8], redMaterial,
-                      blackMaterials);
-        addPolyhedron(group, PhiCoordinates.tetrahedrons()[9], blueMaterial,
-                      blackMaterials);
+        //        addPolyhedron(group, PhiCoordinates.tetrahedrons()[8], redMaterial,
+        //                      blackMaterials);
+        //        addPolyhedron(group, PhiCoordinates.tetrahedrons()[9], blueMaterial,
+        //                      blackMaterials);
 
         //        for (Cube cube : PhiCoordinates.cubes()) {
         //            addPolyhedron(group, cube, blueMaterial,
