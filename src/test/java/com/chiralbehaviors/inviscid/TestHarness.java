@@ -17,29 +17,30 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static javafx.scene.paint.Color.*;
+import static javafx.scene.paint.Color.BLACK;
 import static javafx.scene.paint.Color.BLUE;
-import static javafx.scene.paint.Color.DEEPSKYBLUE;
+import static javafx.scene.paint.Color.CYAN;
 import static javafx.scene.paint.Color.GREEN;
+import static javafx.scene.paint.Color.LAVENDER;
+import static javafx.scene.paint.Color.LIME;
+import static javafx.scene.paint.Color.MAGENTA;
+import static javafx.scene.paint.Color.OLIVE;
 import static javafx.scene.paint.Color.ORANGE;
+import static javafx.scene.paint.Color.PURPLE;
 import static javafx.scene.paint.Color.RED;
 import static javafx.scene.paint.Color.VIOLET;
 import static javafx.scene.paint.Color.YELLOW;
 
-import com.chiralbehaviors.jfx.viewer3d.ContentModel;
-import com.chiralbehaviors.jfx.viewer3d.Jfx3dViewerApp;
+import com.javafx.experiments.jfx3dviewer.ContentModel;
+import com.javafx.experiments.jfx3dviewer.Jfx3dViewerApp;
 
 import javafx.scene.Group;
-import javafx.scene.paint.Color;
 import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.Cylinder;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Sphere;
-import mesh.Edge;
-import mesh.Face;
 import mesh.polyhedra.Polyhedron;
-import mesh.polyhedra.plato.Dodecahedron;
-import mesh.polyhedra.plato.Octahedron;
 
 /**
  * @author halhildebrand
@@ -80,11 +81,10 @@ public class TestHarness extends Jfx3dViewerApp {
 
         materials = new PhongMaterial[] { redMaterial, blueMaterial,
                                           greenMaterial, yellowMaterial,
-                                          orangeMaterial, violetMaterial,
-                                          orangeMaterial, cyanMaterial,
-                                          purpleMaterial, magentaMaterial,
-                                          lavenderMaterial, oliveMaterial,
-                                          limeMaterial };
+                                          cyanMaterial, purpleMaterial,
+                                          lavenderMaterial, violetMaterial,
+                                          magentaMaterial, orangeMaterial,
+                                          oliveMaterial, limeMaterial };
         blackMaterials = new PhongMaterial[] { blackMaterial, blackMaterial };
     }
 
@@ -108,45 +108,39 @@ public class TestHarness extends Jfx3dViewerApp {
                  .add(s);
         }
         poly.getEdges()
-            .forEach(e -> group.getChildren()
-                               .addAll(e.createLine(.015)));
+            .forEach(e -> {
+                Cylinder line = e.createLine(.015);
+                line.setMaterial(blackMaterial);
+                group.getChildren()
+                     .addAll(line);
+            });
+    }
+
+    public void addPlainPolyhedron(Group group, Polyhedron poly,
+                                   Material meshMaterial) {
+        MeshView view = new MeshView(poly.toTriangleMesh()
+                                         .constructRegularTexturedMesh());
+        view.setMaterial(meshMaterial);
+        group.getChildren()
+             .add(view);
+        poly.getEdges()
+            .forEach(e -> {
+                Cylinder line = e.createLine(.015);
+                line.setMaterial(blackMaterial);
+                group.getChildren()
+                     .addAll(line);
+            });
     }
 
     @Override
-    protected ContentModel createContentModel() {
+    protected void initializeContentModel() {
 
-        ContentModel content = super.createContentModel();
-        Dodecahedron poly = PhiCoordinates.dodecahedron();
+        ContentModel content = getContentModel();
         Group group = new Group();
-        int i = 0;
-        for (Sphere s : poly.getVertices(0.25)) {
-            s.setMaterial(materials[i]);
-            group.getChildren()
-                 .add(s);
-            i = (i + 1) % materials.length;
+        Polyhedron[] polys = PhiCoordinates.tetrahedrons();
+        for (int i = 0; i < 10; i++) {
+            addPlainPolyhedron(group, polys[i], materials[i]);
         }
-        for (Face f : poly.getFaces()
-                          .get(0)
-                          .divideIntoTriangles()) {
-            f.setMesh(poly);
-            for (Edge e : f.getEdges()) {
-                e.setMesh(poly);
-                group.getChildren()
-                     .add(e.createLine(.05));
-            }
-        }
-//        addPolyhedron(group, poly, blueMaterial, materials);
-        //        addPolyhedron(group, PhiCoordinates.cubes()[0], redMaterial, materials);
-        //        addPolyhedron(group, PhiCoordinates.tetrahedrons()[8], redMaterial,
-        //                      blackMaterials);
-        //        addPolyhedron(group, PhiCoordinates.tetrahedrons()[9], blueMaterial,
-        //                      blackMaterials);
-
-        //        for (Cube cube : PhiCoordinates.cubes()) {
-        //            addPolyhedron(group, cube, blueMaterial,
-        //                          new PhongMaterial[] { redMaterial, redMaterial });
-        //        }
         content.setContent(group);
-        return content;
     }
 }

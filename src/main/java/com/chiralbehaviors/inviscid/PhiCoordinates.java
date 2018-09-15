@@ -16,10 +16,6 @@
 
 package com.chiralbehaviors.inviscid;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import javax.vecmath.Vector3d;
 
 import mesh.polyhedra.plato.Cube;
@@ -58,6 +54,7 @@ public final class PhiCoordinates {
                                                              { 62, 29, 26, 32,
                                                                35, 1 } };
 
+    @SuppressWarnings("unused")
     private static int[]         P120EdgeMap             = { 1, 2, 1, 4, 1, 6,
                                                              1, 8, 2, 3, 2, 4,
                                                              2, 8, 2, 9, 2, 10,
@@ -130,6 +127,7 @@ public final class PhiCoordinates {
                                                              60, 60, 61, 60,
                                                              62, };
 
+    @SuppressWarnings("unused")
     private static int[]         P120FaceMap             = { 1, 2, 4, 2, 3, 4,
                                                              2, 20, 10, 2, 10,
                                                              11, 2, 11, 3, 3,
@@ -203,6 +201,7 @@ public final class PhiCoordinates {
                                                              54, 60, 62 };
 
     // 1 120 Polyhedron
+    @SuppressWarnings("unused")
     private static int[]         P120Vertices            = { 1, 2, 3, 4, 5, 6,
                                                              7, 8, 9, 10, 11,
                                                              12, 13, 14, 15, 16,
@@ -435,6 +434,7 @@ public final class PhiCoordinates {
                                                              60 };
 
     // 5 rhombic dodecahedra
+    @SuppressWarnings("unused")
     private static int[][]       RhDodecahedronVertices  = { { 4, 7, 10, 18, 22,
                                                                23, 28, 34, 38,
                                                                43, 47, 49, 55,
@@ -457,6 +457,7 @@ public final class PhiCoordinates {
                                                                52, 62 } };
 
     // 1 rhombic triacontahedron
+    @SuppressWarnings("unused")
     private static int[]         RhTriaVertices          = { 2, 4, 6, 8, 11, 12,
                                                              13, 16, 17, 18, 20,
                                                              23, 27, 28, 30, 31,
