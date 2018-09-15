@@ -16,10 +16,13 @@ public class Octahedron extends PlatonicSolid {
     public static Vector3d[] standardPositions(double edgeLength) {
         // Generate vertices
         double distOrigin = edgeLength / Math.sqrt(2.0);
-        return new Vector3d[] { new Vector3d(distOrigin, 0.0, 0.0),
+        return new Vector3d[] { // The square 
+                                new Vector3d(distOrigin, 0.0, 0.0),
                                 new Vector3d(0.0, 0.0, distOrigin),
                                 new Vector3d(-distOrigin, 0.0, 0.0),
                                 new Vector3d(0.0, 0.0, -distOrigin),
+
+                                // poles
                                 new Vector3d(0.0, distOrigin, 0.0),
                                 new Vector3d(0.0, -distOrigin, 0.0) };
     }
@@ -66,4 +69,29 @@ public class Octahedron extends PlatonicSolid {
         setVertexNormalsToFaceNormals();
     }
 
+    public Octahedron(Vector3d[] vs) {
+        super(PlatonicSolid.edgeLength(vs));
+        addVertexPositions(vs);
+
+        Face f0 = new Face(3);
+        Face f1 = new Face(3);
+        Face f2 = new Face(3);
+        Face f3 = new Face(3);
+        Face f4 = new Face(3);
+        Face f5 = new Face(3);
+        Face f6 = new Face(3);
+        Face f7 = new Face(3);
+
+        f0.setAllVertexIndices(3, 1, 0);
+        f1.setAllVertexIndices(1, 2, 0);
+        f2.setAllVertexIndices(4, 3, 0);
+        f3.setAllVertexIndices(2, 4, 0);
+        f4.setAllVertexIndices(5, 1, 3);
+        f5.setAllVertexIndices(5, 2, 1);
+        f6.setAllVertexIndices(5, 3, 4);
+        f7.setAllVertexIndices(5, 4, 2);
+
+        addFaces(f0, f1, f2, f3, f4, f5, f6, f7);
+        setVertexNormalsToFaceNormals();
+    }
 }

@@ -16,6 +16,10 @@
 
 package com.chiralbehaviors.inviscid;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import javax.vecmath.Vector3d;
 
 import mesh.polyhedra.plato.Cube;
@@ -45,14 +49,14 @@ public final class PhiCoordinates {
     // 5 differnet octahedra
     private static int[][]       OctahedronVertices      = { { 7, 10, 22, 43,
                                                                49, 55 },
-                                                             { 9, 14, 21, 42,
-                                                               53, 57 },
+                                                             { 57, 14, 21, 42,
+                                                               53, 9 },
                                                              { 3, 15, 25, 40,
                                                                44, 59 },
-                                                             { 5, 19, 24, 39,
-                                                               48, 61 },
-                                                             { 1, 26, 29, 32,
-                                                               35, 62 } };
+                                                             { 61, 19, 24, 39,
+                                                               48, 5 },
+                                                             { 62, 29, 26, 32,
+                                                               35, 1 } };
 
     private static int[]         P120EdgeMap             = { 1, 2, 1, 4, 1, 6,
                                                              1, 8, 2, 3, 2, 4,
@@ -492,7 +496,7 @@ public final class PhiCoordinates {
             int[] b = TetrahedronVertices[i * 2 + 1];
             int[] coordinates = new int[] { b[3], a[2], a[3], b[2], a[1], b[1],
                                             b[0], a[0] };
-            cubes[j++] = new Cube(5D, pointsFrom(coordinates));
+            cubes[j++] = new Cube(pointsFrom(coordinates));
         }
         return cubes;
     }
@@ -509,7 +513,15 @@ public final class PhiCoordinates {
         Octahedron[] octahedrons = new Octahedron[OctahedronVertices.length];
         int i = 0;
         for (int[] coordinates : OctahedronVertices) {
-            octahedrons[i++] = new Octahedron(5D, pointsFrom(coordinates));
+            Vector3d[] vectors = pointsFrom(coordinates);
+            Vector3d[] normalized = new Vector3d[vectors.length];
+            normalized[0] = vectors[2];
+            normalized[1] = vectors[1];
+            normalized[2] = vectors[3];
+            normalized[3] = vectors[5];
+            normalized[4] = vectors[0];
+            normalized[5] = vectors[4];
+            octahedrons[i++] = new Octahedron(vectors);
         }
         return octahedrons;
     }

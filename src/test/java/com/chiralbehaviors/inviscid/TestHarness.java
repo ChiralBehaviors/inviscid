@@ -19,12 +19,11 @@ package com.chiralbehaviors.inviscid;
 
 import static javafx.scene.paint.Color.BLACK;
 import static javafx.scene.paint.Color.BLUE;
-import static javafx.scene.paint.Color.DARKBLUE;
-import static javafx.scene.paint.Color.DARKGREEN;
-import static javafx.scene.paint.Color.DARKRED;
 import static javafx.scene.paint.Color.DEEPSKYBLUE;
 import static javafx.scene.paint.Color.GREEN;
+import static javafx.scene.paint.Color.ORANGE;
 import static javafx.scene.paint.Color.RED;
+import static javafx.scene.paint.Color.VIOLET;
 import static javafx.scene.paint.Color.YELLOW;
 
 import com.chiralbehaviors.jfx.viewer3d.ContentModel;
@@ -36,10 +35,8 @@ import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Sphere;
-import mesh.Edge;
-import mesh.Face;
 import mesh.polyhedra.Polyhedron;
-import mesh.polyhedra.plato.Cube;
+import mesh.polyhedra.plato.Octahedron;
 
 /**
  * @author halhildebrand
@@ -53,35 +50,33 @@ public class TestHarness extends Jfx3dViewerApp {
     protected static final PhongMaterial   redMaterial;
     protected static final PhongMaterial   yellowMaterial;
     protected static final PhongMaterial   blackMaterial;
+    protected static final PhongMaterial   violetMaterial;
+    protected static final PhongMaterial   orangeMaterial;
 
     static {
         redMaterial = new PhongMaterial();
-        redMaterial.setDiffuseColor(new Color(DARKRED.getRed(),
-                                              DARKRED.getGreen(),
-                                              DARKRED.getBlue(), 1));
-        redMaterial.setSpecularColor(new Color(RED.getRed(), RED.getGreen(),
-                                               RED.getBlue(), 1));
+        redMaterial.setDiffuseColor(new Color(RED.getRed(), RED.getGreen(),
+                                              RED.getBlue(), 1));
 
         blueMaterial = new PhongMaterial();
-        blueMaterial.setDiffuseColor(new Color(DARKBLUE.getRed(),
-                                               DARKBLUE.getGreen(),
-                                               DARKBLUE.getBlue(), 1));
-        blueMaterial.setSpecularColor(new Color(BLUE.getRed(), BLUE.getGreen(),
-                                                BLUE.getBlue(), 1));
+        blueMaterial.setDiffuseColor(new Color(BLUE.getRed(), BLUE.getGreen(),
+                                               BLUE.getBlue(), 1));
         greenMaterial = new PhongMaterial();
-        greenMaterial.setDiffuseColor(new Color(DARKGREEN.getRed(),
-                                                DARKGREEN.getGreen(),
-                                                DARKGREEN.getBlue(), 1));
-        greenMaterial.setSpecularColor(new Color(GREEN.getRed(),
-                                                 GREEN.getGreen(),
-                                                 GREEN.getBlue(), 1));
+        greenMaterial.setDiffuseColor(new Color(GREEN.getRed(),
+                                                GREEN.getGreen(),
+                                                GREEN.getBlue(), 1));
         yellowMaterial = new PhongMaterial();
         yellowMaterial.setDiffuseColor(new Color(YELLOW.getRed(),
                                                  YELLOW.getGreen(),
                                                  YELLOW.getBlue(), 1));
-        yellowMaterial.setSpecularColor(new Color(YELLOW.getRed(),
-                                                  YELLOW.getGreen(),
-                                                  YELLOW.getBlue(), 1));
+        violetMaterial = new PhongMaterial();
+        violetMaterial.setDiffuseColor(new Color(VIOLET.getRed(),
+                                                 VIOLET.getGreen(),
+                                                 VIOLET.getBlue(), 1));
+        orangeMaterial = new PhongMaterial();
+        orangeMaterial.setDiffuseColor(new Color(ORANGE.getRed(),
+                                                 ORANGE.getGreen(),
+                                                 ORANGE.getBlue(), 1));
 
         blackMaterial = new PhongMaterial();
         blackMaterial.setDiffuseColor(new Color(BLACK.getRed(),
@@ -92,7 +87,8 @@ public class TestHarness extends Jfx3dViewerApp {
                                                  DEEPSKYBLUE.getBlue(), 1));
 
         materials = new PhongMaterial[] { redMaterial, blueMaterial,
-                                          greenMaterial, yellowMaterial };
+                                          greenMaterial, yellowMaterial,
+                                          orangeMaterial, violetMaterial };
         blackMaterials = new PhongMaterial[] { blackMaterial, blackMaterial };
     }
 
@@ -102,14 +98,14 @@ public class TestHarness extends Jfx3dViewerApp {
 
     public void addPolyhedron(Group group, Polyhedron poly,
                               Material meshMaterial,
-                              PhongMaterial[] vertexMaterials) {
+                              Material[] vertexMaterials) {
         MeshView view = new MeshView(poly.toTriangleMesh()
                                          .constructRegularTexturedMesh());
         view.setMaterial(meshMaterial);
         group.getChildren()
              .add(view);
         int i = 0;
-        for (Sphere s : poly.getVertices(0.25)) {
+        for (Sphere s : poly.getVertices(0.15)) {
             s.setMaterial(vertexMaterials[i]);
             i = (i + 1) % vertexMaterials.length;
             group.getChildren()
@@ -117,7 +113,7 @@ public class TestHarness extends Jfx3dViewerApp {
         }
         poly.getEdges()
             .forEach(e -> group.getChildren()
-                               .addAll(e.createLine(.01)));
+                               .addAll(e.createLine(.015)));
     }
 
     @Override
@@ -125,30 +121,36 @@ public class TestHarness extends Jfx3dViewerApp {
 
         ContentModel content = super.createContentModel();
         Group group = new Group();
-        Cube cube = PhiCoordinates.cubes()[4];
-        //        //        Cube cube = new Cube(5);
-//        int i = 0;
-//        for (Sphere s : cube.getVertices(0.25)) {
-//            s.setMaterial(materials[i]);
-//            group.getChildren()
-//                 .add(s);
-//            i = (i + 1) % materials.length;
-//        }
-        for (Face f : cube.getFaces()
-                          .get(0)
-                          .divideIntoTriangles()) {
-            f.setMesh(cube);
-            for (Edge e : f.getEdges()) {
-                e.setMesh(cube);
-                group.getChildren()
-                     .add(e.createLine(.05));
-            }
-        }
-        addPolyhedron(group, cube, yellowMaterial, materials); 
+        Octahedron octahedron = PhiCoordinates.octahedrons()[4];
+        //        Octahedron octahedron = new Octahedron(5);
+        //                int i = 0;
+        //                for (Sphere s : octahedron.getVertices(0.25)) {
+        //                    s.setMaterial(materials[i]);
+        //                    group.getChildren()
+        //                         .add(s);
+        //                    i = (i + 1) % materials.length;
+        //                }
+        //                for (Face f : octahedron.getFaces()
+        //                                  .get(0)
+        //                                  .divideIntoTriangles()) {
+        //                    f.setMesh(octahedron);
+        //                    for (Edge e : f.getEdges()) {
+        //                        e.setMesh(octahedron);
+        //                        group.getChildren()
+        //                             .add(e.createLine(.05));
+        //                    }
+        //                }
+        addPolyhedron(group, octahedron, yellowMaterial, materials);
+        //        addPolyhedron(group, PhiCoordinates.cubes()[0], redMaterial, materials);
         addPolyhedron(group, PhiCoordinates.tetrahedrons()[8], redMaterial,
-                      materials);
+                      blackMaterials);
         addPolyhedron(group, PhiCoordinates.tetrahedrons()[9], blueMaterial,
-                      materials);
+                      blackMaterials);
+
+        //        for (Cube cube : PhiCoordinates.cubes()) {
+        //            addPolyhedron(group, cube, blueMaterial,
+        //                          new PhongMaterial[] { redMaterial, redMaterial });
+        //        }
         content.setContent(group);
         return content;
     }
