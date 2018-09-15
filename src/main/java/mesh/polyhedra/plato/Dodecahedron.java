@@ -90,8 +90,8 @@ public class Dodecahedron extends PlatonicSolid {
         setVertexNormalsToFaceNormals();
     }
     
-    public Dodecahedron(double edgeLength, Vector3d[] vertices) {
-        super(edgeLength);
+    public Dodecahedron(Vector3d[] vertices) {
+        super(PlatonicSolid.edgeLength(vertices));
         addVertexPositions(vertices);
 
         Face[] faces = new Face[12];
@@ -99,19 +99,35 @@ public class Dodecahedron extends PlatonicSolid {
             faces[i] = new Face(5);
         }
 
+        @SuppressWarnings("unused")
+        int[] v = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 
+                    10, 11, 12, 13, 14, 15, 16, 17, 18, 19}; 
+        @SuppressWarnings("unused")
+        int[][][] faceMap = {{{ 0, 1, 2}, {2, 1, 5}, {2, 5, 6}}, 
+                             {{ 0, 3, 7}, { 0, 7, 1}, { 1, 7, 4}}, 
+                             {{ 0, 2, 8}, { 0, 8, 9}, { 0, 9, 3}}, 
+                             {{ 1, 4, 10}, { 1, 10, 5}, {5, 10, 11}}, 
+                             {{2, 6, 8}, {6, 14, 8}, {6, 12, 14}}, 
+                             {{3, 9, 7}, {7, 9, 13}, {13, 9, 15}}, 
+                             {{4, 7, 10}, {10, 7, 16}, {16, 7, 13}}, 
+                             {{5, 11, 17}, {5, 17, 12}, {5, 12, 6}}, 
+                             {{8, 14, 18}, {8, 18, 15}, {8, 15, 9}}, 
+                             {{10, 16, 19}, {10, 19, 11}, {11, 19, 17}}, 
+                             {{12, 17, 19}, {12, 19, 18}, {12, 18, 14}}, 
+                             {{13, 15, 18}, {13, 18, 19}, {13, 19, 16}}};
         // Construct faces
-        faces[0].setAllVertexIndices(0, 16, 2, 14, 12);
-        faces[1].setAllVertexIndices(1, 13, 15, 3, 18);
-        faces[2].setAllVertexIndices(4, 12, 14, 6, 17);
-        faces[3].setAllVertexIndices(5, 19, 7, 15, 13);
-        faces[4].setAllVertexIndices(0, 12, 4, 10, 8);
-        faces[5].setAllVertexIndices(2, 9, 11, 6, 14);
-        faces[6].setAllVertexIndices(1, 8, 10, 5, 13);
-        faces[7].setAllVertexIndices(3, 15, 7, 11, 9);
-        faces[8].setAllVertexIndices(0, 8, 1, 18, 16);
-        faces[9].setAllVertexIndices(4, 17, 19, 5, 10);
-        faces[10].setAllVertexIndices(2, 16, 18, 3, 9);
-        faces[11].setAllVertexIndices(6, 11, 7, 19, 17);
+        faces[0].setAllVertexIndices(0, 1, 6, 5, 2);
+        faces[1].setAllVertexIndices(0, 3, 7, 1, 4);
+        faces[2].setAllVertexIndices(0, 2, 8, 9, 3);
+        faces[3].setAllVertexIndices(1, 4, 10, 5, 11);
+        faces[4].setAllVertexIndices(2, 6, 8, 14, 12);
+        faces[5].setAllVertexIndices(3, 9, 7, 13, 15);
+        faces[6].setAllVertexIndices(4, 7, 10, 16, 13);
+        faces[7].setAllVertexIndices(5, 11, 17, 12, 6);
+        faces[8].setAllVertexIndices(8, 14, 18, 15, 9);
+        faces[9].setAllVertexIndices(10, 16, 19, 11, 17);
+        faces[10].setAllVertexIndices(12, 17, 19, 18, 14);
+        faces[11].setAllVertexIndices(13, 15, 18, 19, 16);
 
         addFaces(faces);
         setVertexNormalsToFaceNormals();

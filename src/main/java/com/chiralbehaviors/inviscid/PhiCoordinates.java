@@ -506,7 +506,7 @@ public final class PhiCoordinates {
     }
 
     public static Dodecahedron dodecahedron() {
-        return new Dodecahedron(5D, pointsFrom(RegDodecahedronVertices));
+        return new Dodecahedron(pointsFrom(RegDodecahedronVertices));
     }
 
     public static Octahedron[] octahedrons() {
