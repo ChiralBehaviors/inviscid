@@ -469,9 +469,9 @@ public final class PhiCoordinates {
     // 10 different tetrahedra
     private static int[][]       TetrahedronVertices     = { { 4, 34, 38, 47 },
                                                              { 60, 28, 23, 18 },
-                                                             { 16, 20, 30, 60 },
-                                                             { 36, 4, 41, 45 },
-                                                             { 11, 23, 36, 56 },
+                                                             { 30, 16, 20, 60 },
+                                                             { 36, 45, 41, 4 },
+                                                             { 56, 23, 11, 36 },
                                                              { 30, 8, 38, 50 },
                                                              { 8, 28, 41, 52 },
                                                              { 20, 13, 34, 56 },

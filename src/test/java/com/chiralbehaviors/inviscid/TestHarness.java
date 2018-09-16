@@ -144,20 +144,21 @@ public class TestHarness extends Jfx3dViewerApp {
 
         ContentModel content = getContentModel();
         Group group = new Group();
-        addPolyhedron(group, PhiCoordinates.tetrahedrons()[0], redMaterial,
+        addPolyhedron(group, PhiCoordinates.tetrahedrons()[2], redMaterial,
                       materials);
+        
+        addPolyhedron(group, PhiCoordinates.tetrahedrons()[3], blueMaterial,
+                      materials);
+        
+//        addPolyhedron(group, PhiCoordinates.tetrahedrons()[4], greenMaterial,
+//                      materials);
+//
+//        addPolyhedron(group, PhiCoordinates.tetrahedrons()[6], yellowMaterial,
+//                      materials); 
+//
+//        addPolyhedron(group, PhiCoordinates.tetrahedrons()[8], violetMaterial,
+//                      materials); 
 
-        addPolyhedron(group, PhiCoordinates.tetrahedrons()[2], blueMaterial,
-                      materials);
-
-        addPolyhedron(group, PhiCoordinates.tetrahedrons()[4], greenMaterial,
-                      materials);
-
-        addPolyhedron(group, PhiCoordinates.tetrahedrons()[6], yellowMaterial,
-                      materials);
-
-        addPolyhedron(group, PhiCoordinates.tetrahedrons()[8], violetMaterial,
-                      materials);
         content.setContent(group);
     }
 }
