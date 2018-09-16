@@ -45,9 +45,10 @@ public final class PhiCoordinates {
     // 5 differnet octahedra
     private static int[][]       OctahedronVertices      = { { 7, 10, 22, 43,
                                                                49, 55 },
-                                                             {9, 21, 14, 53, 42, 57}, 
-                                                             { 3, 15, 25, 40,
-                                                               44, 59 },
+                                                             {9, 21, 14, 53, 42, 57},
+                                                             {25, 3, 15, 44, 59, 40},
+
+                                                             
                                                              { 61, 19, 24, 39,
                                                                48, 5 },
                                                              { 62, 29, 26, 32,

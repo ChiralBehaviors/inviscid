@@ -167,8 +167,8 @@ public class TestHarness extends Jfx3dViewerApp {
         //                 .add(mesh);
         //        }
 
-        addPolyhedron(group, oct[0], redMaterial, materials);
-        addPolyhedron(group, oct[1], blueMaterial, materials);
+        addPolyhedron(group, oct[1], redMaterial, materials);
+        addPolyhedron(group, oct[2], blueMaterial, materials);
 //        addPolyhedron(group, oct[2], greenMaterial, materials);
 //        addPolyhedron(group, oct[3], yellowMaterial, materials);
 //        addPolyhedron(group, oct[4], cyanMaterial, materials);
