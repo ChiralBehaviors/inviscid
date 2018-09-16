@@ -23,8 +23,9 @@ public class Tetrahedron extends PlatonicSolid {
         v1.scale(edgeScaleFactor);
         v2.scale(edgeScaleFactor);
         v3.scale(edgeScaleFactor);
-        return new Vector3d[] {v0, v1, v2, v3};
+        return new Vector3d[] { v0, v1, v2, v3 };
     }
+
     /**
      * Construct a tetrahedron mesh centered at the origin with the specified
      * edge length.
@@ -33,8 +34,9 @@ public class Tetrahedron extends PlatonicSolid {
      *            The length of each edge of this mesh.
      */
     public Tetrahedron(double edgeLength) {
-        this(edgeLength, stdPositions(edgeLength));
+        this(false, stdPositions(edgeLength));
     }
+
     /**
      * Construct a tetrahedron mesh with the specified circumradius.
      * 
@@ -47,23 +49,26 @@ public class Tetrahedron extends PlatonicSolid {
         this(circumradius / RADIUS_FACTOR);
     }
 
-    public Tetrahedron(double edgeLength, Vector3d... vectors ) {
-        super(edgeLength);
+    public Tetrahedron(boolean inverse, Vector3d... vectors) {
+        super(PlatonicSolid.edgeLength(vectors));
         assert vectors != null && vectors.length == 4;
         addVertexPositions(vectors[0], vectors[1], vectors[2], vectors[3]);
 
-        // Create faces
         Face f0 = new Face(3);
-        f0.setAllVertexIndices(0, 3, 1);
-
         Face f1 = new Face(3);
-        f1.setAllVertexIndices(0, 1, 2);
-
         Face f2 = new Face(3);
-        f2.setAllVertexIndices(2, 1, 3);
-
         Face f3 = new Face(3);
-        f3.setAllVertexIndices(0, 2, 3);
+        if (inverse) {
+            f0.setAllVertexIndices(1, 3, 0);
+            f1.setAllVertexIndices(2, 1, 0);
+            f2.setAllVertexIndices(3, 1, 2);
+            f3.setAllVertexIndices(3, 2, 0);
+        } else {
+            f0.setAllVertexIndices(0, 3, 1);
+            f1.setAllVertexIndices(0, 1, 2);
+            f2.setAllVertexIndices(2, 1, 3);
+            f3.setAllVertexIndices(0, 2, 3);
+        }
 
         addFaces(f0, f1, f2, f3);
         setVertexNormalsToFaceNormals();

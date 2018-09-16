@@ -6,7 +6,10 @@ import java.util.List;
 
 import javax.vecmath.Vector3d;
 
+import javafx.scene.shape.CullFace;
+import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Sphere;
+import javafx.scene.shape.TriangleMesh;
 
 /**
  * A class for polygon faces. These faces store vertex data in the form of
@@ -30,7 +33,6 @@ import javafx.scene.shape.Sphere;
 public class Face {
 
     private Mesh  mesh;
-
     private int[] normalIndices;
     private int   numVertices;
     private int[] vertexIndices;
@@ -113,6 +115,38 @@ public class Face {
         return centroid;
     }
 
+    public MeshView constructMeshView() {
+        Face[] faces = divideIntoTriangles();
+        int texIndicesCount = 0;
+        for (Face face : faces) {
+            texIndicesCount += face.numVertices();
+        }
+        int[] texIindices = new int[mesh.vertexPositions.size()];
+        Arrays.fill(texIindices, 1);
+        float[] texCoords = new float[texIndicesCount * 2];
+        Arrays.fill(texCoords, 1f);
+        TriangleMesh newMesh = new TriangleMesh();
+        int i;
+        newMesh.getPoints()
+               .addAll(mesh.constructMeshPoints());
+        newMesh.getTexCoords()
+               .addAll(texCoords);
+        int[] facesAndTexCoords = new int[texIndicesCount * 2];
+        i = 0;
+        for (Face f : faces) {
+            int[] indices = f.getVertexIndices();
+            for (int j : indices) {
+                facesAndTexCoords[i++] = j;
+                facesAndTexCoords[i++] = texIindices[j];
+            }
+        }
+        newMesh.getFaces()
+               .addAll(facesAndTexCoords);
+        MeshView view = new MeshView(newMesh);
+        view.setCullFace(CullFace.NONE);
+        return view;
+    }
+
     /**
      * Converts this polygon face into an array of triangular faces whose union
      * has the same geometry as this face. If this face is a triangle, the array
@@ -124,7 +158,7 @@ public class Face {
     public Face[] divideIntoTriangles() {
         Face[] triangles = new Face[numVertices - 2];
         int v2 = numVertices - 1;
-        
+
         for (int i = 0; i < numVertices - 2; i++) {
             int v0 = i;
             int v1 = i + 1;
@@ -214,6 +248,11 @@ public class Face {
      */
     public int[] getVertexIndices() {
         return vertexIndices;
+    }
+
+    public List<Vector3d> getVertices() {
+        List<Vector3d> vertices = new ArrayList<>();
+        return vertices;
     }
 
     public List<Sphere> getVertices(double radius) {
@@ -368,5 +407,4 @@ public class Face {
         avg.scale(1.0 / numVertices);
         return avg;
     }
-
 }

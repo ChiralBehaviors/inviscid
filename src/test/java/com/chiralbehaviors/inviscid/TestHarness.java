@@ -31,6 +31,10 @@ import static javafx.scene.paint.Color.RED;
 import static javafx.scene.paint.Color.VIOLET;
 import static javafx.scene.paint.Color.YELLOW;
 
+import java.util.List;
+
+import javax.vecmath.Vector3d;
+
 import com.javafx.experiments.jfx3dviewer.ContentModel;
 import com.javafx.experiments.jfx3dviewer.Jfx3dViewerApp;
 
@@ -40,7 +44,10 @@ import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Cylinder;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Sphere;
+import javafx.scene.transform.Rotate;
+import mesh.Face;
 import mesh.polyhedra.Polyhedron;
+import mesh.polyhedra.plato.Tetrahedron;
 
 /**
  * @author halhildebrand
@@ -137,10 +144,20 @@ public class TestHarness extends Jfx3dViewerApp {
 
         ContentModel content = getContentModel();
         Group group = new Group();
-        Polyhedron[] polys = PhiCoordinates.tetrahedrons();
-        for (int i = 0; i < 10; i++) {
-            addPlainPolyhedron(group, polys[i], materials[i]);
-        }
+        addPolyhedron(group, PhiCoordinates.tetrahedrons()[0], redMaterial,
+                      materials);
+
+        addPolyhedron(group, PhiCoordinates.tetrahedrons()[2], blueMaterial,
+                      materials);
+
+        addPolyhedron(group, PhiCoordinates.tetrahedrons()[4], greenMaterial,
+                      materials);
+
+        addPolyhedron(group, PhiCoordinates.tetrahedrons()[6], yellowMaterial,
+                      materials);
+
+        addPolyhedron(group, PhiCoordinates.tetrahedrons()[8], violetMaterial,
+                      materials);
         content.setContent(group);
     }
 }

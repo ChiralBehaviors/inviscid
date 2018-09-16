@@ -468,13 +468,13 @@ public final class PhiCoordinates {
 
     // 10 different tetrahedra
     private static int[][]       TetrahedronVertices     = { { 4, 34, 38, 47 },
-                                                             { 23, 18, 28, 60 },
+                                                             { 60, 28, 23, 18 },
                                                              { 16, 20, 30, 60 },
                                                              { 36, 4, 41, 45 },
-                                                             { 8, 28, 41, 52 },
-                                                             { 20, 13, 34, 56 },
                                                              { 11, 23, 36, 56 },
                                                              { 30, 8, 38, 50 },
+                                                             { 8, 28, 41, 52 },
+                                                             { 20, 13, 34, 56 },
                                                              { 13, 18, 45, 50 },
                                                              { 16, 11, 47,
                                                                52 } };
@@ -540,7 +540,8 @@ public final class PhiCoordinates {
         Tetrahedron[] tetrahedrons = new Tetrahedron[TetrahedronVertices.length];
         int i = 0;
         for (int[] coordinates : TetrahedronVertices) {
-            tetrahedrons[i++] = new Tetrahedron(5D, pointsFrom(coordinates));
+            tetrahedrons[i++] = new Tetrahedron((i & 1) == 0,
+                                                pointsFrom(coordinates));
         }
         return tetrahedrons;
     }

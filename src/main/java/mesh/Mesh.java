@@ -26,7 +26,6 @@ import javafx.scene.shape.TriangleMesh;
 public class Mesh {
 
     protected List<Face>     faces;
-
     protected List<Vector3d> vertexNormals;
     protected List<Vector3d> vertexPositions;
 
@@ -149,15 +148,9 @@ public class Mesh {
 
     public TriangleMesh constructMesh(int[] texIndices, float[] texCoords) {
         TriangleMesh newMesh = new TriangleMesh();
-        float[] meshPoints = new float[vertexPositions.size() * 3];
-        int i = 0;
-        for (Vector3d v : vertexPositions) {
-            meshPoints[i++] = (float) v.x;
-            meshPoints[i++] = (float) v.y;
-            meshPoints[i++] = (float) v.z;
-        }
+        int i;
         newMesh.getPoints()
-               .addAll(meshPoints);
+               .addAll(constructMeshPoints());
         newMesh.getTexCoords()
                .addAll(texCoords);
         int[] facesAndTexCoords = new int[getTexIndicesCount() * 2];
@@ -175,9 +168,10 @@ public class Mesh {
     }
 
     public TriangleMesh constructRegularTexturedMesh() {
-        int[] indices = new int[getTexIndicesCount()];
+        int texIndicesCount = getTexIndicesCount();
+        int[] indices = new int[texIndicesCount];
         Arrays.fill(indices, 1);
-        float[] texCoords = new float[getTexIndicesCount() * 2];
+        float[] texCoords = new float[texIndicesCount * 2];
         Arrays.fill(texCoords, 1f);
         return constructMesh(indices, texCoords);
     }
@@ -334,5 +328,16 @@ public class Mesh {
             }
         }
         return triangleMesh;
+    }
+
+    protected float[] constructMeshPoints() {
+        float[] meshPoints = new float[vertexPositions.size() * 3];
+        int i = 0;
+        for (Vector3d v : vertexPositions) {
+            meshPoints[i++] = (float) v.x;
+            meshPoints[i++] = (float) v.y;
+            meshPoints[i++] = (float) v.z;
+        }
+        return meshPoints;
     }
 }
