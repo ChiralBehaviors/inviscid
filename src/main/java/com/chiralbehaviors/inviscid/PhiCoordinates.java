@@ -500,8 +500,8 @@ public final class PhiCoordinates {
         for (int i = 0; i < TetrahedronVertices.length / 2; i++) {
             int[] a = TetrahedronVertices[i * 2];
             int[] b = TetrahedronVertices[i * 2 + 1];
-            int[] coordinates = new int[] { a[0], b[1], a[3], b[0], a[1], b[3],
-                                            a[2], b[2] };
+            int[] coordinates = new int[] { a[0], b[1], a[3], b[2], a[1], b[0],
+                                            a[2], b[3] };
             cubes[j++] = new Cube(pointsFrom(coordinates));
         }
         return cubes;

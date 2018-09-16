@@ -150,11 +150,13 @@ public class TestHarness extends Jfx3dViewerApp {
         Cube[] cube = PhiCoordinates.cubes();
         
 //        addPolyhedron(group, tet[0], redMaterial, materials);
-//        addPolyhedron(group, tet[1], redMaterial, materials);
-        addPolyhedron(group, tet[8], redMaterial, materials);
-        addPolyhedron(group, tet[9], blueMaterial, materials);
-
-//        addPolyhedron(group, cube[3], greenMaterial, materials);
+//        addPolyhedron(group, tet[1], blueMaterial, materials);
+//        addPolyhedron(group, tet[8], redMaterial, materials);
+//        addPolyhedron(group, tet[9], blueMaterial, materials);
+ 
+        for (int i = 0; i< 3; i++) {
+            addPlainPolyhedron(group, cube[i], materials[i]);
+        }
 
         content.setContent(group);
     }
