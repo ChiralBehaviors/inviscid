@@ -74,6 +74,7 @@ public class TestHarness extends Jfx3dViewerApp {
     protected static final PhongMaterial   oliveMaterial;
     protected static final PhongMaterial   limeMaterial;
     protected static final PhongMaterial[] eightMaterials;
+    protected static final PhongMaterial[] eight4Materials;
 
     static {
         redMaterial = new PhongMaterial(RED);
@@ -102,6 +103,10 @@ public class TestHarness extends Jfx3dViewerApp {
                                                greenMaterial, yellowMaterial,
                                                redMaterial, blueMaterial,
                                                greenMaterial, yellowMaterial };
+        eight4Materials = new PhongMaterial[] { redMaterial, blueMaterial,
+                                                greenMaterial, yellowMaterial,
+                                                blackMaterial, blackMaterial,
+                                                blackMaterial, blackMaterial };
     }
 
     public static void main(String[] args) {
@@ -148,31 +153,46 @@ public class TestHarness extends Jfx3dViewerApp {
             });
     }
 
+    public void addFaces(Group group, Polyhedron poly,
+                         Material[] faceMaterials) {
+        int i = 0;
+        for (Face face : poly.getFaces()) {
+            MeshView mesh = face.constructMeshView();
+            mesh.setMaterial(faceMaterials[i++]);
+            group.getChildren()
+                 .add(mesh);
+        }
+    }
+
     @Override
     protected void initializeContentModel() {
 
         ContentModel content = getContentModel();
         Group group = new Group();
+        Cube[] cube = PhiCoordinates.cubes();
         Tetrahedron[] tet = PhiCoordinates.tetrahedrons();
         Octahedron[] oct = PhiCoordinates.octahedrons();
 
         //        addPolyhedron(group, tet[4], redMaterial, materials);
         //        addPolyhedron(group, tet[5], blueMaterial, materials);
-        //
+
         //        int i = 0;
         //        for (Face face : oct[2].getFaces()) {
         //            MeshView mesh = face.constructMeshView();
-        //            mesh.setMaterial(eightMaterials[i++]);
+        //            mesh.setMaterial(eight4Materials[i++]);
         //            group.getChildren()
         //                 .add(mesh);
         //        }
 
-        addPolyhedron(group, oct[2], redMaterial, materials);
-        addPolyhedron(group, oct[3], blueMaterial, materials);
-//        addPolyhedron(group, oct[2], greenMaterial, materials);
-//        addPolyhedron(group, oct[3], yellowMaterial, materials);
-//        addPolyhedron(group, oct[4], cyanMaterial, materials);
-
+//        addPolyhedron(group, oct[0], greenMaterial, materials);
+//        addPolyhedron(group, oct[1], yellowMaterial, materials);
+      addPolyhedron(group, tet[0], redMaterial, eight4Materials);
+      addPolyhedron(group, tet[1], blueMaterial, eight4Materials);
+      addPolyhedron(group, oct[0], greenMaterial, eight4Materials);
+      addPolyhedron(group, oct[1], yellowMaterial, eight4Materials);
+//        addFaces(group, oct[0], eight4Materials);
+//        addFaces(group, oct[1], eight4Materials);
+ 
         content.setContent(group);
     }
 }

@@ -49,9 +49,7 @@ public final class PhiCoordinates {
                                                              {25, 3, 15, 44, 59, 40},
                                                              {19, 5, 24, 39, 61, 48},
 
-                                                             
-                                                             { 62, 29, 26, 32,
-                                                               35, 1 } };
+                                                             {26, 1, 35, 29, 62, 32}  };
 
     @SuppressWarnings("unused")
     private static int[]         P120EdgeMap             = { 1, 2, 1, 4, 1, 6,
