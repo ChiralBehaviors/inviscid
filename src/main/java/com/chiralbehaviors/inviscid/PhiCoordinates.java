@@ -468,21 +468,20 @@ public final class PhiCoordinates {
 
     // 10 different tetrahedra
     private static int[][]       TetrahedronVertices     = { { 47, 34, 4, 38 },
-                                                             { 60, 28, 23, 18 },
-                                                             
-                                                             { 30, 16, 20, 60 },
+                                                             {18, 28, 60, 23}, 
+
+                                                             { 30, 16, 20, 60 }, 
                                                              { 36, 45, 41, 4 },
-                                                             
-                                                             { 28, 41, 8, 52 },
+
+                                                             { 28, 41, 8, 52 }, 
                                                              { 34, 20, 56, 13 },
-                                                             
+
                                                              { 45, 50, 13, 18 },
-                                                             { 16, 11, 47,
-                                                               52 }, 
-                                                             
+                                                             {16, 11, 52, 47}, 
+
                                                              { 56, 23, 11, 36 },
-                                                             { 30, 8, 38, 50 }
-                                                             
+                                                             {  8, 38, 50, 30 }
+
     };
 
     static {
@@ -501,8 +500,8 @@ public final class PhiCoordinates {
         for (int i = 0; i < TetrahedronVertices.length / 2; i++) {
             int[] a = TetrahedronVertices[i * 2];
             int[] b = TetrahedronVertices[i * 2 + 1];
-            int[] coordinates = new int[] { b[3], a[2], a[3], b[2], a[1], b[1],
-                                            b[0], a[0] };
+            int[] coordinates = new int[] { a[0], b[1], a[3], b[0], a[1], b[3],
+                                            a[2], b[2] };
             cubes[j++] = new Cube(pointsFrom(coordinates));
         }
         return cubes;

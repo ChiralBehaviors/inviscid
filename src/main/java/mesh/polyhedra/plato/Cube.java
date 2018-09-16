@@ -72,12 +72,13 @@ public class Cube extends PlatonicSolid {
         Face f4 = new Face(4);
         Face f5 = new Face(4);
 
-        f0.setAllVertexIndices(0, 2, 3, 1);
-        f1.setAllVertexIndices(0, 4, 6, 2);
-        f2.setAllVertexIndices(0, 1, 5, 4);
-        f3.setAllVertexIndices(7, 6, 4, 5);
-        f4.setAllVertexIndices(7, 5, 1, 3);
-        f5.setAllVertexIndices(7, 3, 2, 6);
+        f0.setAllVertexIndices(0, 1, 2, 3);
+        f1.setAllVertexIndices(3, 2, 5, 4);
+        f2.setAllVertexIndices(3, 4, 7, 0);
+        
+        f3.setAllVertexIndices(4, 5, 6, 7);
+        f4.setAllVertexIndices(1, 0, 7, 6);
+        f5.setAllVertexIndices(1, 6, 5, 2);
 
         addFaces(f0, f1, f2, f3, f4, f5);
         setVertexNormalsToFaceNormals();

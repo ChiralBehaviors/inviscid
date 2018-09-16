@@ -47,6 +47,7 @@ import javafx.scene.shape.Sphere;
 import javafx.scene.transform.Rotate;
 import mesh.Face;
 import mesh.polyhedra.Polyhedron;
+import mesh.polyhedra.plato.Cube;
 import mesh.polyhedra.plato.PlatonicSolid;
 import mesh.polyhedra.plato.Tetrahedron;
 
@@ -144,11 +145,16 @@ public class TestHarness extends Jfx3dViewerApp {
     protected void initializeContentModel() {
 
         ContentModel content = getContentModel();
-        Group group = new Group();
-        int i = 0;
-        for (PlatonicSolid p : PhiCoordinates.cubes()) {
-            addPolyhedron(group, p, materials[i++], materials);
-        }
+        Group group = new Group(); 
+        Tetrahedron[] tet = PhiCoordinates.tetrahedrons();
+        Cube[] cube = PhiCoordinates.cubes();
+        
+//        addPolyhedron(group, tet[0], redMaterial, materials);
+//        addPolyhedron(group, tet[1], redMaterial, materials);
+        addPolyhedron(group, tet[8], redMaterial, materials);
+        addPolyhedron(group, tet[9], blueMaterial, materials);
+
+//        addPolyhedron(group, cube[3], greenMaterial, materials);
 
         content.setContent(group);
     }
