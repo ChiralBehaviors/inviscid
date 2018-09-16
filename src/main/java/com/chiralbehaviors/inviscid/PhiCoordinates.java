@@ -467,17 +467,23 @@ public final class PhiCoordinates {
                                                              60 };
 
     // 10 different tetrahedra
-    private static int[][]       TetrahedronVertices     = { { 4, 34, 38, 47 },
+    private static int[][]       TetrahedronVertices     = { { 47, 34, 4, 38 },
                                                              { 60, 28, 23, 18 },
+                                                             
                                                              { 30, 16, 20, 60 },
                                                              { 36, 45, 41, 4 },
-                                                             { 56, 23, 11, 36 },
-                                                             { 30, 8, 38, 50 }, 
-                                                             {28, 41, 8, 52 }, 
-                                                             {34, 20, 56, 13},
-                                                             { 13, 18, 45, 50 },
+                                                             
+                                                             { 28, 41, 8, 52 },
+                                                             { 34, 20, 56, 13 },
+                                                             
+                                                             { 45, 50, 13, 18 },
                                                              { 16, 11, 47,
-                                                               52 } };
+                                                               52 }, 
+                                                             
+                                                             { 56, 23, 11, 36 },
+                                                             { 30, 8, 38, 50 }
+                                                             
+    };
 
     static {
         MeshPoints = new float[POLY_120_VECTORS.length * 3];
