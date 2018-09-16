@@ -33,6 +33,7 @@ import static javafx.scene.paint.Color.YELLOW;
 
 import java.util.List;
 
+import javax.swing.plaf.metal.OceanTheme;
 import javax.vecmath.Vector3d;
 
 import com.javafx.experiments.jfx3dviewer.ContentModel;
@@ -48,6 +49,7 @@ import javafx.scene.transform.Rotate;
 import mesh.Face;
 import mesh.polyhedra.Polyhedron;
 import mesh.polyhedra.plato.Cube;
+import mesh.polyhedra.plato.Octahedron;
 import mesh.polyhedra.plato.PlatonicSolid;
 import mesh.polyhedra.plato.Tetrahedron;
 
@@ -71,6 +73,7 @@ public class TestHarness extends Jfx3dViewerApp {
     protected static final PhongMaterial   lavenderMaterial;
     protected static final PhongMaterial   oliveMaterial;
     protected static final PhongMaterial   limeMaterial;
+    protected static final PhongMaterial[] eightMaterials;
 
     static {
         redMaterial = new PhongMaterial(RED);
@@ -91,10 +94,14 @@ public class TestHarness extends Jfx3dViewerApp {
         materials = new PhongMaterial[] { redMaterial, blueMaterial,
                                           greenMaterial, yellowMaterial,
                                           cyanMaterial, purpleMaterial,
-                                          lavenderMaterial, violetMaterial,
-                                          magentaMaterial, orangeMaterial,
+                                          orangeMaterial, violetMaterial,
+                                          magentaMaterial, lavenderMaterial,
                                           oliveMaterial, limeMaterial };
         blackMaterials = new PhongMaterial[] { blackMaterial, blackMaterial };
+        eightMaterials = new PhongMaterial[] { redMaterial, blueMaterial,
+                                               greenMaterial, yellowMaterial,
+                                               redMaterial, blueMaterial,
+                                               greenMaterial, yellowMaterial };
     }
 
     public static void main(String[] args) {
@@ -145,18 +152,26 @@ public class TestHarness extends Jfx3dViewerApp {
     protected void initializeContentModel() {
 
         ContentModel content = getContentModel();
-        Group group = new Group(); 
+        Group group = new Group();
         Tetrahedron[] tet = PhiCoordinates.tetrahedrons();
-        Cube[] cube = PhiCoordinates.cubes();
-        
-//        addPolyhedron(group, tet[0], redMaterial, materials);
-//        addPolyhedron(group, tet[1], blueMaterial, materials);
-//        addPolyhedron(group, tet[8], redMaterial, materials);
-//        addPolyhedron(group, tet[9], blueMaterial, materials);
- 
-        for (int i = 0; i< 3; i++) {
-            addPlainPolyhedron(group, cube[i], materials[i]);
-        }
+        Octahedron[] oct = PhiCoordinates.octahedrons();
+
+        //        addPolyhedron(group, tet[4], redMaterial, materials);
+        //        addPolyhedron(group, tet[5], blueMaterial, materials);
+        //
+        //        int i = 0;
+        //        for (Face face : oct[2].getFaces()) {
+        //            MeshView mesh = face.constructMeshView();
+        //            mesh.setMaterial(eightMaterials[i++]);
+        //            group.getChildren()
+        //                 .add(mesh);
+        //        }
+
+        addPolyhedron(group, oct[0], redMaterial, materials);
+        addPolyhedron(group, oct[1], blueMaterial, materials);
+//        addPolyhedron(group, oct[2], greenMaterial, materials);
+//        addPolyhedron(group, oct[3], yellowMaterial, materials);
+//        addPolyhedron(group, oct[4], cyanMaterial, materials);
 
         content.setContent(group);
     }

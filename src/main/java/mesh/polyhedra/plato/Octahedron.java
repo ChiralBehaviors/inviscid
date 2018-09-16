@@ -82,14 +82,14 @@ public class Octahedron extends PlatonicSolid {
         Face f6 = new Face(3);
         Face f7 = new Face(3);
 
-        f0.setAllVertexIndices(3, 1, 0);
-        f1.setAllVertexIndices(1, 2, 0);
-        f2.setAllVertexIndices(4, 3, 0);
-        f3.setAllVertexIndices(2, 4, 0);
-        f4.setAllVertexIndices(5, 1, 3);
+        f0.setAllVertexIndices(5, 4, 2);
+        f1.setAllVertexIndices(4, 3, 0);
+        f2.setAllVertexIndices(1, 2, 0);
+        f3.setAllVertexIndices(5, 1, 3);
+        f4.setAllVertexIndices(3, 1, 0);
         f5.setAllVertexIndices(5, 2, 1);
         f6.setAllVertexIndices(5, 3, 4);
-        f7.setAllVertexIndices(5, 4, 2);
+        f7.setAllVertexIndices(2, 4, 0);
 
         addFaces(f0, f1, f2, f3, f4, f5, f6, f7);
         setVertexNormalsToFaceNormals();
