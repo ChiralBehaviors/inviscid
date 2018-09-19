@@ -252,6 +252,10 @@ public class Face {
 
     public List<Vector3d> getVertices() {
         List<Vector3d> vertices = new ArrayList<>();
+        for (int i = 0; i < numVertices; i++) {
+            vertices.add(mesh.getVertexPositions()
+                             .get(vertexIndices[i]));
+        }
         return vertices;
     }
 

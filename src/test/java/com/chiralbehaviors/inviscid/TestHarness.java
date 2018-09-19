@@ -31,24 +31,18 @@ import static javafx.scene.paint.Color.RED;
 import static javafx.scene.paint.Color.VIOLET;
 import static javafx.scene.paint.Color.YELLOW;
 
-import javax.vecmath.Vector3d;
-
 import com.javafx.experiments.jfx3dviewer.ContentModel;
 import com.javafx.experiments.jfx3dviewer.Jfx3dViewerApp;
 
-import javafx.geometry.Point3D;
 import javafx.scene.Group;
 import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Cylinder;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Sphere;
-import javafx.scene.transform.Rotate;
-import javafx.scene.transform.Translate;
 import mesh.Face;
 import mesh.polyhedra.Polyhedron;
 import mesh.polyhedra.plato.Octahedron;
-import mesh.polyhedra.plato.Tetrahedron;
 
 /**
  * @author halhildebrand
@@ -119,7 +113,7 @@ public class TestHarness extends Jfx3dViewerApp {
         group.getChildren()
              .add(view);
         int i = 0;
-        for (Sphere s : poly.getVertices(0.15)) {
+        for (Sphere s : poly.getVertices(3.5)) {
             s.setMaterial(vertexMaterials[i]);
             i = (i + 1) % vertexMaterials.length;
             group.getChildren()
@@ -163,47 +157,10 @@ public class TestHarness extends Jfx3dViewerApp {
 
     @Override
     protected void initializeContentModel() {
-
-        ContentModel content = getContentModel();
-        Group group = new Group();
-
+        ContentModel content = getContentModel();   
         Octahedron oct = PhiCoordinates.octahedrons()[0];
-        Face f = oct.getFaces()
-                       .get(0);
-        Vector3d centroid = f.centroid();
-
-        Tetrahedron tet1 = PhiCoordinates.tetrahedrons()[0];
-        
-        Vector3d axis = tet1.getVertexPositions().get(0);
-        
-        Rotate rotation = new Rotate();
-        rotation.setAngle(30);
-        
-        rotation.setPivotX(centroid.x);
-        rotation.setPivotY(centroid.y);
-        rotation.setPivotZ(centroid.z);
-        
-        rotation.setAxis(new Point3D(axis.x, axis.y, axis.z));
-        
-        Vector3d direction = new Vector3d(); 
-        direction.normalize(axis);
-        direction.scale(1.5);
-        
-        Translate translate = new Translate();
-        translate.setX(direction.x);
-        translate.setY(direction.y);
-        translate.setZ(direction.z);
-       
-        
-        MeshView face = f.constructMeshView();
-        face.setMaterial(redMaterial);
-        group.getChildren().add(face);
-        
-        MeshView rotated = f.constructMeshView(); 
-        rotated.setMaterial(blueMaterial);
-        rotated.getTransforms().addAll(rotation, translate);
-        
-        group.getChildren().add(rotated);
-        content.setContent(group);
+        Jitterbug j = new Jitterbug(oct, materials);
+        j.rotateTo(240);
+        content.setContent(j.getGroup());
     }
 }
