@@ -185,7 +185,7 @@ public class TestHarness extends Jfx3dViewerApp {
                                                           j.rotateTo(value);
                                                       }
                                                   }, (double) 360))); 
-//        timeline.setRate(10);
+        timeline.setCycleCount(9000);
         content.setTimeline(timeline);
     }
 }
