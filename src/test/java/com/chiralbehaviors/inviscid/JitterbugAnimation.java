@@ -16,7 +16,6 @@
  */
 
 package com.chiralbehaviors.inviscid;
-
 import static com.chiralbehaviors.inviscid.Colors.blackMaterial;
 import static com.chiralbehaviors.inviscid.Colors.materials;
 
@@ -43,7 +42,7 @@ import mesh.polyhedra.plato.Octahedron;
  * @author halhildebrand
  *
  */
-public class TestHarness extends Jfx3dViewerApp {
+public class JitterbugAnimation extends Jfx3dViewerApp {
 
     public static void main(String[] args) {
         launch(args);
