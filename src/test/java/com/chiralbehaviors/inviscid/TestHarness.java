@@ -31,15 +31,22 @@ import static javafx.scene.paint.Color.RED;
 import static javafx.scene.paint.Color.VIOLET;
 import static javafx.scene.paint.Color.YELLOW;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import com.javafx.experiments.jfx3dviewer.ContentModel;
 import com.javafx.experiments.jfx3dviewer.Jfx3dViewerApp;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
+import javafx.beans.value.WritableValue;
 import javafx.scene.Group;
 import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Cylinder;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Sphere;
+import javafx.util.Duration;
 import mesh.Face;
 import mesh.polyhedra.Polyhedron;
 import mesh.polyhedra.plato.Octahedron;
@@ -157,10 +164,50 @@ public class TestHarness extends Jfx3dViewerApp {
 
     @Override
     protected void initializeContentModel() {
-        ContentModel content = getContentModel();   
+        ContentModel content = getContentModel();
         Octahedron oct = PhiCoordinates.octahedrons()[0];
         Jitterbug j = new Jitterbug(oct, materials);
-        j.rotateTo(240);
+        j.rotateTo(60);
         content.setContent(j.getGroup());
+        final Timeline timeline = new Timeline(); 
+        timeline.setAutoReverse(true);
+        AtomicReference<Double> angle = new AtomicReference<>(0d);
+        for (int i = 0; i < 360; i += 5) {
+            KeyFrame frame = new KeyFrame(Duration.millis(10000),
+                                          new KeyValue(new WritableValue<Double>() {
+                                              @Override
+                                              public Double getValue() {
+                                                  return angle.get();
+                                              }
+
+                                              @Override
+                                              public void setValue(Double value) {
+                                                  angle.set(value);
+                                                  j.rotateTo(value);
+                                                  j.getGroup()
+                                                   .requestLayout();
+                                              }
+                                          }, (double) i));
+            timeline.getKeyFrames()
+                    .add(frame);
+        }
+        timeline.getKeyFrames()
+                .add(new KeyFrame(Duration.millis(10000),
+                                  new KeyValue(new WritableValue<Double>() {
+                                      @Override
+                                      public Double getValue() {
+                                          return angle.get();
+                                      }
+
+                                      @Override
+                                      public void setValue(Double value) {
+                                          angle.set(value);
+                                          j.rotateTo(value);
+                                          j.getGroup()
+                                           .requestLayout();
+                                      }
+                                  }, 360d)));
+        timeline.setCycleCount(365);
+        content.setTimeline(timeline);
     }
 }

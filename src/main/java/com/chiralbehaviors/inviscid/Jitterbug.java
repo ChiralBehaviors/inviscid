@@ -22,6 +22,7 @@ import javax.vecmath.Vector3d;
 
 import javafx.geometry.Point3D;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.paint.Material;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
@@ -36,7 +37,9 @@ import mesh.polyhedra.plato.Octahedron;
  *
  */
 public class Jitterbug {
-
+    private boolean[]         INVERSES     = new boolean[] { false, false,
+                                                             false, false, true,
+                                                             true, true, true };
     private final Group       group        = new Group();
     private final Rotate[]    rotations    = new Rotate[8];
     private final Translate[] translations = new Translate[8];
@@ -45,9 +48,8 @@ public class Jitterbug {
     public Jitterbug(Octahedron oct, Material[] materials) {
         int i = 0;
         for (Face f : oct.getFaces()) {
-            MeshView face = construct(f, materials[i], i++);
             group.getChildren()
-                 .add(face);
+                 .add(construct(f, materials[i], i++));
         }
         Z = (oct.getEdgeLength() * Math.sqrt(2)) / Math.sqrt(3);
     }
@@ -56,15 +58,16 @@ public class Jitterbug {
         return group;
     }
 
-    public void rotateTo(double angle) {
-        for (int i = 0; i < rotations.length; i++) {
+    public void rotateTo(double a) {
+        for (int i = 0; i < 8; i++) {
+            double angle = INVERSES[i] ? -a : a;
             Rotate rotation = rotations[i];
             rotation.setAngle(angle);
             translate(i, angle);
         }
     }
 
-    private MeshView construct(Face face, Material material, int index) {
+    private Node construct(Face face, Material material, int index) {
         Vector3d centroid = face.centroid();
         Point3D axis = new Point3D(centroid.x, centroid.y, centroid.z);
 
@@ -75,9 +78,9 @@ public class Jitterbug {
         rotation.setAxis(axis.normalize());
 
         Translate translation = new Translate();
-        translation.setX(0d - axis.getX());
-        translation.setY(0d - axis.getY());
-        translation.setZ(0d - axis.getZ());
+        translation.setX(-axis.getX());
+        translation.setY(-axis.getY());
+        translation.setZ(-axis.getZ());
 
         int[] texIindices = new int[6];
         Arrays.fill(texIindices, 1);
@@ -86,7 +89,11 @@ public class Jitterbug {
         Arrays.fill(texCoords, 1f);
         int i = 0;
         for (Vector3d v : face.getVertices()) {
-            rotation.setAngle(-180);
+            if (INVERSES[index]) {
+                rotation.setAngle(60);
+            } else {
+                rotation.setAngle(-60);
+            }
             Point3D vertex = rotation.transform(new Point3D(v.x, v.y, v.z));
             vertex = translation.transform(vertex);
 
@@ -103,10 +110,16 @@ public class Jitterbug {
         newMesh.getFaces()
                .addAll(new int[] { 0, 1, 1, 1, 2, 1 });
         MeshView view = new MeshView(newMesh);
+        rotation.setAngle(0);
+        translation.setX(0);
+        translation.setY(0);
+        translation.setZ(0);
         rotations[index] = rotation;
         translations[index] = translation;
         view.getTransforms()
-            .addAll(translation, rotation);
+            .clear();
+        view.getTransforms()
+            .addAll(rotation, translation);
         view.setCullFace(CullFace.NONE);
         view.setMaterial(material);
         return view;
