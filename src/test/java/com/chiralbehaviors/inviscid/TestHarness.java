@@ -166,48 +166,26 @@ public class TestHarness extends Jfx3dViewerApp {
     protected void initializeContentModel() {
         ContentModel content = getContentModel();
         Octahedron oct = PhiCoordinates.octahedrons()[0];
-        Jitterbug j = new Jitterbug(oct, materials);
-        j.rotateTo(60);
+        Jitterbug j = new Jitterbug(oct, materials); 
+        j.rotateTo(90);
         content.setContent(j.getGroup());
-        final Timeline timeline = new Timeline(); 
-        timeline.setAutoReverse(true);
-        AtomicReference<Double> angle = new AtomicReference<>(0d);
-        for (int i = 0; i < 360; i += 5) {
-            KeyFrame frame = new KeyFrame(Duration.millis(10000),
-                                          new KeyValue(new WritableValue<Double>() {
-                                              @Override
-                                              public Double getValue() {
-                                                  return angle.get();
-                                              }
-
-                                              @Override
-                                              public void setValue(Double value) {
-                                                  angle.set(value);
-                                                  j.rotateTo(value);
-                                                  j.getGroup()
-                                                   .requestLayout();
-                                              }
-                                          }, (double) i));
+        final Timeline timeline = new Timeline();
+        AtomicReference<Double> angle = new AtomicReference<>(0d); 
             timeline.getKeyFrames()
-                    .add(frame);
-        }
-        timeline.getKeyFrames()
-                .add(new KeyFrame(Duration.millis(10000),
-                                  new KeyValue(new WritableValue<Double>() {
-                                      @Override
-                                      public Double getValue() {
-                                          return angle.get();
-                                      }
+                    .add(new KeyFrame(Duration.millis(10_000),
+                                                  new KeyValue(new WritableValue<Double>() {
+                                                      @Override
+                                                      public Double getValue() {
+                                                          return angle.get();
+                                                      }
 
-                                      @Override
-                                      public void setValue(Double value) {
-                                          angle.set(value);
-                                          j.rotateTo(value);
-                                          j.getGroup()
-                                           .requestLayout();
-                                      }
-                                  }, 360d)));
-        timeline.setCycleCount(365);
+                                                      @Override
+                                                      public void setValue(Double value) {
+                                                          angle.set(value);
+                                                          j.rotateTo(value);
+                                                      }
+                                                  }, (double) 360))); 
+//        timeline.setRate(10);
         content.setTimeline(timeline);
     }
 }
