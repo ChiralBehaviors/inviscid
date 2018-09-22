@@ -16,7 +16,9 @@
 
 package com.chiralbehaviors.inviscid;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.vecmath.Vector3d;
 
@@ -30,7 +32,10 @@ import javafx.scene.shape.TriangleMesh;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
 import mesh.Face;
+import mesh.Line;
 import mesh.polyhedra.plato.Octahedron;
+
+import static com.chiralbehaviors.inviscid.Colors.*;
 
 /**
  * @author halhildebrand
@@ -88,6 +93,7 @@ public class Jitterbug {
         float[] meshPoints = new float[9];
         Arrays.fill(texCoords, 1f);
         int i = 0;
+        List<Point3D> vertices = new ArrayList<>();
         for (Vector3d v : face.getVertices()) {
             if (INVERSES[index]) {
                 rotation.setAngle(60);
@@ -100,7 +106,18 @@ public class Jitterbug {
             meshPoints[i++] = (float) vertex.getX();
             meshPoints[i++] = (float) vertex.getY();
             meshPoints[i++] = (float) vertex.getZ();
+            vertices.add(vertex);
         }
+        vertices.add(vertices.get(0));
+        Group faceGroup = new Group();
+        rotation.setAngle(0);
+        translation.setX(0);
+        translation.setY(0);
+        translation.setZ(0);
+        rotations[index] = rotation;
+        translations[index] = translation;
+        faceGroup.getTransforms()
+                 .addAll(rotation, translation);
 
         TriangleMesh newMesh = new TriangleMesh();
         newMesh.getPoints()
@@ -110,19 +127,19 @@ public class Jitterbug {
         newMesh.getFaces()
                .addAll(new int[] { 0, 1, 1, 1, 2, 1 });
         MeshView view = new MeshView(newMesh);
-        rotation.setAngle(0);
-        translation.setX(0);
-        translation.setY(0);
-        translation.setZ(0);
-        rotations[index] = rotation;
-        translations[index] = translation;
-        view.getTransforms()
-            .clear();
-        view.getTransforms()
-            .addAll(rotation, translation);
         view.setCullFace(CullFace.NONE);
         view.setMaterial(material);
-        return view;
+        faceGroup.getChildren()
+                 .addAll(view);
+
+        for (int j = 0; j < 3; j++) {
+            Line line = new Line(0.01, vertices.get(j), vertices.get(j + 1));
+            line.setMaterial(blackMaterial);
+            faceGroup.getChildren()
+                     .add(line);
+        }
+
+        return faceGroup;
     }
 
     private void translate(int i, double angle) {

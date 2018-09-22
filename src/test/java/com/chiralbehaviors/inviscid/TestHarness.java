@@ -18,26 +18,18 @@
 package com.chiralbehaviors.inviscid;
 
 import static com.chiralbehaviors.inviscid.Colors.blackMaterial;
-import static com.chiralbehaviors.inviscid.Colors.materials;
-
-import java.util.concurrent.atomic.AtomicReference;
+import static com.chiralbehaviors.inviscid.Colors.yellowMaterial;
 
 import com.javafx.experiments.jfx3dviewer.ContentModel;
 import com.javafx.experiments.jfx3dviewer.Jfx3dViewerApp;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
-import javafx.beans.value.WritableValue;
 import javafx.scene.Group;
 import javafx.scene.paint.Material;
-import javafx.scene.shape.Cylinder;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Sphere;
-import javafx.util.Duration;
 import mesh.Face;
+import mesh.Line;
 import mesh.polyhedra.Polyhedron;
-import mesh.polyhedra.plato.Octahedron;
 
 /**
  * @author halhildebrand
@@ -66,7 +58,7 @@ public class TestHarness extends Jfx3dViewerApp {
         }
         poly.getEdges()
             .forEach(e -> {
-                Cylinder line = e.createLine(.015);
+               Line line = e.createLine(.015);
                 line.setMaterial(blackMaterial);
                 group.getChildren()
                      .addAll(line);
@@ -82,7 +74,7 @@ public class TestHarness extends Jfx3dViewerApp {
              .add(view);
         poly.getEdges()
             .forEach(e -> {
-                Cylinder line = e.createLine(.015);
+                Line line = e.createLine(.15);
                 line.setMaterial(blackMaterial);
                 group.getChildren()
                      .addAll(line);
@@ -103,27 +95,8 @@ public class TestHarness extends Jfx3dViewerApp {
     @Override
     protected void initializeContentModel() {
         ContentModel content = getContentModel();
-        Octahedron oct = PhiCoordinates.octahedrons()[0];
-        Jitterbug j = new Jitterbug(oct, materials); 
-        j.rotateTo(90);
-        content.setContent(j.getGroup());
-        final Timeline timeline = new Timeline();
-        AtomicReference<Double> angle = new AtomicReference<>(0d); 
-            timeline.getKeyFrames()
-                    .add(new KeyFrame(Duration.millis(10_000),
-                                                  new KeyValue(new WritableValue<Double>() {
-                                                      @Override
-                                                      public Double getValue() {
-                                                          return angle.get();
-                                                      }
-
-                                                      @Override
-                                                      public void setValue(Double value) {
-                                                          angle.set(value);
-                                                          j.rotateTo(value);
-                                                      }
-                                                  }, (double) 360))); 
-        timeline.setCycleCount(9000);
-        content.setTimeline(timeline);
+        Group group = new Group();
+        addPlainPolyhedron(group, PhiCoordinates.cubes()[0], yellowMaterial);
+        content.setContent(group);
     }
 }

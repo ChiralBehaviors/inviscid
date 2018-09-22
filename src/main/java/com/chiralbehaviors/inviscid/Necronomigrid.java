@@ -16,7 +16,16 @@
 
 package com.chiralbehaviors.inviscid;
 
+import static com.chiralbehaviors.inviscid.Colors.materials;
+
+import java.util.List;
+
+import javax.vecmath.Vector3d;
+
+import javafx.geometry.Point3D;
 import javafx.scene.Group;
+import mesh.Face;
+import mesh.Line;
 import mesh.polyhedra.plato.Cube;
 
 /**
@@ -27,15 +36,26 @@ public class Necronomigrid {
 
     public Group construct() {
         Group group = new Group();
-        for (Cube cube : PhiCoordinates.cubes()) {
-            constructGrid(cube, group);
-        }
+        constructGrid(PhiCoordinates.cubes()[0], group);
         return group;
     }
 
     private void constructGrid(Cube cube, Group group) {
-        // TODO Auto-generated method stub
-
+        List<Face> faces = cube.getFaces();
+        for (int i = 0; i < 3; i++) {
+            Face a = faces.get(i);
+            Face b = faces.get(i + 3);
+            Vector3d Ac = a.centroid();
+            Vector3d Bc = b.centroid();
+            Point3D positive = new Point3D(Ac.x, Ac.y, Ac.z);
+            Point3D negative = new Point3D(Bc.x, Bc.y, Bc.z);
+            Line axisP = new Line(0.1, positive, new Point3D(0, 0, 0));
+            axisP.setMaterial(materials[i]);
+            Line axisN = new Line(0.1, negative, new Point3D(0, 0, 0));
+            axisN.setMaterial(materials[i+3]);
+            group.getChildren()
+                 .addAll(axisP, axisN);
+        }
     }
 
 }
