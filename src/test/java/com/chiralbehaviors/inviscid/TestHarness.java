@@ -17,8 +17,8 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.Colors.blackMaterial;
-import static com.chiralbehaviors.inviscid.Colors.yellowMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.yellowMaterial;
 
 import com.javafx.experiments.jfx3dviewer.ContentModel;
 import com.javafx.experiments.jfx3dviewer.Jfx3dViewerApp;

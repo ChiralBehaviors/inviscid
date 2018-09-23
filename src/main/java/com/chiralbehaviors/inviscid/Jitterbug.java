@@ -16,6 +16,8 @@
 
 package com.chiralbehaviors.inviscid;
 
+import static com.chiralbehaviors.inviscid.animations.Colors.*;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -34,8 +36,6 @@ import javafx.scene.transform.Translate;
 import mesh.Face;
 import mesh.Line;
 import mesh.polyhedra.plato.Octahedron;
-
-import static com.chiralbehaviors.inviscid.Colors.*;
 
 /**
  * @author halhildebrand

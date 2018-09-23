@@ -16,7 +16,7 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.Colors.materials;
+import static com.chiralbehaviors.inviscid.animations.Colors.materials;
 
 import java.util.List;
 
