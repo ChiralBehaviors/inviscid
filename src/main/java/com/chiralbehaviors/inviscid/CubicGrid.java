@@ -16,7 +16,8 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.blueMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.greenMaterial;
 import static com.chiralbehaviors.inviscid.animations.Colors.redMaterial;
 
 import java.util.function.BiFunction;
@@ -70,41 +71,50 @@ public class CubicGrid {
 
     public Group construct(Material xaxis, Material yaxis, Material zaxis) {
         Group grid = new Group();
-        Point3D neg = yAxis.normalize()
-                           .multiply(-intervalY * yExtent.getKey())
-                           .subtract(intervalX * xExtent.getKey(), 0, 0);
-        Point3D pos = yAxis.normalize()
-                           .multiply(intervalY * yExtent.getValue())
-                           .subtract(intervalX * xExtent.getValue(), 0, 0);
-
-        construct(grid, neg, pos, xExtent.getKey() + xExtent.getValue(),
-                  zExtent.getKey() + zExtent.getValue(), redMaterial,
-                  (i, p) -> p.add(i * intervalX, 0, 0),
-                  p -> p.add(0, 0, intervalZ));
+        Point3D pos;
+        Point3D neg;
 
         neg = xAxis.normalize()
                    .multiply(-intervalX * xExtent.getKey())
-                   .subtract(0, intervalY * yExtent.getKey(), 0);
+                   .subtract(0, intervalY * yExtent.getKey(),
+                             intervalZ * zExtent.getKey());
         pos = xAxis.normalize()
                    .multiply(intervalX * xExtent.getValue())
-                   .subtract(0, intervalY * yExtent.getValue(), 0);
+                   .subtract(0, intervalY * yExtent.getKey(),
+                             intervalZ * zExtent.getKey());
 
         construct(grid, neg, pos, yExtent.getKey() + yExtent.getValue(),
-                  zExtent.getKey() + zExtent.getValue(), blackMaterial,
+                  zExtent.getKey() + zExtent.getValue(), redMaterial,
                   (i, p) -> p.add(0, i * intervalY, 0),
+                  p -> p.add(0, 0, intervalZ));
+
+        neg = yAxis.normalize()
+                   .multiply(-intervalY * yExtent.getKey())
+                   .subtract(intervalX * xExtent.getKey(), 0,
+                             intervalZ * zExtent.getKey());
+        pos = yAxis.normalize()
+                   .multiply(intervalY * yExtent.getValue())
+                   .subtract(intervalX * xExtent.getKey(), 0,
+                             intervalZ * zExtent.getKey());
+
+        construct(grid, neg, pos, xExtent.getKey() + xExtent.getValue(),
+                  zExtent.getKey() + zExtent.getValue(), blueMaterial,
+                  (i, p) -> p.add(i * intervalX, 0, 0),
                   p -> p.add(0, 0, intervalZ));
 
         neg = zAxis.normalize()
                    .multiply(-intervalZ * zExtent.getKey())
-                   .subtract(0, intervalY * yExtent.getKey(), 0);
+                   .subtract(intervalX * xExtent.getKey(),
+                             intervalY * yExtent.getKey(), 0);
         pos = zAxis.normalize()
                    .multiply(intervalZ * zExtent.getValue())
-                   .subtract(0, intervalY * yExtent.getValue(), 0);
+                   .subtract(intervalX * xExtent.getKey(),
+                             intervalY * yExtent.getKey(), 0);
 
-        construct(grid, neg, pos, yExtent.getKey() + yExtent.getValue(),
-                  xExtent.getKey() + xExtent.getValue(), blackMaterial,
-                  (i, p) -> p.add(0, i * intervalY, 0),
-                  p -> p.add(intervalX, 0, 0));
+        construct(grid, neg, pos, xExtent.getKey() + xExtent.getValue(),
+                  yExtent.getKey() + yExtent.getValue(), greenMaterial,
+                  (i, p) -> p.add(i * intervalX, 0, 0),
+                  p -> p.add(0, intervalY, 0));
         return grid;
     }
 
@@ -154,13 +164,21 @@ public class CubicGrid {
                            Function<Point3D, Point3D> advanceB) {
         Point3D start = neg;
         Point3D end = pos;
-        for (int x = 0; x < a; x++) {
+        Line axis = new Line(0.015, start, end);
+        axis.setMaterial(material);
+        grid.getChildren()
+            .addAll(axis);
+        for (int x = 0; x <= a; x++) {
             start = advanceA.apply(x, neg);
             end = advanceA.apply(x, pos);
+            axis = new Line(0.015, start, end);
+            axis.setMaterial(material);
+            grid.getChildren()
+                .addAll(axis);
             for (int z = 0; z < b; z++) {
                 start = advanceB.apply(start);
                 end = advanceB.apply(end);
-                Line axis = new Line(0.015, start, end);
+                axis = new Line(0.015, start, end);
                 axis.setMaterial(material);
                 grid.getChildren()
                     .addAll(axis);
