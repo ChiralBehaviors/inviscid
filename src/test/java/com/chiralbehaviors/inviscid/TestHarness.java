@@ -41,10 +41,10 @@ public class TestHarness extends PolyView {
         Group group = new Group();
         group.getChildren()
              .add(new CubicGrid(false,
-                                PhiCoordinates.cubes()[0]).construct(blackMaterial,
+                                PhiCoordinates.cubes()[3]).construct(blackMaterial,
                                                                      blackMaterial,
                                                                      blackMaterial));
-        addFaces(group, PhiCoordinates.cubes()[0], materials);
+        addFaces(group, PhiCoordinates.cubes()[3], materials);
         content.setContent(group);
     }
 }

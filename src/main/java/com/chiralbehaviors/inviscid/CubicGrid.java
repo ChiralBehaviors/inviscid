@@ -60,7 +60,7 @@ public class CubicGrid {
         return new Point3D(vector.x, vector.y, vector.z);
     }
 
-    private final boolean                body;
+    private final boolean                bodyCentric;
     private final double                 intervalX;
     private final double                 intervalY;
     private final double                 intervalZ;
@@ -100,7 +100,7 @@ public class CubicGrid {
                      Pair<Integer, Integer> zExtent, Point3D zAxis,
                      double intervalZ) {
         this.origin = origin;
-        this.body = bodyCentric;
+        this.bodyCentric = bodyCentric;
         this.xExtent = xExtent;
         this.xAxis = xAxis.subtract(origin)
                           .normalize();
@@ -119,7 +119,7 @@ public class CubicGrid {
         Group grid = new Group();
         Point3D pos;
         Point3D neg;
-        double bodyOffset = body ? 0.5 : 0;
+        double bodyOffset = bodyCentric ? 0.5 : 0;
 
         final Point3D deltaX = xAxis.multiply(intervalX);
         final Point3D deltaY = yAxis.multiply(intervalY);
@@ -127,8 +127,7 @@ public class CubicGrid {
 
         Point3D corner;
         corner = deltaY.multiply(yExtent.getKey() + bodyOffset)
-                               .add(deltaZ.multiply(zExtent.getKey()
-                                                    + bodyOffset));
+                       .add(deltaZ.multiply(zExtent.getKey() + bodyOffset));
         neg = xAxis.multiply(-intervalX * (xExtent.getKey() + bodyOffset))
                    .subtract(corner);
         pos = xAxis.multiply(intervalX * (xExtent.getValue() + bodyOffset))
@@ -257,8 +256,8 @@ public class CubicGrid {
                            Integer b, Material material,
                            BiFunction<Integer, Point3D, Point3D> advanceA,
                            Function<Point3D, Point3D> advanceB) {
-        a = body ? a + 1 : a;
-        b = body ? b + 1 : b;
+        a = bodyCentric ? a + 1 : a;
+        b = bodyCentric ? b + 1 : b;
         Point3D start = neg;
         Point3D end = pos;
         Line axis;
@@ -282,7 +281,7 @@ public class CubicGrid {
                     .addAll(axis);
             }
         }
-        if (body) {
+        if (bodyCentric) {
             start = advanceA.apply(a, neg);
             end = advanceA.apply(a, pos);
             axis = new Line(0.015, start, end);
