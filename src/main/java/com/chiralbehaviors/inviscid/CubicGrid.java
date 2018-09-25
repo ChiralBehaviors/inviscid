@@ -23,17 +23,43 @@ import static com.chiralbehaviors.inviscid.animations.Colors.redMaterial;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import javax.vecmath.Vector3d;
+
 import javafx.geometry.Point3D;
 import javafx.scene.Group;
 import javafx.scene.paint.Material;
+import javafx.scene.shape.Sphere;
 import javafx.util.Pair;
 import mesh.Line;
+import mesh.polyhedra.plato.Cube;
 
 /**
  * @author halhildebrand
  *
  */
 public class CubicGrid {
+
+    private static Point3D xAxis(Cube cube) {
+        Vector3d vector = cube.getFaces()
+                              .get(0)
+                              .centroid();
+        return new Point3D(vector.x, vector.y, vector.z);
+    }
+
+    private static Point3D yAxis(Cube cube) {
+        Vector3d vector = cube.getFaces()
+                              .get(1)
+                              .centroid();
+        return new Point3D(vector.x, vector.y, vector.z);
+    }
+
+    private static Point3D zAxis(Cube cube) {
+        Vector3d vector = cube.getFaces()
+                              .get(2)
+                              .centroid();
+        return new Point3D(vector.x, vector.y, vector.z);
+    }
+
     private final boolean                body;
     private final double                 intervalX;
     private final double                 intervalY;
@@ -44,12 +70,27 @@ public class CubicGrid {
     private final Point3D                yAxis;
     private final Pair<Integer, Integer> yExtent;
     private final Point3D                zAxis;
+
     private final Pair<Integer, Integer> zExtent;
 
     public CubicGrid(boolean bodyCentric) {
         this(bodyCentric, new Point3D(0, 0, 0), new Pair<>(5, 5),
              new Point3D(1, 0, 0), 1, new Pair<>(5, 5), new Point3D(0, 1, 0), 1,
              new Pair<>(5, 5), new Point3D(0, 0, 1), 1);
+    }
+
+    public CubicGrid(boolean bodyCentric, Cube cube) {
+        this(bodyCentric, cube, new Pair<>(5, 5), new Pair<>(5, 5),
+             new Pair<>(5, 5));
+    }
+
+    public CubicGrid(boolean bodyCentric, Cube cube,
+                     Pair<Integer, Integer> xExtent,
+                     Pair<Integer, Integer> yExtent,
+                     Pair<Integer, Integer> zExtent) {
+        this(bodyCentric, new Point3D(0, 0, 0), xExtent, xAxis(cube),
+             cube.getEdgeLength(), yExtent, yAxis(cube), cube.getEdgeLength(),
+             zExtent, zAxis(cube), cube.getEdgeLength());
     }
 
     public CubicGrid(boolean bodyCentric, Point3D origin,
@@ -61,13 +102,16 @@ public class CubicGrid {
         this.origin = origin;
         this.body = bodyCentric;
         this.xExtent = xExtent;
-        this.xAxis = xAxis.subtract(origin);
+        this.xAxis = xAxis.subtract(origin)
+                          .normalize();
         this.intervalX = intervalX;
         this.yExtent = yExtent;
-        this.yAxis = yAxis.subtract(origin);
+        this.yAxis = yAxis.subtract(origin)
+                          .normalize();
         this.intervalY = intervalY;
         this.zExtent = zExtent;
-        this.zAxis = zAxis.subtract(origin);
+        this.zAxis = zAxis.subtract(origin)
+                          .normalize();
         this.intervalZ = intervalZ;
     }
 
@@ -76,72 +120,47 @@ public class CubicGrid {
         Point3D pos;
         Point3D neg;
         double bodyOffset = body ? 0.5 : 0;
-        neg = xAxis.normalize()
-                   .multiply(-intervalX * (xExtent.getKey() + bodyOffset))
-                   .subtract(0, intervalY * (yExtent.getKey() + bodyOffset),
-                             intervalZ * zExtent.getKey() + bodyOffset);
-        pos = xAxis.normalize()
-                   .multiply(intervalX * (xExtent.getValue() + bodyOffset))
-                   .subtract(0, intervalY * (yExtent.getKey() + bodyOffset),
-                             intervalZ * (zExtent.getKey() + bodyOffset));
+
+        final Point3D deltaX = xAxis.multiply(intervalX);
+        final Point3D deltaY = yAxis.multiply(intervalY);
+        final Point3D deltaZ = zAxis.multiply(intervalZ);
+
+        Point3D corner;
+        corner = deltaY.multiply(yExtent.getKey() + bodyOffset)
+                               .add(deltaZ.multiply(zExtent.getKey()
+                                                    + bodyOffset));
+        neg = xAxis.multiply(-intervalX * (xExtent.getKey() + bodyOffset))
+                   .subtract(corner);
+        pos = xAxis.multiply(intervalX * (xExtent.getValue() + bodyOffset))
+                   .subtract(corner);
 
         construct(grid, neg, pos, yExtent.getKey() + yExtent.getValue(),
                   zExtent.getKey() + zExtent.getValue(), xaxis,
-                  (i, p) -> p.add(0, i * intervalY, 0),
-                  p -> p.add(0, 0, intervalZ));
+                  (i, p) -> p.add(deltaY.multiply(i)), p -> p.add(deltaZ));
 
-        neg = yAxis.normalize()
-                   .multiply(-intervalY * (yExtent.getKey() + bodyOffset))
-                   .subtract(intervalX * (xExtent.getKey() + bodyOffset), 0,
-                             intervalZ * (zExtent.getKey() + bodyOffset));
-        pos = yAxis.normalize()
-                   .multiply(intervalY * (yExtent.getValue() + bodyOffset))
-                   .subtract(intervalX * (xExtent.getKey() + bodyOffset), 0,
-                             intervalZ * (zExtent.getKey() + bodyOffset));
+        corner = deltaX.multiply(xExtent.getKey() + bodyOffset)
+                       .add(deltaZ.multiply(zExtent.getKey() + bodyOffset));
+        neg = yAxis.multiply(-intervalY * (yExtent.getKey() + bodyOffset))
+                   .subtract(corner);
+        pos = yAxis.multiply(intervalY * (yExtent.getValue() + bodyOffset))
+                   .subtract(corner);
 
         construct(grid, neg, pos, xExtent.getKey() + xExtent.getValue(),
                   zExtent.getKey() + zExtent.getValue(), yaxis,
-                  (i, p) -> p.add(i * intervalX, 0, 0),
-                  p -> p.add(0, 0, intervalZ));
+                  (i, p) -> p.add(deltaX.multiply(i)), p -> p.add(deltaZ));
 
-        neg = zAxis.normalize()
-                   .multiply(-intervalZ * (zExtent.getKey() + bodyOffset))
-                   .subtract(intervalX * (xExtent.getKey() + bodyOffset),
-                             intervalY * (yExtent.getKey() + bodyOffset), 0);
-        pos = zAxis.normalize()
-                   .multiply(intervalZ * (zExtent.getValue() + bodyOffset))
-                   .subtract(intervalX * (xExtent.getKey() + bodyOffset),
-                             intervalY * (yExtent.getKey() + bodyOffset), 0);
+        corner = deltaX.multiply(xExtent.getKey() + bodyOffset)
+                       .add(deltaY.multiply(yExtent.getKey() + bodyOffset));
+        neg = zAxis.multiply(-intervalZ * (zExtent.getKey() + bodyOffset))
+                   .subtract(corner);
+        pos = zAxis.multiply(intervalZ * (zExtent.getValue() + bodyOffset))
+                   .subtract(corner);
 
         construct(grid, neg, pos, xExtent.getKey() + xExtent.getValue(),
                   yExtent.getKey() + yExtent.getValue(), zaxis,
-                  (i, p) -> p.add(i * intervalX, 0, 0),
-                  p -> p.add(0, intervalY, 0));
+                  (i, p) -> p.add(deltaX.multiply(i)), p -> p.add(deltaY));
 
-        Line axis = new Line(0.025, xAxis.normalize()
-                                         .multiply(-intervalX
-                                                   * xExtent.getKey()),
-                             xAxis.normalize()
-                                  .multiply(intervalX * xExtent.getKey()));
-        axis.setMaterial(redMaterial);
-        grid.getChildren()
-            .addAll(axis);
-
-        axis = new Line(0.025, yAxis.normalize()
-                                    .multiply(-intervalY * yExtent.getKey()),
-                        yAxis.normalize()
-                             .multiply(intervalY * yExtent.getKey()));
-        axis.setMaterial(blueMaterial);
-        grid.getChildren()
-            .addAll(axis);
-
-        axis = new Line(0.025, zAxis.normalize()
-                                    .multiply(-intervalZ * zExtent.getKey()),
-                        zAxis.normalize()
-                             .multiply(intervalZ * zExtent.getKey()));
-        axis.setMaterial(greenMaterial);
-        grid.getChildren()
-            .addAll(axis);
+        addAxes(grid);
         return grid;
     }
 
@@ -183,6 +202,55 @@ public class CubicGrid {
 
     public Pair<Integer, Integer> getzExtent() {
         return zExtent;
+    }
+
+    private void addAxes(Group grid) {
+        Point3D xPositive = xAxis.multiply(intervalX * xExtent.getKey());
+        Line axis = new Line(0.025,
+                             xAxis.multiply(-intervalX * xExtent.getKey()),
+                             xPositive);
+        axis.setMaterial(redMaterial);
+        grid.getChildren()
+            .addAll(axis);
+
+        Sphere sphere = new Sphere();
+        sphere.setMaterial(redMaterial);
+        sphere.setRadius(0.25);
+        sphere.setTranslateX(xPositive.getX());
+        sphere.setTranslateY(xPositive.getY());
+        sphere.setTranslateZ(xPositive.getZ());
+        grid.getChildren()
+            .add(sphere);
+
+        Point3D yPositive = yAxis.multiply(intervalY * yExtent.getKey());
+        axis = new Line(0.025, yAxis.multiply(-intervalY * yExtent.getKey()),
+                        yPositive);
+        axis.setMaterial(blueMaterial);
+        grid.getChildren()
+            .addAll(axis);
+        sphere = new Sphere();
+        sphere.setMaterial(blueMaterial);
+        sphere.setRadius(0.25);
+        sphere.setTranslateX(yPositive.getX());
+        sphere.setTranslateY(yPositive.getY());
+        sphere.setTranslateZ(yPositive.getZ());
+        grid.getChildren()
+            .add(sphere);
+
+        Point3D zPositive = zAxis.multiply(intervalZ * zExtent.getKey());
+        axis = new Line(0.025, zAxis.multiply(-intervalZ * zExtent.getKey()),
+                        zPositive);
+        axis.setMaterial(greenMaterial);
+        grid.getChildren()
+            .addAll(axis);
+        sphere = new Sphere();
+        sphere.setMaterial(greenMaterial);
+        sphere.setRadius(0.25);
+        sphere.setTranslateX(zPositive.getX());
+        sphere.setTranslateY(zPositive.getY());
+        sphere.setTranslateZ(zPositive.getZ());
+        grid.getChildren()
+            .add(sphere);
     }
 
     private void construct(Group grid, Point3D neg, Point3D pos, Integer a,

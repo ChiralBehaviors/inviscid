@@ -17,10 +17,12 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.*;
 
 import com.chiralbehaviors.inviscid.animations.PolyView;
 import com.javafx.experiments.jfx3dviewer.ContentModel;
+
+import javafx.scene.Group;
 
 /**
  * @author halhildebrand
@@ -35,8 +37,14 @@ public class TestHarness extends PolyView {
     @Override
     protected void initializeContentModel() {
         ContentModel content = getContentModel();
-        content.setContent(new CubicGrid(true).construct(blackMaterial,
-                                                         blackMaterial,
-                                                         blackMaterial));
+
+        Group group = new Group();
+        group.getChildren()
+             .add(new CubicGrid(false,
+                                PhiCoordinates.cubes()[0]).construct(blackMaterial,
+                                                                     blackMaterial,
+                                                                     blackMaterial));
+        addFaces(group, PhiCoordinates.cubes()[0], materials);
+        content.setContent(group);
     }
 }
