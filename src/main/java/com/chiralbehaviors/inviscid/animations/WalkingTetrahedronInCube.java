@@ -16,18 +16,30 @@
 
 package com.chiralbehaviors.inviscid.animations;
 
-import com.javafx.experiments.jfx3dviewer.Jfx3dViewerApp;
+import static com.chiralbehaviors.inviscid.animations.Colors.*;
+
+import com.chiralbehaviors.inviscid.PhiCoordinates;
+
+import javafx.scene.Group;
+import mesh.polyhedra.plato.Cube;
 
 /**
  * @author halhildebrand
  *
  */
-public class WalkingTetrahedraInCube extends Jfx3dViewerApp {
+public class WalkingTetrahedronInCube extends PolyView {
+    public static void main(String[] args) {
+        launch(args);
+    }
 
     @Override
     protected void initializeContentModel() {
-        // TODO Auto-generated method stub
-        super.initializeContentModel();
+        Group group = new Group();
+        Cube cube = PhiCoordinates.cubes()[0];
+        addEdgesOf(group, cube, 0.015, blackMaterial);
+        addVerticesOf(group, cube, 0.5, materials);
+        addPlainPolyhedron(group, PhiCoordinates.tetrahedrons()[0], blackMaterial);
+        getContentModel().setContent(group);
     }
 
 }

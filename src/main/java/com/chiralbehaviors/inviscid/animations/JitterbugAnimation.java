@@ -51,7 +51,7 @@ public class JitterbugAnimation extends PolyView {
         Group group = new Group();
         List<Jitterbug> jitterbugs = new ArrayList<>();
         Octahedron[] octahedrons = PhiCoordinates.octahedrons();
-        Arrays.asList(0, 1)
+        Arrays.asList(0)
               .forEach(i -> {
                   Octahedron oct = octahedrons[i];
                   Jitterbug j = new Jitterbug(oct, materials);

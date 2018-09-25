@@ -24,6 +24,7 @@ import javafx.scene.Group;
 import javafx.scene.paint.Material;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Sphere;
+import mesh.Edge;
 import mesh.Face;
 import mesh.Line;
 import mesh.polyhedra.Polyhedron;
@@ -40,6 +41,16 @@ public class PolyView extends Jfx3dViewerApp {
                                                     * (2.0 * Math.sqrt(2))));
     public final double ICOSA_ANGLE  = Math.acos((__TAU * __TAU)
                                                  / (2.0 * Math.sqrt(2)));
+
+    public void addEdgesOf(Group group, Polyhedron poly, double radius,
+                           Material material) {
+        for (Edge edge : poly.getEdges()) {
+            Line line = edge.createLine(radius);
+            line.setMaterial(material);
+            group.getChildren()
+                 .add(line);
+        }
+    }
 
     public void addFaces(Group group, Polyhedron poly,
                          Material[] faceMaterials) {
@@ -90,6 +101,16 @@ public class PolyView extends Jfx3dViewerApp {
                 group.getChildren()
                      .addAll(line);
             });
+    }
+
+    public void addVerticesOf(Group group, Polyhedron poly, double radius,
+                              Material[] materials) {
+        int i = 0;
+        for (Sphere s : poly.getVertices(radius)) {
+            s.setMaterial(materials[i++]);
+            group.getChildren()
+                 .add(s);
+        }
     }
 
 }
