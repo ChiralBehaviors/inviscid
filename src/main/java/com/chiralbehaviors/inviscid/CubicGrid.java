@@ -44,19 +44,21 @@ public class CubicGrid {
     private final Pair<Integer, Integer> yExtent;
     private final Point3D                zAxis;
     private final Pair<Integer, Integer> zExtent;
+    private final boolean                body;
 
-    public CubicGrid() {
-        this(new Point3D(0, 0, 0), new Pair<>(5, 5), new Point3D(1, 0, 0), 1,
-             new Pair<>(5, 5), new Point3D(0, 1, 0), 1, new Pair<>(5, 5),
-             new Point3D(0, 0, 1), 1);
+    public CubicGrid(boolean bodyCentric) {
+        this(bodyCentric, new Point3D(0, 0, 0), new Pair<>(5, 5),
+             new Point3D(1, 0, 0), 1, new Pair<>(5, 5), new Point3D(0, 1, 0), 1,
+             new Pair<>(5, 5), new Point3D(0, 0, 1), 1);
     }
 
-    public CubicGrid(Point3D origin, Pair<Integer, Integer> xExtent,
-                                 Point3D xAxis, double intervalX,
-                                 Pair<Integer, Integer> yExtent, Point3D yAxis,
-                                 double intervalY,
-                                 Pair<Integer, Integer> zExtent, Point3D zAxis,
-                                 double intervalZ) {
+    public CubicGrid(boolean bodyCentric, Point3D origin,
+                     Pair<Integer, Integer> xExtent, Point3D xAxis,
+                     double intervalX, Pair<Integer, Integer> yExtent,
+                     Point3D yAxis, double intervalY,
+                     Pair<Integer, Integer> zExtent, Point3D zAxis,
+                     double intervalZ) {
+        this.body = bodyCentric;
         this.origin = origin;
         this.xExtent = xExtent;
         this.xAxis = xAxis;
@@ -73,15 +75,15 @@ public class CubicGrid {
         Group grid = new Group();
         Point3D pos;
         Point3D neg;
-
+        double bodyOffset = body ? 0.5 : 0;
         neg = xAxis.normalize()
-                   .multiply(-intervalX * xExtent.getKey())
-                   .subtract(0, intervalY * yExtent.getKey(),
-                             intervalZ * zExtent.getKey());
+                   .multiply(-intervalX * (xExtent.getKey() + bodyOffset))
+                   .subtract(0, intervalY * (yExtent.getKey() + bodyOffset),
+                             intervalZ * zExtent.getKey() + bodyOffset);
         pos = xAxis.normalize()
-                   .multiply(intervalX * xExtent.getValue())
-                   .subtract(0, intervalY * yExtent.getKey(),
-                             intervalZ * zExtent.getKey());
+                   .multiply(intervalX * (xExtent.getValue() + bodyOffset))
+                   .subtract(0, intervalY * (yExtent.getKey() + bodyOffset),
+                             intervalZ * (zExtent.getKey() + bodyOffset));
 
         construct(grid, neg, pos, yExtent.getKey() + yExtent.getValue(),
                   zExtent.getKey() + zExtent.getValue(), xaxis,
@@ -89,13 +91,13 @@ public class CubicGrid {
                   p -> p.add(0, 0, intervalZ));
 
         neg = yAxis.normalize()
-                   .multiply(-intervalY * yExtent.getKey())
-                   .subtract(intervalX * xExtent.getKey(), 0,
-                             intervalZ * zExtent.getKey());
+                   .multiply(-intervalY * (yExtent.getKey() + bodyOffset))
+                   .subtract(intervalX * (xExtent.getKey() + bodyOffset), 0,
+                             intervalZ * (zExtent.getKey() + bodyOffset));
         pos = yAxis.normalize()
-                   .multiply(intervalY * yExtent.getValue())
-                   .subtract(intervalX * xExtent.getKey(), 0,
-                             intervalZ * zExtent.getKey());
+                   .multiply(intervalY * (yExtent.getValue() + bodyOffset))
+                   .subtract(intervalX * (xExtent.getKey() + bodyOffset), 0,
+                             intervalZ * (zExtent.getKey() + bodyOffset));
 
         construct(grid, neg, pos, xExtent.getKey() + xExtent.getValue(),
                   zExtent.getKey() + zExtent.getValue(), yaxis,
@@ -103,13 +105,13 @@ public class CubicGrid {
                   p -> p.add(0, 0, intervalZ));
 
         neg = zAxis.normalize()
-                   .multiply(-intervalZ * zExtent.getKey())
-                   .subtract(intervalX * xExtent.getKey(),
-                             intervalY * yExtent.getKey(), 0);
+                   .multiply(-intervalZ * (zExtent.getKey() + bodyOffset))
+                   .subtract(intervalX * (xExtent.getKey() + bodyOffset),
+                             intervalY * (yExtent.getKey() + bodyOffset), 0);
         pos = zAxis.normalize()
-                   .multiply(intervalZ * zExtent.getValue())
-                   .subtract(intervalX * xExtent.getKey(),
-                             intervalY * yExtent.getKey(), 0);
+                   .multiply(intervalZ * (zExtent.getValue() + bodyOffset))
+                   .subtract(intervalX * (xExtent.getKey() + bodyOffset),
+                             intervalY * (yExtent.getKey() + bodyOffset), 0);
 
         construct(grid, neg, pos, xExtent.getKey() + xExtent.getValue(),
                   yExtent.getKey() + yExtent.getValue(), zaxis,
@@ -187,9 +189,12 @@ public class CubicGrid {
                            Integer b, Material material,
                            BiFunction<Integer, Point3D, Point3D> advanceA,
                            Function<Point3D, Point3D> advanceB) {
+        a = body ? a + 1 : a;
+        b = body ? b + 1 : b;
         Point3D start = neg;
         Point3D end = pos;
-        Line axis = new Line(0.015, start, end);
+        Line axis;
+        axis = new Line(0.015, start, end);
         axis.setMaterial(material);
         grid.getChildren()
             .addAll(axis);
@@ -208,6 +213,14 @@ public class CubicGrid {
                 grid.getChildren()
                     .addAll(axis);
             }
+        }
+        if (body) {
+            start = advanceA.apply(a, neg);
+            end = advanceA.apply(a, pos);
+            axis = new Line(0.015, start, end);
+            axis.setMaterial(material);
+            grid.getChildren()
+                .addAll(axis);
         }
     }
 }
