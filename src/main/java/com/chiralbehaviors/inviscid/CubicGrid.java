@@ -26,7 +26,6 @@ import java.util.function.Function;
 import javafx.geometry.Point3D;
 import javafx.scene.Group;
 import javafx.scene.paint.Material;
-import javafx.scene.paint.PhongMaterial;
 import javafx.util.Pair;
 import mesh.Line;
 
@@ -53,10 +52,11 @@ public class CubicGrid {
     }
 
     public CubicGrid(Point3D origin, Pair<Integer, Integer> xExtent,
-                     Point3D xAxis, double intervalX,
-                     Pair<Integer, Integer> yExtent, Point3D yAxis,
-                     double intervalY, Pair<Integer, Integer> zExtent,
-                     Point3D zAxis, double intervalZ) {
+                                 Point3D xAxis, double intervalX,
+                                 Pair<Integer, Integer> yExtent, Point3D yAxis,
+                                 double intervalY,
+                                 Pair<Integer, Integer> zExtent, Point3D zAxis,
+                                 double intervalZ) {
         this.origin = origin;
         this.xExtent = xExtent;
         this.xAxis = xAxis;
@@ -84,7 +84,7 @@ public class CubicGrid {
                              intervalZ * zExtent.getKey());
 
         construct(grid, neg, pos, yExtent.getKey() + yExtent.getValue(),
-                  zExtent.getKey() + zExtent.getValue(), redMaterial,
+                  zExtent.getKey() + zExtent.getValue(), xaxis,
                   (i, p) -> p.add(0, i * intervalY, 0),
                   p -> p.add(0, 0, intervalZ));
 
@@ -98,7 +98,7 @@ public class CubicGrid {
                              intervalZ * zExtent.getKey());
 
         construct(grid, neg, pos, xExtent.getKey() + xExtent.getValue(),
-                  zExtent.getKey() + zExtent.getValue(), blueMaterial,
+                  zExtent.getKey() + zExtent.getValue(), yaxis,
                   (i, p) -> p.add(i * intervalX, 0, 0),
                   p -> p.add(0, 0, intervalZ));
 
@@ -112,9 +112,34 @@ public class CubicGrid {
                              intervalY * yExtent.getKey(), 0);
 
         construct(grid, neg, pos, xExtent.getKey() + xExtent.getValue(),
-                  yExtent.getKey() + yExtent.getValue(), greenMaterial,
+                  yExtent.getKey() + yExtent.getValue(), zaxis,
                   (i, p) -> p.add(i * intervalX, 0, 0),
                   p -> p.add(0, intervalY, 0));
+
+        Line axis = new Line(0.025, xAxis.normalize()
+                                         .multiply(-intervalX
+                                                   * xExtent.getKey()),
+                             xAxis.normalize()
+                                  .multiply(intervalX * xExtent.getKey()));
+        axis.setMaterial(redMaterial);
+        grid.getChildren()
+            .addAll(axis);
+
+        axis = new Line(0.025, yAxis.normalize()
+                                    .multiply(-intervalY * yExtent.getKey()),
+                        yAxis.normalize()
+                             .multiply(intervalY * yExtent.getKey()));
+        axis.setMaterial(blueMaterial);
+        grid.getChildren()
+            .addAll(axis);
+
+        axis = new Line(0.025, zAxis.normalize()
+                                    .multiply(-intervalZ * zExtent.getKey()),
+                        zAxis.normalize()
+                             .multiply(intervalZ * zExtent.getKey()));
+        axis.setMaterial(greenMaterial);
+        grid.getChildren()
+            .addAll(axis);
         return grid;
     }
 
@@ -159,7 +184,7 @@ public class CubicGrid {
     }
 
     private void construct(Group grid, Point3D neg, Point3D pos, Integer a,
-                           Integer b, PhongMaterial material,
+                           Integer b, Material material,
                            BiFunction<Integer, Point3D, Point3D> advanceA,
                            Function<Point3D, Point3D> advanceB) {
         Point3D start = neg;

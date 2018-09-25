@@ -17,9 +17,7 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.animations.Colors.blueMaterial;
-import static com.chiralbehaviors.inviscid.animations.Colors.redMaterial;
-import static com.chiralbehaviors.inviscid.animations.Colors.yellowMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.cyanMaterial;
 
 import com.chiralbehaviors.inviscid.animations.PolyView;
 import com.javafx.experiments.jfx3dviewer.ContentModel;
@@ -37,8 +35,7 @@ public class TestHarness extends PolyView {
     @Override
     protected void initializeContentModel() {
         ContentModel content = getContentModel();
-        content.setContent(new CubicGrid().construct(redMaterial,
-                                                     yellowMaterial,
-                                                     blueMaterial));
+        content.setContent(new CubicGrid().construct(cyanMaterial, cyanMaterial,
+                                                     cyanMaterial));
     }
 }
