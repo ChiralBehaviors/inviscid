@@ -26,29 +26,6 @@ public class Tetrahedron extends PlatonicSolid {
         return new Vector3d[] { v0, v1, v2, v3 };
     }
 
-    /**
-     * Construct a tetrahedron mesh centered at the origin with the specified
-     * edge length.
-     * 
-     * @param edgeLength
-     *            The length of each edge of this mesh.
-     */
-    public Tetrahedron(double edgeLength) {
-        this(false, stdPositions(edgeLength));
-    }
-
-    /**
-     * Construct a tetrahedron mesh with the specified circumradius.
-     * 
-     * @param circumradius
-     *            The circumradius this polyhedron will have.
-     * @param dummy
-     *            A dummy variable.
-     */
-    public Tetrahedron(double circumradius, boolean dummy) {
-        this(circumradius / RADIUS_FACTOR);
-    }
-
     public Tetrahedron(boolean inverse, Vector3d... vectors) {
         super(PlatonicSolid.edgeLength(vectors));
         assert vectors != null && vectors.length == 4;
@@ -72,6 +49,29 @@ public class Tetrahedron extends PlatonicSolid {
 
         addFaces(f0, f1, f2, f3);
         setVertexNormalsToFaceNormals();
+    }
+
+    /**
+     * Construct a tetrahedron mesh centered at the origin with the specified
+     * edge length.
+     * 
+     * @param edgeLength
+     *            The length of each edge of this mesh.
+     */
+    public Tetrahedron(double edgeLength) {
+        this(false, stdPositions(edgeLength));
+    }
+
+    /**
+     * Construct a tetrahedron mesh with the specified circumradius.
+     * 
+     * @param circumradius
+     *            The circumradius this polyhedron will have.
+     * @param dummy
+     *            A dummy variable.
+     */
+    public Tetrahedron(double circumradius, boolean dummy) {
+        this(circumradius / RADIUS_FACTOR);
     }
 
 }

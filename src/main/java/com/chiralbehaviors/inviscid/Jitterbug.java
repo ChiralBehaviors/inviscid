@@ -16,7 +16,7 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.animations.Colors.*;
+import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,10 +42,10 @@ import mesh.polyhedra.plato.Octahedron;
  *
  */
 public class Jitterbug {
+    private final Group       group        = new Group();
     private boolean[]         INVERSES     = new boolean[] { false, false,
                                                              false, false, true,
                                                              true, true, true };
-    private final Group       group        = new Group();
     private final Rotate[]    rotations    = new Rotate[8];
     private final Translate[] translations = new Translate[8];
     private final double      Z;

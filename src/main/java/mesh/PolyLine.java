@@ -31,7 +31,7 @@ import javafx.scene.shape.TriangleMesh;
  */
 public class PolyLine extends MeshView {
     public PolyLine(List<Point3D> points, double width) {
-//        setDepthTest(DepthTest.ENABLE);
+        //        setDepthTest(DepthTest.ENABLE);
         TriangleMesh mesh = new TriangleMesh();
         setMesh(mesh);
         //add each point. For each point add another point shifted on Z axis by width

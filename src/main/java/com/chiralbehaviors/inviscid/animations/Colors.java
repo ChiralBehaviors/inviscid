@@ -37,23 +37,23 @@ import javafx.scene.paint.PhongMaterial;
  *
  */
 public class Colors {
-    public static final PhongMaterial   blueMaterial;
-    public static final PhongMaterial   greenMaterial;
-    public static final PhongMaterial[] materials;
-    public static final PhongMaterial[] blackMaterials;
-    public static final PhongMaterial   redMaterial;
-    public static final PhongMaterial   yellowMaterial;
     public static final PhongMaterial   blackMaterial;
-    public static final PhongMaterial   violetMaterial;
-    public static final PhongMaterial   orangeMaterial;
+    public static final PhongMaterial[] blackMaterials;
+    public static final PhongMaterial   blueMaterial;
     public static final PhongMaterial   cyanMaterial;
-    public static final PhongMaterial   purpleMaterial;
-    public static final PhongMaterial   magentaMaterial;
-    public static final PhongMaterial   lavenderMaterial;
-    public static final PhongMaterial   oliveMaterial;
-    public static final PhongMaterial   limeMaterial;
-    public static final PhongMaterial[] eightMaterials;
     public static final PhongMaterial[] eight4Materials;
+    public static final PhongMaterial[] eightMaterials;
+    public static final PhongMaterial   greenMaterial;
+    public static final PhongMaterial   lavenderMaterial;
+    public static final PhongMaterial   limeMaterial;
+    public static final PhongMaterial   magentaMaterial;
+    public static final PhongMaterial[] materials;
+    public static final PhongMaterial   oliveMaterial;
+    public static final PhongMaterial   orangeMaterial;
+    public static final PhongMaterial   purpleMaterial;
+    public static final PhongMaterial   redMaterial;
+    public static final PhongMaterial   violetMaterial;
+    public static final PhongMaterial   yellowMaterial;
 
     static {
         redMaterial = new PhongMaterial(RED);

@@ -45,11 +45,15 @@ public final class PhiCoordinates {
     // 5 differnet octahedra
     private static int[][]       OctahedronVertices      = { { 7, 10, 22, 43,
                                                                49, 55 },
-                                                             {9, 21, 14, 53, 42, 57},
-                                                             {25, 3, 15, 44, 59, 40},
-                                                             {19, 5, 24, 39, 61, 48},
+                                                             { 9, 21, 14, 53,
+                                                               42, 57 },
+                                                             { 25, 3, 15, 44,
+                                                               59, 40 },
+                                                             { 19, 5, 24, 39,
+                                                               61, 48 },
 
-                                                             {26, 1, 35, 29, 62, 32}  };
+                                                             { 26, 1, 35, 29,
+                                                               62, 32 } };
 
     @SuppressWarnings("unused")
     private static int[]         P120EdgeMap             = { 1, 2, 1, 4, 1, 6,
@@ -465,19 +469,19 @@ public final class PhiCoordinates {
 
     // 10 different tetrahedra
     private static int[][]       TetrahedronVertices     = { { 47, 34, 4, 38 },
-                                                             {18, 28, 60, 23}, 
+                                                             { 18, 28, 60, 23 },
 
-                                                             { 30, 16, 20, 60 }, 
+                                                             { 30, 16, 20, 60 },
                                                              { 36, 45, 41, 4 },
 
-                                                             { 28, 41, 8, 52 }, 
+                                                             { 28, 41, 8, 52 },
                                                              { 34, 20, 56, 13 },
 
                                                              { 45, 50, 13, 18 },
-                                                             {16, 11, 52, 47}, 
+                                                             { 16, 11, 52, 47 },
 
                                                              { 56, 23, 11, 36 },
-                                                             {  8, 38, 50, 30 }
+                                                             { 8, 38, 50, 30 }
 
     };
 
@@ -504,12 +508,12 @@ public final class PhiCoordinates {
         return cubes;
     }
 
-    public static Icosahedron icosahedron() {
-        return new Icosahedron(pointsFrom(IcosaVertices));
-    }
-
     public static Dodecahedron dodecahedron() {
         return new Dodecahedron(pointsFrom(RegDodecahedronVertices));
+    }
+
+    public static Icosahedron icosahedron() {
+        return new Icosahedron(pointsFrom(IcosaVertices));
     }
 
     public static Octahedron[] octahedrons() {

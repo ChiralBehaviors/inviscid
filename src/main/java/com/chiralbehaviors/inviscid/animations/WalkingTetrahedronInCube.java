@@ -16,7 +16,8 @@
 
 package com.chiralbehaviors.inviscid.animations;
 
-import static com.chiralbehaviors.inviscid.animations.Colors.*;
+import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.materials;
 
 import com.chiralbehaviors.inviscid.PhiCoordinates;
 
@@ -38,7 +39,8 @@ public class WalkingTetrahedronInCube extends PolyView {
         Cube cube = PhiCoordinates.cubes()[0];
         addEdgesOf(group, cube, 0.015, blackMaterial);
         addVerticesOf(group, cube, 0.5, materials);
-        addPlainPolyhedron(group, PhiCoordinates.tetrahedrons()[0], blackMaterial);
+        addPlainPolyhedron(group, PhiCoordinates.tetrahedrons()[0],
+                           blackMaterial);
         getContentModel().setContent(group);
     }
 

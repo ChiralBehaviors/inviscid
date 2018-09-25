@@ -52,7 +52,7 @@ public class Necronomigrid {
             Line axisP = new Line(0.1, positive, new Point3D(0, 0, 0));
             axisP.setMaterial(materials[i]);
             Line axisN = new Line(0.1, negative, new Point3D(0, 0, 0));
-            axisN.setMaterial(materials[i+3]);
+            axisN.setMaterial(materials[i + 3]);
             group.getChildren()
                  .addAll(axisP, axisN);
         }

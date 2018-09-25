@@ -34,17 +34,17 @@ import mesh.Line;
  *
  */
 public class CubicGrid {
+    private final boolean                body;
     private final double                 intervalX;
     private final double                 intervalY;
     private final double                 intervalZ;
-    private final Point3D                origin;
+    private Point3D                      origin;
     private final Point3D                xAxis;
     private final Pair<Integer, Integer> xExtent;
     private final Point3D                yAxis;
     private final Pair<Integer, Integer> yExtent;
     private final Point3D                zAxis;
     private final Pair<Integer, Integer> zExtent;
-    private final boolean                body;
 
     public CubicGrid(boolean bodyCentric) {
         this(bodyCentric, new Point3D(0, 0, 0), new Pair<>(5, 5),
@@ -58,16 +58,16 @@ public class CubicGrid {
                      Point3D yAxis, double intervalY,
                      Pair<Integer, Integer> zExtent, Point3D zAxis,
                      double intervalZ) {
-        this.body = bodyCentric;
         this.origin = origin;
+        this.body = bodyCentric;
         this.xExtent = xExtent;
-        this.xAxis = xAxis;
+        this.xAxis = xAxis.subtract(origin);
         this.intervalX = intervalX;
         this.yExtent = yExtent;
-        this.yAxis = yAxis;
+        this.yAxis = yAxis.subtract(origin);
         this.intervalY = intervalY;
         this.zExtent = zExtent;
-        this.zAxis = zAxis;
+        this.zAxis = zAxis.subtract(origin);
         this.intervalZ = intervalZ;
     }
 

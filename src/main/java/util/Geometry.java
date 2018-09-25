@@ -10,6 +10,23 @@ import javax.vecmath.Vector3d;
 public class Geometry {
 
     /**
+     * Computes the distance from a point to a line in 3D.
+     * 
+     * @param point
+     *            The point we are calculating distance from.
+     * @param linePoint1
+     *            The first of two points defining the line.
+     * @param linePoint2
+     *            The second of two points defining the line.
+     * @return The distance of point from the line defined by the two line
+     *         points.
+     */
+    public static double pointLineDist(Vector3d point, Vector3d linePoint1,
+                                       Vector3d linePoint2) {
+        return Math.sqrt(pointLineDistSq(point, linePoint1, linePoint2));
+    }
+
+    /**
      * Computes the square of the distance from a point to a line in 3D.
      * 
      * @param point
@@ -38,23 +55,6 @@ public class Geometry {
             distanceVector.sub(linePointVector, scaledLineVector);
             return distanceVector.lengthSquared();
         }
-    }
-
-    /**
-     * Computes the distance from a point to a line in 3D.
-     * 
-     * @param point
-     *            The point we are calculating distance from.
-     * @param linePoint1
-     *            The first of two points defining the line.
-     * @param linePoint2
-     *            The second of two points defining the line.
-     * @return The distance of point from the line defined by the two line
-     *         points.
-     */
-    public static double pointLineDist(Vector3d point, Vector3d linePoint1,
-                                       Vector3d linePoint2) {
-        return Math.sqrt(pointLineDistSq(point, linePoint1, linePoint2));
     }
 
 }

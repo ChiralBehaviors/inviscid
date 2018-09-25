@@ -11,8 +11,19 @@ import mesh.Face;
  */
 public class Pyramid extends Polyhedron {
 
-    private static double RADIUS = 0.5;
     private static double HEIGHT = 1.0;
+    private static double RADIUS = 0.5;
+
+    /**
+     * Constructs a pyramid with a default radius (0.5) and default height
+     * (1.0). The number of sides of the base is the only parameter.
+     * 
+     * @param numSides
+     *            The number of sides the base has.
+     */
+    public Pyramid(int numSides) {
+        this(numSides, RADIUS, HEIGHT);
+    }
 
     /**
      * Constructs a pyramid whose base has the given circumradius and has the
@@ -52,17 +63,6 @@ public class Pyramid extends Polyhedron {
         addFace(bottomFace);
 
         setVertexNormalsToFaceNormals();
-    }
-
-    /**
-     * Constructs a pyramid with a default radius (0.5) and default height
-     * (1.0). The number of sides of the base is the only parameter.
-     * 
-     * @param numSides
-     *            The number of sides the base has.
-     */
-    public Pyramid(int numSides) {
-        this(numSides, RADIUS, HEIGHT);
     }
 
 }
