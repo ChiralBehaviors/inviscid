@@ -17,13 +17,15 @@
 
 package com.chiralbehaviors.inviscid.animations;
 
+import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
 import static com.chiralbehaviors.inviscid.animations.Colors.materials;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.chiralbehaviors.inviscid.CubicGrid;
+import com.chiralbehaviors.inviscid.CubicGrid.Neighborhood;
 import com.chiralbehaviors.inviscid.Jitterbug;
 import com.chiralbehaviors.inviscid.PhiCoordinates;
 import com.javafx.experiments.jfx3dviewer.ContentModel;
@@ -51,15 +53,19 @@ public class JitterbugAnimation extends PolyView {
         Group group = new Group();
         List<Jitterbug> jitterbugs = new ArrayList<>();
         Octahedron[] octahedrons = PhiCoordinates.octahedrons();
-        Arrays.asList(0)
-              .forEach(i -> {
-                  Octahedron oct = octahedrons[i];
-                  Jitterbug j = new Jitterbug(oct, materials);
-                  jitterbugs.add(j);
-                  j.rotateTo(90);
-                  group.getChildren()
-                       .add(j.getGroup());
-              });
+
+        group.getChildren()
+             .add(new CubicGrid(Neighborhood.EIGHT, PhiCoordinates.cubes()[3],
+                                   2).construct(blackMaterial,
+                                                blackMaterial,
+                                                blackMaterial));
+        
+        for (Octahedron oct : octahedrons) {
+            Jitterbug j = new Jitterbug(oct, materials);
+            jitterbugs.add(j);
+            j.rotateTo(0);
+            group.getChildren().add(j.getGroup());
+        }
         content.setContent(group);
         final Timeline timeline = new Timeline();
         AtomicReference<Double> angle = new AtomicReference<>(0d);

@@ -39,6 +39,11 @@ import mesh.polyhedra.plato.Cube;
  */
 public class CubicGrid {
 
+    public static enum Neighborhood {
+        SIX,
+        EIGHT
+    }
+
     private static Point3D xAxis(Cube cube) {
         Vector3d vector = cube.getFaces()
                               .get(0)
@@ -60,7 +65,7 @@ public class CubicGrid {
         return new Point3D(vector.x, vector.y, vector.z);
     }
 
-    private final boolean                bodyCentric;
+    private final Neighborhood           neighborhood;
     private final double                 intervalX;
     private final double                 intervalY;
     private final double                 intervalZ;
@@ -73,34 +78,34 @@ public class CubicGrid {
 
     private final Pair<Integer, Integer> zExtent;
 
-    public CubicGrid(boolean bodyCentric) {
-        this(bodyCentric, new Point3D(0, 0, 0), new Pair<>(5, 5),
+    public CubicGrid(Neighborhood neighborhood) {
+        this(neighborhood, new Point3D(0, 0, 0), new Pair<>(5, 5),
              new Point3D(1, 0, 0), 1, new Pair<>(5, 5), new Point3D(0, 1, 0), 1,
              new Pair<>(5, 5), new Point3D(0, 0, 1), 1);
     }
 
-    public CubicGrid(boolean bodyCentric, Cube cube, int extent) {
-        this(bodyCentric, cube, new Pair<>(extent, extent),
+    public CubicGrid(Neighborhood neighborhood, Cube cube, int extent) {
+        this(neighborhood, cube, new Pair<>(extent, extent),
              new Pair<>(extent, extent), new Pair<>(extent, extent));
     }
 
-    public CubicGrid(boolean bodyCentric, Cube cube,
+    public CubicGrid(Neighborhood neighborhood, Cube cube,
                      Pair<Integer, Integer> xExtent,
                      Pair<Integer, Integer> yExtent,
                      Pair<Integer, Integer> zExtent) {
-        this(bodyCentric, new Point3D(0, 0, 0), xExtent, xAxis(cube),
+        this(neighborhood, new Point3D(0, 0, 0), xExtent, xAxis(cube),
              cube.getEdgeLength(), yExtent, yAxis(cube), cube.getEdgeLength(),
              zExtent, zAxis(cube), cube.getEdgeLength());
     }
 
-    public CubicGrid(boolean bodyCentric, Point3D origin,
+    public CubicGrid(Neighborhood neighborhood, Point3D origin,
                      Pair<Integer, Integer> xExtent, Point3D xAxis,
                      double intervalX, Pair<Integer, Integer> yExtent,
                      Point3D yAxis, double intervalY,
                      Pair<Integer, Integer> zExtent, Point3D zAxis,
                      double intervalZ) {
         this.origin = origin;
-        this.bodyCentric = bodyCentric;
+        this.neighborhood = neighborhood;
         this.xExtent = xExtent;
         this.xAxis = xAxis.subtract(origin)
                           .normalize();
@@ -119,7 +124,7 @@ public class CubicGrid {
         Group grid = new Group();
         Point3D pos;
         Point3D neg;
-        double bodyOffset = bodyCentric ? 0.5 : 0;
+        double bodyOffset = neighborhood == Neighborhood.SIX ? 0.5 : 0;
 
         final Point3D deltaX = xAxis.multiply(intervalX);
         final Point3D deltaY = yAxis.multiply(intervalY);
@@ -256,8 +261,8 @@ public class CubicGrid {
                            Integer b, Material material,
                            BiFunction<Integer, Point3D, Point3D> advanceA,
                            Function<Point3D, Point3D> advanceB) {
-        a = bodyCentric ? a + 1 : a;
-        b = bodyCentric ? b + 1 : b;
+        a = neighborhood == Neighborhood.SIX ? a + 1 : a;
+        b = neighborhood == Neighborhood.SIX ? b + 1 : b;
         Point3D start = neg;
         Point3D end = pos;
         Line axis;
@@ -281,7 +286,7 @@ public class CubicGrid {
                     .addAll(axis);
             }
         }
-        if (bodyCentric) {
+        if (neighborhood == Neighborhood.SIX) {
             start = advanceA.apply(a, neg);
             end = advanceA.apply(a, pos);
             axis = new Line(0.015, start, end);
