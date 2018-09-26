@@ -79,9 +79,9 @@ public class CubicGrid {
              new Pair<>(5, 5), new Point3D(0, 0, 1), 1);
     }
 
-    public CubicGrid(boolean bodyCentric, Cube cube) {
-        this(bodyCentric, cube, new Pair<>(5, 5), new Pair<>(5, 5),
-             new Pair<>(5, 5));
+    public CubicGrid(boolean bodyCentric, Cube cube, int extent) {
+        this(bodyCentric, cube, new Pair<>(extent, extent),
+             new Pair<>(extent, extent), new Pair<>(extent, extent));
     }
 
     public CubicGrid(boolean bodyCentric, Cube cube,

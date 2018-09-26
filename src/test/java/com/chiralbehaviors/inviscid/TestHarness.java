@@ -23,6 +23,7 @@ import com.chiralbehaviors.inviscid.animations.PolyView;
 import com.javafx.experiments.jfx3dviewer.ContentModel;
 
 import javafx.scene.Group;
+import mesh.polyhedra.plato.Cube;
 
 /**
  * @author halhildebrand
@@ -39,12 +40,15 @@ public class TestHarness extends PolyView {
         ContentModel content = getContentModel();
 
         Group group = new Group();
+        Cube[] cubes = PhiCoordinates.cubes();
         group.getChildren()
-             .add(new CubicGrid(false,
-                                PhiCoordinates.cubes()[3]).construct(blackMaterial,
-                                                                     blackMaterial,
-                                                                     blackMaterial));
-        addFaces(group, PhiCoordinates.cubes()[3], materials);
+             .add(new CubicGrid(true, cubes[3], 4).construct(blackMaterial,
+                                                              blackMaterial,
+                                                              blackMaterial));
+//        group.getChildren()
+//             .add(new CubicGrid(true, cubes[0], 2).construct(redMaterial,
+//                                                              redMaterial,
+//                                                              redMaterial));
         content.setContent(group);
     }
 }
