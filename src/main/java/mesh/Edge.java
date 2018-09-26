@@ -7,10 +7,7 @@ import java.util.List;
 import javax.vecmath.Vector3d;
 
 import javafx.geometry.Point3D;
-import javafx.scene.shape.Cylinder;
 import javafx.scene.shape.Sphere;
-import javafx.scene.transform.Rotate;
-import javafx.scene.transform.Translate;
 
 /**
  * A class encapsulating a single edge between vertices of a mesh. The edge,
@@ -48,31 +45,12 @@ public class Edge {
         ends[1] = vertex1;
     }
 
-    public Cylinder createLine(double radius) {
-        Point3D[] endpoints = new Point3D[2];
-        int i = 0;
+    public Line createLine(double radius) {
+        List<Point3D> endpoints = new ArrayList<>();
         for (Vector3d p : getEndLocations()) {
-            endpoints[i++] = new Point3D(p.x, p.y, p.z);
+            endpoints.add(new Point3D(p.x, p.y, p.z));
         }
-        Point3D diff = endpoints[1].subtract(endpoints[0]);
-
-        Point3D mid = endpoints[1].midpoint(endpoints[0]);
-        Translate moveToMidpoint = new Translate(mid.getX(), mid.getY(),
-                                                 mid.getZ());
-
-        Point3D yAxis = new Point3D(0, 1, 0);
-        Point3D axisOfRotation = diff.crossProduct(yAxis);
-        double angle = Math.acos(diff.normalize()
-                                     .dotProduct(yAxis));
-        Rotate rotateAroundCenter = new Rotate(-Math.toDegrees(angle),
-                                               axisOfRotation);
-
-        Cylinder line = new Cylinder(radius, diff.magnitude());
-
-        line.getTransforms()
-            .addAll(moveToMidpoint, rotateAroundCenter);
-
-        return line;
+        return new Line(radius, endpoints.get(1), endpoints.get(0));
     }
 
     @Override

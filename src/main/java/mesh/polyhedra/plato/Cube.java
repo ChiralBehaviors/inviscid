@@ -26,14 +26,15 @@ public class Cube extends PlatonicSolid {
     }
 
     /**
-	 * Construct a cube mesh centered at the origin with the specified
-	 * edge length.
-	 * 
-	 * @param edgeLength The length of each edge of this mesh.
-	 */
-	public Cube(double edgeLength) {
-		this(edgeLength, standardPositions(edgeLength));
-	}
+     * Construct a cube mesh centered at the origin with the specified edge
+     * length.
+     * 
+     * @param edgeLength
+     *            The length of each edge of this mesh.
+     */
+    public Cube(double edgeLength) {
+        this(edgeLength, standardPositions(edgeLength));
+    }
 
     public Cube(double edgeLength, Vector3d[] vs) {
         super(edgeLength);
@@ -41,19 +42,19 @@ public class Cube extends PlatonicSolid {
         addVertexPositions(vs);
         Face f0 = new Face(4);
         f0.setAllVertexIndices(0, 2, 3, 1);
-        
+
         Face f1 = new Face(4);
         f1.setAllVertexIndices(0, 4, 6, 2);
-        
+
         Face f2 = new Face(4);
         f2.setAllVertexIndices(0, 1, 5, 4);
-        
+
         Face f3 = new Face(4);
         f3.setAllVertexIndices(7, 6, 4, 5);
-        
+
         Face f4 = new Face(4);
         f4.setAllVertexIndices(7, 5, 1, 3);
-        
+
         Face f5 = new Face(4);
         f5.setAllVertexIndices(7, 3, 2, 6);
 
@@ -75,7 +76,7 @@ public class Cube extends PlatonicSolid {
         f0.setAllVertexIndices(0, 1, 2, 3);
         f1.setAllVertexIndices(3, 2, 5, 4);
         f2.setAllVertexIndices(3, 4, 7, 0);
-        
+
         f3.setAllVertexIndices(4, 5, 6, 7);
         f4.setAllVertexIndices(1, 0, 7, 6);
         f5.setAllVertexIndices(1, 6, 5, 2);

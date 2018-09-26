@@ -12,6 +12,11 @@ import mesh.polyhedra.Polyhedron;
  */
 public abstract class PlatonicSolid extends Polyhedron {
 
+    public static double edgeLength(Vector3d[] vs) {
+        Vector3d diff = VectorMath.diff(vs[1], vs[0]);
+        return diff.length();
+    }
+
     private double edgeLength;
 
     /**
@@ -27,11 +32,6 @@ public abstract class PlatonicSolid extends Polyhedron {
      */
     public double getEdgeLength() {
         return edgeLength;
-    }
-
-    public static double edgeLength(Vector3d[] vs) {
-        Vector3d diff = VectorMath.diff(vs[1], vs[0]);
-        return diff.length();
     }
 
 }

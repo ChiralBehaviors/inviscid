@@ -11,8 +11,19 @@ import mesh.Face;
  */
 public class Antiprism extends Polyhedron {
 
-    private static double RADIUS = 0.5;
     private static double HEIGHT = 1.0;
+    private static double RADIUS = 0.5;
+
+    /**
+     * Constructs an antiprism with a default radius (0.5) and default height
+     * (1.0). The number of sides of the base is the only parameter.
+     * 
+     * @param numSides
+     *            The number of sides the base has.
+     */
+    public Antiprism(int numSides) {
+        this(numSides, RADIUS, HEIGHT);
+    }
 
     /**
      * Constructs an antiprism whose base has the given circumradius and has the
@@ -65,17 +76,6 @@ public class Antiprism extends Polyhedron {
         addFaces(bottomFace, topFace);
 
         setVertexNormalsToFaceNormals();
-    }
-
-    /**
-     * Constructs an antiprism with a default radius (0.5) and default height
-     * (1.0). The number of sides of the base is the only parameter.
-     * 
-     * @param numSides
-     *            The number of sides the base has.
-     */
-    public Antiprism(int numSides) {
-        this(numSides, RADIUS, HEIGHT);
     }
 
 }
