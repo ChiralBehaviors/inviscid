@@ -28,6 +28,9 @@ import javafx.scene.transform.Translate;
 public class Line extends Cylinder {
 
     public Line(double radius, Point3D a, Point3D b) {
+        super(radius, b.subtract(a)
+                       .magnitude(),
+              3);
         Point3D diff = b.subtract(a);
 
         Point3D mid = b.midpoint(a);
@@ -40,9 +43,6 @@ public class Line extends Cylinder {
                                      .dotProduct(yAxis));
         Rotate rotateAroundCenter = new Rotate(-Math.toDegrees(angle),
                                                axisOfRotation);
-
-        setRadius(radius);
-        setHeight(diff.magnitude());
 
         getTransforms().addAll(moveToMidpoint, rotateAroundCenter);
     }

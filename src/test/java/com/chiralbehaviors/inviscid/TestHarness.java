@@ -16,8 +16,8 @@
  */
 
 package com.chiralbehaviors.inviscid;
-import static com.chiralbehaviors.inviscid.animations.Colors.*;
-import java.util.Arrays;
+
+import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
 
 import com.chiralbehaviors.inviscid.animations.PolyView;
 import com.javafx.experiments.jfx3dviewer.ContentModel;
@@ -41,9 +41,12 @@ public class TestHarness extends PolyView {
         ContentModel content = getContentModel();
 
         Group group = new Group();
-        PolyLine line = new PolyLine(Arrays.asList(new Point3D(0, 0, 0), new Point3D(10, 10, 10)), 1.0);
-        line.setMaterial(blackMaterial);
-        group.getChildren().add(line);
+        PolyLine line = PolyLine.ellipse(5, 7, new Point3D(0, 0, 0),
+                                         new Point3D(0, 1, 0),
+                                         new Point3D(1, 0, 0), .015, 30,
+                                         blackMaterial);
+        group.getChildren()
+             .add(line);
         content.setContent(group);
     }
 }
