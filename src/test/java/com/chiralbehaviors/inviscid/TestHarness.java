@@ -22,8 +22,8 @@ import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
 import com.chiralbehaviors.inviscid.animations.PolyView;
 import com.javafx.experiments.jfx3dviewer.ContentModel;
 
-import javafx.geometry.Point3D;
 import javafx.scene.Group;
+import mesh.Ellipse;
 import mesh.PolyLine;
 
 /**
@@ -41,12 +41,16 @@ public class TestHarness extends PolyView {
         ContentModel content = getContentModel();
 
         Group group = new Group();
-        PolyLine line = PolyLine.ellipse(new Point3D(0, 0, 0),
-                                         new Point3D(0, 5, 0),
-                                         new Point3D(7, 0, 0), .015, 20,
-                                         blackMaterial);
+        for (int i = 0; i < 3; i++) {
+            PolyLine line = new Ellipse(0, PhiCoordinates.Octahedrons[0],
+                                        i).construct(20, blackMaterial, 0.1);
+            group.getChildren()
+                 .add(line);
+        }
         group.getChildren()
-             .add(line);
+             .add(PhiCoordinates.Octahedrons[0].getFaces()
+                                               .get(0)
+                                               .constructMeshView());
         content.setContent(group);
     }
 }

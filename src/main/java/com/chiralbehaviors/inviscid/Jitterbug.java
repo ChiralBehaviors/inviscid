@@ -41,6 +41,7 @@ import mesh.polyhedra.plato.Octahedron;
  *
  */
 public class Jitterbug {
+
     private final Group       group        = new Group();
     private boolean[]         INVERSES     = new boolean[] { false, false,
                                                              false, false, true,
@@ -57,6 +58,8 @@ public class Jitterbug {
         }
         Z = (oct.getEdgeLength() * Math.sqrt(2)) / Math.sqrt(3);
     }
+
+
 
     public Group getGroup() {
         return group;

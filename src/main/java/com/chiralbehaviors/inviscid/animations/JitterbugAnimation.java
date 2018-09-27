@@ -36,6 +36,7 @@ import javafx.animation.Timeline;
 import javafx.beans.value.WritableValue;
 import javafx.scene.Group;
 import javafx.util.Duration;
+import mesh.Ellipse;
 import mesh.polyhedra.plato.Octahedron;
 
 /**
@@ -52,20 +53,21 @@ public class JitterbugAnimation extends PolyView {
         ContentModel content = getContentModel();
         Group group = new Group();
         List<Jitterbug> jitterbugs = new ArrayList<>();
-        Octahedron[] octahedrons = PhiCoordinates.octahedrons();
+        Octahedron[] octahedrons = PhiCoordinates.Octahedrons;
 
         group.getChildren()
-             .add(new CubicGrid(Neighborhood.EIGHT, PhiCoordinates.cubes()[3],
-                                   2).construct(blackMaterial,
-                                                blackMaterial,
-                                                blackMaterial));
-        
-        for (Octahedron oct : octahedrons) {
-            Jitterbug j = new Jitterbug(oct, materials);
-            jitterbugs.add(j);
-            j.rotateTo(0);
-            group.getChildren().add(j.getGroup());
-        }
+             .add(new CubicGrid(Neighborhood.EIGHT, PhiCoordinates.Cubes[3],
+                                2).construct(blackMaterial, blackMaterial,
+                                             blackMaterial));
+
+        Jitterbug j = new Jitterbug(octahedrons[0], materials);
+        jitterbugs.add(j);
+        j.rotateTo(0);
+        group.getChildren()
+             .add(j.getGroup());
+        group.getChildren()
+             .add(new Ellipse(0, PhiCoordinates.Octahedrons[0],
+                              0).construct(20, blackMaterial, 0.1));
         content.setContent(group);
         final Timeline timeline = new Timeline();
         AtomicReference<Double> angle = new AtomicReference<>(0d);
