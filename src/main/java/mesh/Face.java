@@ -121,23 +121,20 @@ public class Face {
         for (Face face : faces) {
             texIndicesCount += face.numVertices();
         }
-        int[] texIindices = new int[mesh.vertexPositions.size()];
-        Arrays.fill(texIindices, 1);
-        float[] texCoords = new float[texIndicesCount * 2];
-        Arrays.fill(texCoords, 1f);
         TriangleMesh newMesh = new TriangleMesh();
         int i;
         newMesh.getPoints()
                .addAll(mesh.constructMeshPoints());
+        //add dummy Texture Coordinate
         newMesh.getTexCoords()
-               .addAll(texCoords);
+               .addAll(0, 0);
         int[] facesAndTexCoords = new int[texIndicesCount * 2];
         i = 0;
         for (Face f : faces) {
             int[] indices = f.getVertexIndices();
             for (int j : indices) {
                 facesAndTexCoords[i++] = j;
-                facesAndTexCoords[i++] = texIindices[j];
+                facesAndTexCoords[i++] = 0;
             }
         }
         newMesh.getFaces()

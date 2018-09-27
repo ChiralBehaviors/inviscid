@@ -19,7 +19,6 @@ package com.chiralbehaviors.inviscid;
 import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.vecmath.Vector3d;
@@ -87,11 +86,7 @@ public class Jitterbug {
         translation.setY(-axis.getY());
         translation.setZ(-axis.getZ());
 
-        int[] texIindices = new int[6];
-        Arrays.fill(texIindices, 1);
-        float[] texCoords = new float[6];
         float[] meshPoints = new float[9];
-        Arrays.fill(texCoords, 1f);
         int i = 0;
         List<Point3D> vertices = new ArrayList<>();
         for (Vector3d v : face.getVertices()) {
@@ -122,10 +117,11 @@ public class Jitterbug {
         TriangleMesh newMesh = new TriangleMesh();
         newMesh.getPoints()
                .addAll(meshPoints);
+        //add dummy Texture Coordinate
         newMesh.getTexCoords()
-               .addAll(texCoords);
+               .addAll(0, 0);
         newMesh.getFaces()
-               .addAll(new int[] { 0, 1, 1, 1, 2, 1 });
+               .addAll(new int[] { 0, 0, 1, 0, 2, 0 });
         MeshView view = new MeshView(newMesh);
         view.setCullFace(CullFace.NONE);
         view.setMaterial(material);

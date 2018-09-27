@@ -16,15 +16,15 @@
  */
 
 package com.chiralbehaviors.inviscid;
-
 import static com.chiralbehaviors.inviscid.animations.Colors.*;
+import java.util.Arrays;
 
-import com.chiralbehaviors.inviscid.CubicGrid.Neighborhood;
 import com.chiralbehaviors.inviscid.animations.PolyView;
 import com.javafx.experiments.jfx3dviewer.ContentModel;
 
+import javafx.geometry.Point3D;
 import javafx.scene.Group;
-import mesh.polyhedra.plato.Cube;
+import mesh.PolyLine;
 
 /**
  * @author halhildebrand
@@ -41,15 +41,9 @@ public class TestHarness extends PolyView {
         ContentModel content = getContentModel();
 
         Group group = new Group();
-        Cube[] cubes = PhiCoordinates.cubes();
-        group.getChildren()
-             .add(new CubicGrid(Neighborhood.SIX, cubes[3], 4).construct(blackMaterial,
-                                                              blackMaterial,
-                                                              blackMaterial));
-        group.getChildren()
-             .add(new CubicGrid(Neighborhood.SIX, cubes[0], 2).construct(redMaterial,
-                                                              redMaterial,
-                                                              redMaterial));
+        PolyLine line = new PolyLine(Arrays.asList(new Point3D(0, 0, 0), new Point3D(10, 10, 10)), 1.0);
+        line.setMaterial(blackMaterial);
+        group.getChildren().add(line);
         content.setContent(group);
     }
 }

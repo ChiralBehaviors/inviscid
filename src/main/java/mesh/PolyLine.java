@@ -20,7 +20,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import javafx.geometry.Point3D;
-import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
@@ -63,7 +62,7 @@ public class PolyLine extends MeshView {
                 .addAll(i - 1, 0, i - 2, 0, i + 1, 0); //add secondary Width face
         }
         setDrawMode(DrawMode.FILL); //Fill so that the line shows width
-        setCullFace(CullFace.BACK);
+//        setCullFace(CullFace.BACK);
     }
 
     public PolyLine(Point3D a, Point3D b, float width) {

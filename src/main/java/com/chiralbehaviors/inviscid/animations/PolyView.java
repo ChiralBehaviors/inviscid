@@ -65,8 +65,7 @@ public class PolyView extends Jfx3dViewerApp {
 
     public void addPlainPolyhedron(Group group, Polyhedron poly,
                                    Material meshMaterial) {
-        MeshView view = new MeshView(poly.toTriangleMesh()
-                                         .constructRegularTexturedMesh());
+        MeshView view = new MeshView(poly.toTriangleMesh().constructMesh());
         view.setMaterial(meshMaterial);
         group.getChildren()
              .add(view);
@@ -82,8 +81,7 @@ public class PolyView extends Jfx3dViewerApp {
     public void addPolyhedron(Group group, Polyhedron poly,
                               Material meshMaterial,
                               Material[] vertexMaterials) {
-        MeshView view = new MeshView(poly.toTriangleMesh()
-                                         .constructRegularTexturedMesh());
+        MeshView view = new MeshView(poly.toTriangleMesh().constructMesh());
         view.setMaterial(meshMaterial);
         group.getChildren()
              .add(view);

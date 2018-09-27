@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -146,34 +145,26 @@ public class Mesh {
         }
     }
 
-    public TriangleMesh constructMesh(int[] texIndices, float[] texCoords) {
+    public TriangleMesh constructMesh() {
         TriangleMesh newMesh = new TriangleMesh();
         int i;
         newMesh.getPoints()
                .addAll(constructMeshPoints());
+        //add dummy Texture Coordinate
         newMesh.getTexCoords()
-               .addAll(texCoords);
+               .addAll(0, 0);
         int[] facesAndTexCoords = new int[getTexIndicesCount() * 2];
         i = 0;
         for (Face f : faces) {
             int[] indices = f.getVertexIndices();
             for (int j : indices) {
                 facesAndTexCoords[i++] = j;
-                facesAndTexCoords[i++] = texIndices[j];
+                facesAndTexCoords[i++] = 0;
             }
         }
         newMesh.getFaces()
                .addAll(facesAndTexCoords);
         return newMesh;
-    }
-
-    public TriangleMesh constructRegularTexturedMesh() {
-        int texIndicesCount = getTexIndicesCount();
-        int[] indices = new int[texIndicesCount];
-        Arrays.fill(indices, 1);
-        float[] texCoords = new float[texIndicesCount * 2];
-        Arrays.fill(texCoords, 1f);
-        return constructMesh(indices, texCoords);
     }
 
     /**
