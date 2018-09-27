@@ -41,9 +41,9 @@ public class TestHarness extends PolyView {
         ContentModel content = getContentModel();
 
         Group group = new Group();
-        PolyLine line = PolyLine.ellipse(5, 7, new Point3D(0, 0, 0),
-                                         new Point3D(0, 1, 0),
-                                         new Point3D(1, 0, 0), .015, 30,
+        PolyLine line = PolyLine.ellipse(new Point3D(0, 0, 0),
+                                         new Point3D(0, 5, 0),
+                                         new Point3D(7, 0, 0), .015, 20,
                                          blackMaterial);
         group.getChildren()
              .add(line);

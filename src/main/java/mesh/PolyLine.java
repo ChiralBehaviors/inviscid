@@ -29,15 +29,18 @@ import javafx.scene.paint.Material;
  */
 public class PolyLine extends Group {
 
-    public static PolyLine ellipse(double a, double b, Point3D center,
-                                   Point3D u, Point3D v, double radius,
-                                   int segments, Material material) {
+    public static PolyLine ellipse(Point3D center, Point3D a, Point3D b,
+                                   double radius, int segments,
+                                   Material material) {
+        Point3D u = a.subtract(center);
+        Point3D v = b.subtract(center);
+
         List<Point3D> points = new ArrayList<>();
         double increment = (2 * Math.PI) / segments;
         double theta = 0;
         for (int i = 0; i <= segments; i++) {
-            points.add(u.multiply(a * Math.cos(theta))
-                        .add(v.multiply(b * Math.sin(theta))));
+            points.add(u.multiply(Math.cos(theta))
+                        .add(v.multiply(Math.sin(theta))));
             theta += increment;
         }
 
