@@ -43,9 +43,6 @@ import mesh.polyhedra.plato.Octahedron;
 public class Jitterbug {
 
     private final Group       group        = new Group();
-    private boolean[]         INVERSES     = new boolean[] { false, false,
-                                                             false, false, true,
-                                                             true, true, true };
     private final Rotate[]    rotations    = new Rotate[8];
     private final Translate[] translations = new Translate[8];
     private final double      Z;
@@ -67,7 +64,7 @@ public class Jitterbug {
 
     public void rotateTo(double a) {
         for (int i = 0; i < 8; i++) {
-            double angle = INVERSES[i] ? -a : a;
+            double angle = PhiCoordinates.JITTERBUG_INVERSES[i] ? -a : a;
             Rotate rotation = rotations[i];
             rotation.setAngle(angle);
             translate(i, angle);
@@ -93,7 +90,7 @@ public class Jitterbug {
         int i = 0;
         List<Point3D> vertices = new ArrayList<>();
         for (Vector3d v : face.getVertices()) {
-            if (INVERSES[index]) {
+            if (PhiCoordinates.JITTERBUG_INVERSES[index]) {
                 rotation.setAngle(60);
             } else {
                 rotation.setAngle(-60);

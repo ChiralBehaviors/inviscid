@@ -21,8 +21,13 @@ import java.util.List;
 
 import javax.vecmath.Vector3d;
 
+import com.chiralbehaviors.inviscid.PhiCoordinates;
+
 import javafx.geometry.Point3D;
 import javafx.scene.paint.Material;
+import javafx.scene.shape.Sphere;
+import javafx.scene.transform.Rotate;
+import javafx.scene.transform.Translate;
 import mesh.polyhedra.plato.Octahedron;
 
 /**
@@ -35,6 +40,7 @@ public class Ellipse {
     private final Point3D       center;
     private final Point3D       u;
     private final Point3D       v;
+    private Point3D             keyVertex;
 
     public Ellipse(int f, Octahedron oct, int vt) {
         Face face = oct.getFaces()
@@ -45,6 +51,39 @@ public class Ellipse {
 
         Point3D centroid = new Point3D(c.x, c.y, c.z);
         Point3D vertex = new Point3D(vx.x, vx.y, vx.z);
+
+        Point3D axis = new Point3D(centroid.getX(), centroid.getY(),
+                                   centroid.getZ());
+
+        Rotate rotation = new Rotate();
+        rotation.setPivotX(centroid.getX());
+        rotation.setPivotY(centroid.getY());
+        rotation.setPivotZ(centroid.getZ());
+        rotation.setAxis(axis.normalize());
+
+        Translate translation = new Translate();
+        translation.setX(-axis.getX());
+        translation.setY(-axis.getY());
+        translation.setZ(-axis.getZ());
+
+        if (PhiCoordinates.JITTERBUG_INVERSES[f]) {
+            rotation.setAngle(60);
+        } else {
+            rotation.setAngle(-60);
+        }
+        vertex = rotation.transform(vertex);
+        vertex = translation.transform(vertex);
+
+        double Z = (oct.getEdgeLength() * Math.sqrt(2)) / Math.sqrt(3);
+        Point3D translate = axis.normalize().multiply(Z * Math.cos(0));
+        translation.setX(translate.getX());
+        translation.setY(translate.getY());
+        translation.setZ(translate.getZ());
+        rotation.setAngle(0);
+        vertex = rotation.transform(vertex);
+        vertex = translation.transform(vertex);
+        
+        keyVertex = vertex;
         center = new Point3D(0, 0, 0);
         u = vertex.subtract(center);
         v = vertex.subtract(centroid)
@@ -57,13 +96,22 @@ public class Ellipse {
         this.center = center;
     }
 
+    public Sphere getKeyVertexSphere() {
+        Sphere sphere = new Sphere();
+        sphere.setRadius(1);
+        sphere.setTranslateX(keyVertex.getX());
+        sphere.setTranslateY(keyVertex.getY());
+        sphere.setTranslateZ(keyVertex.getZ());
+        return sphere;
+    }
+
     public PolyLine construct(int segments, Material material, double radius) {
         List<Point3D> points = new ArrayList<>();
         double increment = TWO_PI / segments;
         double theta = 0;
         for (int i = 0; i <= segments; i++) {
-            points.add(u.multiply(Math.cos(theta))
-                        .add(v.multiply(Math.sin(theta))));
+            points.add(u.multiply(Math.sin(theta))
+                        .add(v.multiply(Math.cos(theta))));
             theta += increment;
         }
         return new PolyLine(points, radius, material);

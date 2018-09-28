@@ -60,14 +60,16 @@ public class JitterbugAnimation extends PolyView {
                                 2).construct(blackMaterial, blackMaterial,
                                              blackMaterial));
 
-        Jitterbug j = new Jitterbug(octahedrons[0], materials);
+        Jitterbug j = new Jitterbug(octahedrons[4], materials);
         jitterbugs.add(j);
         j.rotateTo(0);
         group.getChildren()
              .add(j.getGroup());
+        Octahedron oct = PhiCoordinates.Octahedrons[4];
+        Ellipse ellipse = new Ellipse(0, oct, 0);
         group.getChildren()
-             .add(new Ellipse(0, PhiCoordinates.Octahedrons[0],
-                              0).construct(20, blackMaterial, 0.1));
+             .addAll(ellipse.construct(20, blackMaterial, 0.1),
+                     ellipse.getKeyVertexSphere());
         content.setContent(group);
         final Timeline timeline = new Timeline();
         AtomicReference<Double> angle = new AtomicReference<>(0d);

@@ -684,6 +684,10 @@ public final class PhiCoordinates {
         return tetrahedrons;
     }
 
+    public static boolean[]         JITTERBUG_INVERSES     = new boolean[] { false, false,
+     false, false, true,
+     true, true, true };
+
     private PhiCoordinates() {
     }
 }
