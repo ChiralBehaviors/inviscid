@@ -43,6 +43,8 @@ public class Ellipse {
     private Point3D             keyVertex;
 
     public Ellipse(int f, Octahedron oct, int vt) {
+        center = new Point3D(0, 0, 0);
+        
         Face face = oct.getFaces()
                        .get(f);
         Vector3d c = face.centroid();
@@ -73,6 +75,7 @@ public class Ellipse {
         }
         vertex = rotation.transform(vertex);
         vertex = translation.transform(vertex);
+        keyVertex = vertex;
 
         double Z = (oct.getEdgeLength() * Math.sqrt(2)) / Math.sqrt(3);
         Point3D translate = axis.normalize().multiply(Z * Math.cos(0));
@@ -83,11 +86,9 @@ public class Ellipse {
         vertex = rotation.transform(vertex);
         vertex = translation.transform(vertex);
         
-        keyVertex = vertex;
-        center = new Point3D(0, 0, 0);
         u = vertex.subtract(center);
         v = vertex.subtract(centroid)
-                  .crossProduct(centroid);
+                  .crossProduct(centroid).normalize().multiply(oct.getEdgeLength() / 2.0);
     }
 
     public Ellipse(Point3D center, Point3D a, Point3D b) {

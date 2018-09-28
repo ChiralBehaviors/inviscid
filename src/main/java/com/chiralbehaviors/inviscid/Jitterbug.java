@@ -48,15 +48,21 @@ public class Jitterbug {
     private final double      Z;
 
     public Jitterbug(Octahedron oct, Material[] materials) {
+        this(oct, materials,
+             new boolean[] { true, true, true, true, true, true, true, true });
+    }
+
+    public Jitterbug(Octahedron oct, Material[] materials, boolean[] visible) {
         int i = 0;
         for (Face f : oct.getFaces()) {
-            group.getChildren()
-                 .add(construct(f, materials[i], i++));
+            Node face = construct(f, materials[i], i);
+            if (visible[i++]) {
+                group.getChildren()
+                     .add(face);
+            }
         }
         Z = (oct.getEdgeLength() * Math.sqrt(2)) / Math.sqrt(3);
     }
-
-
 
     public Group getGroup() {
         return group;
@@ -65,10 +71,14 @@ public class Jitterbug {
     public void rotateTo(double a) {
         for (int i = 0; i < 8; i++) {
             double angle = PhiCoordinates.JITTERBUG_INVERSES[i] ? -a : a;
-            Rotate rotation = rotations[i];
-            rotation.setAngle(angle);
+            rotations[i].setAngle(angle);
             translate(i, angle);
         }
+    }
+
+    public void synchronize(Node node, int face) {
+        node.getTransforms()
+            .addAll(rotations[face], translations[face]);
     }
 
     private Node construct(Face face, Material material, int index) {

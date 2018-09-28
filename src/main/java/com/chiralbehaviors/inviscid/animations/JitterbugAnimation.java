@@ -18,7 +18,10 @@
 package com.chiralbehaviors.inviscid.animations;
 
 import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.blueMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.greenMaterial;
 import static com.chiralbehaviors.inviscid.animations.Colors.materials;
+import static com.chiralbehaviors.inviscid.animations.Colors.redMaterial;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,7 +63,10 @@ public class JitterbugAnimation extends PolyView {
                                 2).construct(blackMaterial, blackMaterial,
                                              blackMaterial));
 
-        Jitterbug j = new Jitterbug(octahedrons[4], materials);
+        Jitterbug j = new Jitterbug(octahedrons[4], materials,
+                                    new boolean[] { true, false, false, false,
+                                                    false, false, false,
+                                                    false });
         jitterbugs.add(j);
         j.rotateTo(0);
         group.getChildren()
@@ -68,8 +74,13 @@ public class JitterbugAnimation extends PolyView {
         Octahedron oct = PhiCoordinates.Octahedrons[4];
         Ellipse ellipse = new Ellipse(0, oct, 0);
         group.getChildren()
-             .addAll(ellipse.construct(20, blackMaterial, 0.1),
-                     ellipse.getKeyVertexSphere());
+             .addAll(ellipse.construct(40, redMaterial, 0.1));
+        ellipse = new Ellipse(0, oct, 1);
+        group.getChildren()
+             .addAll(ellipse.construct(40, blueMaterial, 0.1));
+        ellipse = new Ellipse(0, oct, 2);
+        group.getChildren()
+             .addAll(ellipse.construct(40, greenMaterial, 0.1));
         content.setContent(group);
         final Timeline timeline = new Timeline();
         AtomicReference<Double> angle = new AtomicReference<>(0d);
