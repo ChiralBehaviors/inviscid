@@ -18,13 +18,15 @@
 package com.chiralbehaviors.inviscid;
 
 import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.materials;
 
+import com.chiralbehaviors.inviscid.CubicGrid.Neighborhood;
 import com.chiralbehaviors.inviscid.animations.PolyView;
 import com.javafx.experiments.jfx3dviewer.ContentModel;
 
 import javafx.scene.Group;
 import mesh.Ellipse;
-import mesh.PolyLine;
+import mesh.polyhedra.plato.Octahedron;
 
 /**
  * @author halhildebrand
@@ -39,18 +41,26 @@ public class TestHarness extends PolyView {
     @Override
     protected void initializeContentModel() {
         ContentModel content = getContentModel();
-
+        int i = 0;
         Group group = new Group();
-        for (int i = 0; i < 3; i++) {
-            PolyLine line = new Ellipse(0, PhiCoordinates.Octahedrons[0],
-                                        i).construct(20, blackMaterial, 0.1);
-            group.getChildren()
-                 .add(line);
-        }
         group.getChildren()
-             .add(PhiCoordinates.Octahedrons[0].getFaces()
-                                               .get(0)
-                                               .constructMeshView());
+             .add(new CubicGrid(Neighborhood.EIGHT, PhiCoordinates.Cubes[3],
+                                2).construct(blackMaterial, blackMaterial,
+                                             blackMaterial));
+        for (Octahedron oct : PhiCoordinates.Octahedrons) {
+            for (int face = 0; face < 4; face++) {
+                Ellipse ellipse = new Ellipse(face, oct, 0);
+                group.getChildren()
+                     .addAll(ellipse.construct(40, materials[i], 0.1));
+                ellipse = new Ellipse(face, oct, 1);
+                group.getChildren()
+                     .addAll(ellipse.construct(40, materials[i], 0.1));
+                ellipse = new Ellipse(face, oct, 2);
+                group.getChildren()
+                     .addAll(ellipse.construct(40, materials[i], 0.1));
+            }
+            i++;
+        }
         content.setContent(group);
     }
 }

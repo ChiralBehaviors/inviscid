@@ -18,10 +18,8 @@
 package com.chiralbehaviors.inviscid.animations;
 
 import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
-import static com.chiralbehaviors.inviscid.animations.Colors.blueMaterial;
-import static com.chiralbehaviors.inviscid.animations.Colors.greenMaterial;
 import static com.chiralbehaviors.inviscid.animations.Colors.materials;
-import static com.chiralbehaviors.inviscid.animations.Colors.redMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,56 +49,74 @@ public class JitterbugAnimation extends PolyView {
         launch(args);
     }
 
+    public void jitterbugArray(Group group, Octahedron[] octahedrons,
+                               List<Jitterbug> jitterbugs, CubicGrid grid,
+                               double initialAngle) {
+        for (int x : new int[] { -1, 1 }) {
+            for (int y : new int[] { -1, 1 }) {
+                for (int z : new int[] { -1, 1 }) {
+                    Jitterbug j = new Jitterbug(octahedrons[4], materials);
+                    j.rotateTo(initialAngle);
+                    Group jGroup = j.getGroup();
+                    grid.postition(x, y, z, jGroup);
+                    group.getChildren()
+                         .add(jGroup);
+                    jitterbugs.add(j);
+                }
+            }
+        }
+    }
+
     @Override
     protected void initializeContentModel() {
         ContentModel content = getContentModel();
         Group group = new Group();
         List<Jitterbug> jitterbugs = new ArrayList<>();
-        Octahedron[] octahedrons = PhiCoordinates.Octahedrons;
 
+        CubicGrid grid = new CubicGrid(Neighborhood.EIGHT,
+                                       PhiCoordinates.Cubes[3], 1);
         group.getChildren()
-             .add(new CubicGrid(Neighborhood.EIGHT, PhiCoordinates.Cubes[3],
-                                2).construct(blackMaterial, blackMaterial,
-                                             blackMaterial));
+             .add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
 
-        Jitterbug j = new Jitterbug(octahedrons[4], materials,
+        Jitterbug j = new Jitterbug(PhiCoordinates.Octahedrons[4], materials,
                                     new boolean[] { true, false, false, false,
                                                     false, false, false,
                                                     false });
+        j.rotateTo(00);
+        Group jGroup = j.getGroup();
+        group.getChildren()
+             .add(jGroup);
         jitterbugs.add(j);
-        j.rotateTo(0);
+
         group.getChildren()
-             .add(j.getGroup());
-        Octahedron oct = PhiCoordinates.Octahedrons[4];
-        Ellipse ellipse = new Ellipse(0, oct, 0);
+             .add(new Ellipse(0, PhiCoordinates.Octahedrons[4],
+                              0).construct(40, redMaterial, 0.015));
         group.getChildren()
-             .addAll(ellipse.construct(40, redMaterial, 0.1));
-        ellipse = new Ellipse(0, oct, 1);
+             .add(new Ellipse(0, PhiCoordinates.Octahedrons[4],
+                              1).construct(40, blueMaterial, 0.015));
         group.getChildren()
-             .addAll(ellipse.construct(40, blueMaterial, 0.1));
-        ellipse = new Ellipse(0, oct, 2);
-        group.getChildren()
-             .addAll(ellipse.construct(40, greenMaterial, 0.1));
+             .add(new Ellipse(0, PhiCoordinates.Octahedrons[4],
+                              2).construct(40, greenMaterial, 0.015));
+
+        //        jitterbugArray(group, PhiCoordinates.Octahedrons, jitterbugs, grid, (double) 0);
+
         content.setContent(group);
         final Timeline timeline = new Timeline();
-        AtomicReference<Double> angle = new AtomicReference<>(0d);
         timeline.getKeyFrames()
-                .add(new KeyFrame(Duration.millis(10_000),
+                .add(new KeyFrame(Duration.millis(5_000),
                                   new KeyValue(new WritableValue<Double>() {
                                       @Override
                                       public Double getValue() {
-                                          return angle.get();
+                                          return 0d;
                                       }
 
                                       @Override
                                       public void setValue(Double value) {
-                                          angle.set(value);
-                                          for (Jitterbug j : jitterbugs) {
-                                              j.rotateTo(value);
-                                          }
+                                          jitterbugs.forEach(j -> j.rotateTo(value));
                                       }
-                                  }, (double) 360)));
-        timeline.setCycleCount(9000);
+                                  }, 60d)));
+                timeline.setCycleCount(9000);
+                timeline.setAutoReverse(true);
         content.setTimeline(timeline);
     }
 }
