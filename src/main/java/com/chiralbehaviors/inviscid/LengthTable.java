@@ -16,6 +16,12 @@
 
 package com.chiralbehaviors.inviscid;
 
+import static com.chiralbehaviors.inviscid.Constants.HALF_PI;
+import static com.chiralbehaviors.inviscid.Constants.QUARTER_PI;
+import static com.chiralbehaviors.inviscid.Constants.ROOT_2;
+import static com.chiralbehaviors.inviscid.Constants.THREE_QUARTERS_PI;
+import static com.chiralbehaviors.inviscid.Constants.TWO_PI;
+
 import javax.vecmath.Vector2d;
 
 /**
@@ -23,12 +29,6 @@ import javax.vecmath.Vector2d;
  *
  */
 public class LengthTable {
-
-    private static final double QUARTER_PI        = Math.PI / 4.0;
-    private static final double HALF_PI           = Math.PI / 2.0;
-    private static final double ROOT_2            = Math.sqrt(2.0);
-    private static final double THREE_QUARTERS_PI = Math.PI * .75;
-    private static final double TWO_PI            = 2 * Math.PI;
 
     private static Vector2d intersect(Vector2d a, Vector2d b, Vector2d c,
                                       Vector2d d) {
@@ -74,15 +74,13 @@ public class LengthTable {
             Vector2d pointing = new Vector2d(Math.cos(angle) * radius,
                                              Math.sin(angle) * radius);
             Vector2d intersection = intersect(center, pointing, left, right);
-            lengths[i] = intersection == null ? radius
-                                              : Math.min(radius,
-                                                         intersection.length());
+            lengths[i] = Math.min(radius, intersection.length());
             angle += resolution;
         }
     }
 
     public double length(double angle) {
-        assert angle <= TWO_PI;
+         angle = angle % TWO_PI;
 
         if (angle <= QUARTER_PI) {
             return lengths[(int) (angle / resolution)];
@@ -112,5 +110,30 @@ public class LengthTable {
         return lengths[lengths.length
                        - (int) ((angle - (Math.PI + THREE_QUARTERS_PI))
                                 / resolution)];
+    }
+
+    public double lengthAt(int index) {
+        if (index < lengths.length) {
+            return lengths[index];
+        }
+        if (index < lengths.length * 2) {
+            return lengths[lengths.length - (index - lengths.length) - 1];
+        }
+        if (index < lengths.length * 3) {
+            return lengths[index - (lengths.length * 2)];
+        }
+        if (index < lengths.length * 4) {
+            return lengths[lengths.length - (index - lengths.length * 3) - 1];
+        }
+        if (index < lengths.length * 5) {
+            return lengths[index - (lengths.length * 4)];
+        }
+        if (index < lengths.length * 6) {
+            return lengths[lengths.length - (index - lengths.length * 5) - 1];
+        }
+        if (index < lengths.length * 7) {
+            return lengths[index - (lengths.length * 6)];
+        }
+        return lengths[lengths.length - (index - lengths.length * 7) - 1];
     }
 }
