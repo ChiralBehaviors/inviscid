@@ -24,9 +24,10 @@ import javax.vecmath.Vector2d;
  */
 public class LengthTable {
 
+    private static final double QUARTER_PI        = Math.PI / 4.0;
     private static final double HALF_PI           = Math.PI / 2.0;
     private static final double ROOT_2            = Math.sqrt(2.0);
-    private static final double THREE_QUARTERS_PI = Math.PI + (2 * Math.PI);
+    private static final double THREE_QUARTERS_PI = Math.PI * .75;
     private static final double TWO_PI            = 2 * Math.PI;
 
     private static Vector2d intersect(Vector2d a, Vector2d b, Vector2d c,
@@ -34,12 +35,12 @@ public class LengthTable {
         // Line AB represented as a1x + b1y = c1 
         double a1 = b.y - a.y;
         double b1 = a.x - b.x;
-        double c1 = a1 * (a.x) + b1 * (a.y);
+        double c1 = a1 * a.x + b1 * a.y;
 
         // Line CD represented as a2x + b2y = c2 
         double a2 = d.y - c.y;
         double b2 = c.x - d.x;
-        double c2 = a2 * (c.x) + b2 * (c.y);
+        double c2 = a2 * c.x + b2 * c.y;
 
         double determinant = a1 * b2 - a2 * b1;
 
@@ -70,30 +71,46 @@ public class LengthTable {
         resolution = TWO_PI / subdivisions;
         double angle = 0;
         for (int i = 0; i < lengths.length; i++) {
-            assert angle <= Math.PI / 4 : "Angle " + angle + " is greater than PI/4";
-            Vector2d pointing = new Vector2d(Math.cos(angle)
-                           * radius,
-                           Math.sin(angle)
-                                     * radius);
-            Vector2d intersection = intersect(center,
-                                              pointing,
-                                              left, right);
-            lengths[i] = intersection == null ? radius : intersection.length();
+            Vector2d pointing = new Vector2d(Math.cos(angle) * radius,
+                                             Math.sin(angle) * radius);
+            Vector2d intersection = intersect(center, pointing, left, right);
+            lengths[i] = intersection == null ? radius
+                                              : Math.min(radius,
+                                                         intersection.length());
             angle += resolution;
         }
     }
 
     public double length(double angle) {
         assert angle <= TWO_PI;
-        if (angle < HALF_PI) {
+
+        if (angle <= QUARTER_PI) {
             return lengths[(int) (angle / resolution)];
         }
-        if (angle < Math.PI) {
+        if (angle <= HALF_PI) {
+            return lengths[lengths.length
+                           - (int) ((angle - QUARTER_PI) / resolution)];
+        }
+        if (angle <= THREE_QUARTERS_PI) {
             return lengths[(int) ((angle - HALF_PI) / resolution)];
         }
-        if (angle < THREE_QUARTERS_PI) {
+        if (angle <= Math.PI) {
+            return lengths[lengths.length
+                           - (int) ((angle - THREE_QUARTERS_PI) / resolution)];
+        }
+        if (angle <= Math.PI + QUARTER_PI) {
             return lengths[(int) ((angle - Math.PI) / resolution)];
         }
-        return lengths[(int) ((angle - THREE_QUARTERS_PI) / resolution)];
+        if (angle <= Math.PI + HALF_PI) {
+            return lengths[lengths.length
+                           - (int) ((angle - (Math.PI + QUARTER_PI))
+                                    / resolution)];
+        }
+        if (angle <= Math.PI + THREE_QUARTERS_PI) {
+            return lengths[(int) ((angle - (Math.PI + HALF_PI)) / resolution)];
+        }
+        return lengths[lengths.length
+                       - (int) ((angle - (Math.PI + THREE_QUARTERS_PI))
+                                / resolution)];
     }
 }

@@ -18,12 +18,13 @@
 package com.chiralbehaviors.inviscid.animations;
 
 import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.blueMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.greenMaterial;
 import static com.chiralbehaviors.inviscid.animations.Colors.materials;
-import static com.chiralbehaviors.inviscid.animations.Colors.*;
+import static com.chiralbehaviors.inviscid.animations.Colors.redMaterial;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 import com.chiralbehaviors.inviscid.CubicGrid;
 import com.chiralbehaviors.inviscid.CubicGrid.Neighborhood;
