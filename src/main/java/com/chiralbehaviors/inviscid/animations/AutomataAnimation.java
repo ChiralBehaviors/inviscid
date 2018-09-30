@@ -16,7 +16,6 @@
 
 package com.chiralbehaviors.inviscid.animations;
 
-import static com.chiralbehaviors.inviscid.Constants.TWO_PI;
 import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
 
 import com.chiralbehaviors.inviscid.Automata;
@@ -52,9 +51,6 @@ public class AutomataAnimation extends PolyView {
              .add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
         Automata a = new Automata(360, grid, 0.1);
         double[] initialState = Automata.getPositiveTet();
-        for (int i = 0; i < initialState.length; i++) {
-            initialState[i] = initialState[i] + Math.toRadians(-90);
-        }
         CellNode cellGroup = a.cellNode(initialState);
         grid.postition(0, 0, 0, cellGroup);
         group.getChildren()
@@ -63,7 +59,7 @@ public class AutomataAnimation extends PolyView {
 
         final Timeline timeline = new Timeline();
         timeline.getKeyFrames()
-                .add(new KeyFrame(Duration.millis(5_000),
+                .add(new KeyFrame(Duration.millis(2_500),
                                   new KeyValue(new WritableValue<Double>() {
                                       @Override
                                       public Double getValue() {
@@ -71,11 +67,13 @@ public class AutomataAnimation extends PolyView {
                                       }
 
                                       @Override
-                                      public void setValue(Double value) { 
+                                      public void setValue(Double value) {
                                           double[] newState = new double[initialState.length];
                                           for (int i = 0; i < initialState.length; i++) {
                                               newState[i] = initialState[i]
-                                                            + Math.toRadians(value);
+                                                            + (i
+                                                               % 2 == 0 ? -Math.toRadians(value)
+                                                                        : Math.toRadians(value));
                                           }
                                           cellGroup.setState(newState);
                                       }

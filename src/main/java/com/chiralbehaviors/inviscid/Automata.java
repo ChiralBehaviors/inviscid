@@ -16,10 +16,10 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.Constants.QUARTER_PI;
+import static com.chiralbehaviors.inviscid.Constants.*;
 import static com.chiralbehaviors.inviscid.Constants.THREE_QUARTERS_PI;
 import static com.chiralbehaviors.inviscid.Constants.TWO_PI;
-import static com.chiralbehaviors.inviscid.animations.Colors.redMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.*;
 
 import java.util.Arrays;
 
@@ -81,27 +81,27 @@ public class Automata {
         for (int i = 0; i < exemplars.length * 8; i++) {
             MeshView view;
             view = xExemplar(i, xPos);
-            view.setMaterial(redMaterial);
+            view.setMaterial(materials[0]);
             struts[0][i] = view;
 
             view = xExemplar(i, xNeg);
-            view.setMaterial(redMaterial);
+            view.setMaterial(materials[1]);
             struts[1][i] = view;
 
             view = yExemplar(i, yPos);
-            view.setMaterial(redMaterial);
+            view.setMaterial(materials[2]);
             struts[2][i] = view;
 
             view = yExemplar(i, yNeg);
-            view.setMaterial(redMaterial);
+            view.setMaterial(materials[3]);
             struts[3][i] = view;
 
             view = zExemplar(i, yPos);
-            view.setMaterial(redMaterial);
+            view.setMaterial(materials[4]);
             struts[4][i] = view;
 
             view = zExemplar(i, yNeg);
-            view.setMaterial(redMaterial);
+            view.setMaterial(materials[5]);
             struts[5][i] = view;
         }
         return new CellNode(angularResolution, struts, initialState);
