@@ -16,14 +16,14 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.Constants.*;
+import static com.chiralbehaviors.inviscid.Constants.QUARTER_PI;
 import static com.chiralbehaviors.inviscid.Constants.THREE_QUARTERS_PI;
 import static com.chiralbehaviors.inviscid.Constants.TWO_PI;
-import static com.chiralbehaviors.inviscid.animations.Colors.*;
 
 import java.util.Arrays;
 
 import javafx.geometry.Point3D;
+import javafx.scene.paint.Material;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.transform.Rotate;
@@ -44,8 +44,19 @@ public class Automata {
                                                                 THREE_QUARTERS_PI,
                                                                 QUARTER_PI };
 
+    private static final double[] NEGATIVE_TET = new double[] { QUARTER_PI,
+                                                                THREE_QUARTERS_PI,
+                                                                THREE_QUARTERS_PI,
+                                                                QUARTER_PI,
+                                                                QUARTER_PI,
+                                                                THREE_QUARTERS_PI };
+
     public static double[] getPositiveTet() {
         return Arrays.copyOf(POSITIVE_TET, POSITIVE_TET.length);
+    }
+
+    public static double[] getNegativeTet() {
+        return Arrays.copyOf(NEGATIVE_TET, NEGATIVE_TET.length);
     }
 
     private final double         angularResolution;
@@ -68,7 +79,7 @@ public class Automata {
         }
     }
 
-    public CellNode cellNode(double[] initialState) {
+    public CellNode cellNode(double[] initialState, Material[] materials) {
         double halfInterval = grid.getIntervalX() / 2.0;
         Translate xPos = new Translate(0, 0, halfInterval);
         Translate xNeg = new Translate(0, 0, -halfInterval);

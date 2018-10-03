@@ -17,7 +17,7 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
+import static com.chiralbehaviors.inviscid.animations.Colors.*;
 
 import com.chiralbehaviors.inviscid.CubicGrid.Neighborhood;
 import com.chiralbehaviors.inviscid.animations.PolyView;
@@ -45,7 +45,7 @@ public class TestHarness extends PolyView {
              .add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
         Automata a = new Automata(360, grid, 0.1);
         group.getChildren()
-             .add(a.cellNode(Automata.getPositiveTet()));
+             .add(a.cellNode(Automata.getPositiveTet(), materials));
         content.setContent(group);
     }
 }
