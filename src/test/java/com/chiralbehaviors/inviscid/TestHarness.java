@@ -40,10 +40,10 @@ public class TestHarness extends PolyView {
         ContentModel content = getContentModel();
         Group group = new Group();
         CubicGrid grid = new CubicGrid(Neighborhood.SIX,
-                                       PhiCoordinates.Cubes[3], 2);
+                                       PhiCoordinates.Cubes[4], 0);
         group.getChildren()
              .add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
-        Automata a = new Automata(360, grid, 0.1);
+        Automata a = new Automata(360, grid, null, 0.1);
         group.getChildren()
              .add(a.cellNode(Automata.getPositiveTet(), materials));
         content.setContent(group);

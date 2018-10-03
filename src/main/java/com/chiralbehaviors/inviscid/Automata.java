@@ -22,6 +22,8 @@ import static com.chiralbehaviors.inviscid.Constants.TWO_PI;
 
 import java.util.Arrays;
 
+import javax.vecmath.Point3i;
+
 import javafx.geometry.Point3D;
 import javafx.scene.paint.Material;
 import javafx.scene.shape.MeshView;
@@ -64,7 +66,8 @@ public class Automata {
     private final CubicGrid      grid;
     private LengthTable          lengths;
 
-    public Automata(int resolution, CubicGrid grid, double radius) {
+    public Automata(int resolution, CubicGrid grid, Point3i extent,
+                    double radius) {
         assert resolution
                % 8 == 0 : "Angular resolution must be divisable by 8: "
                           + resolution;
@@ -89,29 +92,30 @@ public class Automata {
         for (int i = 0; i < 6; i++) {
             struts[i] = new MeshView[exemplars.length * 8];
         }
+        Rotate base = base();
         for (int i = 0; i < exemplars.length * 8; i++) {
             MeshView view;
-            view = xExemplar(i, xPos);
+            view = xExemplar(i, xPos, base);
             view.setMaterial(materials[0]);
             struts[0][i] = view;
 
-            view = xExemplar(i, xNeg);
+            view = xExemplar(i, xNeg, base);
             view.setMaterial(materials[1]);
             struts[1][i] = view;
 
-            view = yExemplar(i, yPos);
+            view = yExemplar(i, yPos, base);
             view.setMaterial(materials[2]);
             struts[2][i] = view;
 
-            view = yExemplar(i, yNeg);
+            view = yExemplar(i, yNeg, base);
             view.setMaterial(materials[3]);
             struts[3][i] = view;
 
-            view = zExemplar(i, yPos);
+            view = zExemplar(i, yPos, base);
             view.setMaterial(materials[4]);
             struts[4][i] = view;
 
-            view = zExemplar(i, yNeg);
+            view = zExemplar(i, yNeg, base);
             view.setMaterial(materials[5]);
             struts[5][i] = view;
         }
@@ -147,7 +151,8 @@ public class Automata {
                          - 1];
     }
 
-    private MeshView xExemplar(int increment, Transform translate) {
+    private MeshView xExemplar(int increment, Translate translate,
+                               Rotate base) {
         Point3D axisOfRotation = new Point3D(0, 0, 1);
         Rotate rotateAroundCenter = new Rotate(-Math.toDegrees(increment
                                                                * angularResolution),
@@ -155,11 +160,12 @@ public class Automata {
         MeshView line = new MeshView(x(increment, exemplars));
 
         line.getTransforms()
-            .add(rotateAroundCenter.createConcatenation(translate));
+            .add(base.createConcatenation(rotateAroundCenter.createConcatenation(translate)));
         return line;
     }
 
-    private MeshView yExemplar(int increment, Translate translate) {
+    private MeshView yExemplar(int increment, Translate translate,
+                               Rotate base) {
         Point3D axisOfRotation = new Point3D(1, 0, 0);
         Rotate rotateAroundCenter = new Rotate(-Math.toDegrees(increment
                                                                * angularResolution),
@@ -167,11 +173,12 @@ public class Automata {
         MeshView line = new MeshView(x(increment, exemplars));
 
         line.getTransforms()
-            .add(rotateAroundCenter.createConcatenation(translate));
+            .add(base.createConcatenation(rotateAroundCenter.createConcatenation(translate)));
         return line;
     }
 
-    private MeshView zExemplar(int increment, Translate translate) {
+    private MeshView zExemplar(int increment, Translate translate,
+                               Rotate base) {
         Point3D axisOfRotation = new Point3D(1, 0, 0);
         Transform rotateAroundCenter = new Rotate(-Math.toDegrees(increment
                                                                   * angularResolution),
@@ -181,7 +188,17 @@ public class Automata {
         MeshView line = new MeshView(x(increment, exemplars));
 
         line.getTransforms()
-            .add(rotateAroundCenter.createConcatenation(translate));
+            .add(base.createConcatenation(rotateAroundCenter.createConcatenation(translate)));
         return line;
+    }
+
+    private Rotate base() {
+        Point3D yAxis = new Point3D(0, 1, 0);
+        Point3D axisOfRotation = grid.getyAxis()
+                                     .crossProduct(yAxis);
+        double angle = Math.acos(grid.getyAxis()
+                                     .normalize()
+                                     .dotProduct(yAxis));
+        return new Rotate(-Math.toDegrees(angle), axisOfRotation);
     }
 }
