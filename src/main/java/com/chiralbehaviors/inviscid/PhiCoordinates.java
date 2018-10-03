@@ -16,6 +16,10 @@
 
 package com.chiralbehaviors.inviscid;
 
+import static com.chiralbehaviors.inviscid.Constants.PHI;
+import static com.chiralbehaviors.inviscid.Constants.PHI_CUBED;
+import static com.chiralbehaviors.inviscid.Constants.PHI_SQUARED;
+
 import javax.vecmath.Vector3d;
 
 import mesh.polyhedra.plato.Cube;
@@ -323,14 +327,6 @@ public final class PhiCoordinates {
                                                                   55, 56, 57,
                                                                   58, 59, 60,
                                                                   61, 62 };
-
-    private static double             PHI                     = (1.0
-                                                                 + Math.sqrt(5.0))
-                                                                / 2.0;
-
-    private static double             PHI_CUBED               = PHI * PHI * PHI;
-
-    private static double             PHI_SQUARED             = PHI * PHI;
 
     private static Vector3d[]         POLY_120_VECTORS        = { new Vector3d(0.0,
                                                                                0.0,

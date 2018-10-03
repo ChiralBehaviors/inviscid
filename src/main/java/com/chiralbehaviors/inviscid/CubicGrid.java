@@ -27,8 +27,10 @@ import javax.vecmath.Vector3d;
 
 import javafx.geometry.Point3D;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.paint.Material;
 import javafx.scene.shape.Sphere;
+import javafx.scene.transform.Translate;
 import javafx.util.Pair;
 import mesh.Line;
 import mesh.polyhedra.plato.Cube;
@@ -40,8 +42,8 @@ import mesh.polyhedra.plato.Cube;
 public class CubicGrid {
 
     public static enum Neighborhood {
-        SIX,
-        EIGHT
+        EIGHT,
+        SIX
     }
 
     private static Point3D xAxis(Cube cube) {
@@ -65,10 +67,10 @@ public class CubicGrid {
         return new Point3D(vector.x, vector.y, vector.z);
     }
 
-    private final Neighborhood           neighborhood;
     private final double                 intervalX;
     private final double                 intervalY;
     private final double                 intervalZ;
+    private final Neighborhood           neighborhood;
     private Point3D                      origin;
     private final Point3D                xAxis;
     private final Pair<Integer, Integer> xExtent;
@@ -206,6 +208,14 @@ public class CubicGrid {
 
     public Pair<Integer, Integer> getzExtent() {
         return zExtent;
+    }
+
+    public void postition(double i, double j, double k, Node node) {
+        Point3D vector = xAxis.multiply(i * intervalX)
+                              .add(yAxis.multiply(j * intervalY))
+                              .add(zAxis.multiply(k * intervalZ));
+        node.getTransforms()
+            .add(new Translate(vector.getX(), vector.getY(), vector.getZ()));
     }
 
     private void addAxes(Group grid) {

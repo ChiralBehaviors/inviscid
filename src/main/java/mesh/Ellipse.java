@@ -35,16 +35,17 @@ import mesh.polyhedra.plato.Octahedron;
  *
  */
 public class Ellipse {
+    private static double       SQRT_3 = Math.sqrt(3);
     private static final double TWO_PI = 2 * Math.PI;
 
     private final Point3D       center;
+    private Point3D             keyVertex;
     private final Point3D       u;
     private final Point3D       v;
-    private Point3D             keyVertex;
 
     public Ellipse(int f, Octahedron oct, int vt) {
         center = new Point3D(0, 0, 0);
-        
+
         Face face = oct.getFaces()
                        .get(f);
         Vector3d c = face.centroid();
@@ -77,33 +78,27 @@ public class Ellipse {
         vertex = translation.transform(vertex);
         keyVertex = vertex;
 
-        double Z = (oct.getEdgeLength() * Math.sqrt(2)) / Math.sqrt(3);
-        Point3D translate = axis.normalize().multiply(Z * Math.cos(0));
+        double Z = (oct.getEdgeLength() * Math.sqrt(2)) / SQRT_3;
+        Point3D translate = axis.normalize()
+                                .multiply(Z * Math.cos(0));
         translation.setX(translate.getX());
         translation.setY(translate.getY());
         translation.setZ(translate.getZ());
         rotation.setAngle(0);
         vertex = rotation.transform(vertex);
         vertex = translation.transform(vertex);
-        
+
         u = vertex.subtract(center);
         v = vertex.subtract(centroid)
-                  .crossProduct(centroid).normalize().multiply(oct.getEdgeLength() / 2.0);
+                  .crossProduct(centroid)
+                  .normalize()
+                  .multiply(oct.getEdgeLength() / SQRT_3);
     }
 
     public Ellipse(Point3D center, Point3D a, Point3D b) {
         u = a.subtract(center);
         v = b.subtract(center);
         this.center = center;
-    }
-
-    public Sphere getKeyVertexSphere() {
-        Sphere sphere = new Sphere();
-        sphere.setRadius(1);
-        sphere.setTranslateX(keyVertex.getX());
-        sphere.setTranslateY(keyVertex.getY());
-        sphere.setTranslateZ(keyVertex.getZ());
-        return sphere;
     }
 
     public PolyLine construct(int segments, Material material, double radius) {
@@ -120,6 +115,15 @@ public class Ellipse {
 
     public Point3D getCenter() {
         return center;
+    }
+
+    public Sphere getKeyVertexSphere() {
+        Sphere sphere = new Sphere();
+        sphere.setRadius(1);
+        sphere.setTranslateX(keyVertex.getX());
+        sphere.setTranslateY(keyVertex.getY());
+        sphere.setTranslateZ(keyVertex.getZ());
+        return sphere;
     }
 
     public Point3D getU() {
