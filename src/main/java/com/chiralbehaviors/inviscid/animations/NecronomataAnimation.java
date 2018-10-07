@@ -40,7 +40,7 @@ import javafx.util.Duration;
  * @author halhildebrand
  *
  */
-public class AutomataAnimation extends PolyView {
+public class NecronomataAnimation extends PolyView {
     private static final Material[] edgeMaterials = new PhongMaterial[] { blueMaterial,
                                                                           blueMaterial,
                                                                           blueMaterial,
@@ -74,40 +74,40 @@ public class AutomataAnimation extends PolyView {
         float[] delta = new float[6];
         float[] minusDelta = new float[6];
         for (int i = 0; i < 6; i++) {
-            delta[i] = (float) (Math.PI / 180);
-            minusDelta[i] = (float) -(Math.PI / 180);
+            delta[i] = visualization.getAngularResolution();
+            minusDelta[i] = -visualization.getAngularResolution();
         }
         automata.drive(NecronomataVisualization.getPositiveTet());
         automata.step();
+        visualization.update();
         final Timeline timeline = new Timeline();
+        KeyValue keyValue = new KeyValue(new WritableValue<Float>() {
+            volatile int lastIndex = 0;
+
+            @Override
+            public Float getValue() {
+                return 0f;
+            }
+
+            @Override
+            public void setValue(Float value) {
+                int nextIndex = (int) (Math.toRadians(value)
+                                       / visualization.getAngularResolution());
+                int currentIndex = lastIndex;
+                if (currentIndex != nextIndex) {
+                    int deltaIndex = nextIndex - currentIndex;
+                    lastIndex = nextIndex;
+                    float[] apply = deltaIndex < 0 ? minusDelta : delta;
+                    for (int step = 0; step < Math.abs(deltaIndex); step++) {
+                        automata.drive(apply);
+                        automata.step();
+                    }
+                    visualization.update();
+                }
+            }
+        }, 90f);
         timeline.getKeyFrames()
-                .add(new KeyFrame(Duration.millis(2_500),
-                                  new KeyValue(new WritableValue<Float>() {
-                                      volatile int lastIndex = 0;
-
-                                      @Override
-                                      public Float getValue() {
-                                          return 0f;
-                                      }
-
-                                      @Override
-                                      public void setValue(Float value) {
-                                          int nextIndex = (int) (Math.toRadians(value)
-                                                                 / visualization.getAngularResolution());
-                                          int currentIndex = lastIndex;
-                                          if (currentIndex != nextIndex) {
-                                              int deltaIndex = nextIndex
-                                                               - currentIndex;
-                                              lastIndex = nextIndex;
-                                              for (int step = 0; step < Math.abs(deltaIndex); step++) {
-                                                  automata.drive(deltaIndex < 0 ? minusDelta
-                                                                                : delta);
-                                                  automata.step();
-                                              }
-                                              visualization.update();
-                                          }
-                                      }
-                                  }, 90f)));
+                .add(new KeyFrame(Duration.millis(2_500), keyValue));
         timeline.setCycleCount(9000);
         timeline.setAutoReverse(true);
         content.setTimeline(timeline);
