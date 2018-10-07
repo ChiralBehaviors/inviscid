@@ -16,10 +16,9 @@
 
 package com.chiralbehaviors.inviscid.animations;
 
+import static com.chiralbehaviors.inviscid.Constants.HALF_PI;
 import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
 import static com.chiralbehaviors.inviscid.animations.Colors.blueMaterial;
-import static com.chiralbehaviors.inviscid.Constants.*;
-import java.util.Arrays;
 
 import javax.vecmath.Point3i;
 
@@ -73,10 +72,14 @@ public class AutomataAnimation extends PolyView {
         group.getChildren()
              .add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
 
-        automata.drive(AutomataVisualization.getPositiveTet());
-
         float[] delta = new float[6];
-        Arrays.fill(delta, (float) (Math.PI / 180));
+        for (int i = 0; i < 6; i++) {
+            delta[i] = (float) (Math.PI / 180);
+
+            //            delta[i] = (i % 2 == 0) ? -(float) (Math.PI / 180)
+            //                                    : (float) (Math.PI / 180);
+        }
+        automata.drive(AutomataVisualization.getPositiveTet());
         automata.step();
         final Timeline timeline = new Timeline();
         timeline.getKeyFrames()

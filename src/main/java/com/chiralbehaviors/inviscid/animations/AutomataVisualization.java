@@ -16,8 +16,8 @@
 
 package com.chiralbehaviors.inviscid.animations;
 
-import static com.chiralbehaviors.inviscid.Constants.*;
-import static com.chiralbehaviors.inviscid.Constants.ROOT_2_DIV_2;
+import static com.chiralbehaviors.inviscid.Constants.QUARTER_PI;
+import static com.chiralbehaviors.inviscid.Constants.ROOT_2;
 import static com.chiralbehaviors.inviscid.Constants.THREE_QUARTERS_PI;
 import static com.chiralbehaviors.inviscid.Constants.TWO_PI;
 import static com.chiralbehaviors.inviscid.CubicGrid.yAxis;
@@ -108,16 +108,18 @@ public class AutomataVisualization extends Group {
     }
 
     private final Necronomata        automata;
-    private final List<CellAnimator> cells             = new ArrayList<>();
+    private final List<CellAnimator> cells = new ArrayList<>();
     private final Transform[]        lengths;
-    private float                    angularResolution = TWO_PI;
+    private final float              angularResolution;
     private final Transform[][]      rotations;
+    private final int                resolution;
 
     public AutomataVisualization(int resolution, float radius,
                                  Necronomata automata, Material[] materials) {
         assert resolution
                % 8 == 0 : "Angular resolution must be divisable by 8: "
                           + resolution;
+        this.resolution = resolution;
         angularResolution = TWO_PI / resolution;
         CubicGrid grid = new CubicGrid(Neighborhood.SIX,
                                        PhiCoordinates.Cubes[3],
@@ -127,12 +129,14 @@ public class AutomataVisualization extends Group {
                                       / 2.0);
         TriangleMesh exemplar = Line.createLine(PhiCoordinates.Cubes[0].getEdgeLength()
                                                 * ROOT_2, radius);
-        rotations = new Transform[3][];
-        for (int i = 0; i < 3; i++) {
+
+        rotations = new Transform[6][];
+        for (int i = 0; i < 6; i++) {
             rotations[i] = new Transform[resolution];
         }
-        lengths = new Transform[resolution / 8];
         buildRotations(resolution);
+
+        lengths = new Transform[resolution / 8];
         LengthTable table = new LengthTable(resolution);
         for (int i1 = 0; i1 < resolution / 8; i1++) {
             lengths[i1] = new Scale(table.lengthAt(i1), 1.0, 1.0);
@@ -154,19 +158,29 @@ public class AutomataVisualization extends Group {
     private void buildRotations(int resolution) {
         Point3D axisOfRotation = new Point3D(0, 0, 1);
         for (int i = 0; i < resolution; i++) {
-            rotations[0][i] = new Rotate(-Math.toDegrees(i * angularResolution),
+            rotations[0][i] = new Rotate(Math.toDegrees(i * angularResolution),
                                          axisOfRotation);
-        }
-        axisOfRotation = new Point3D(1, 0, 0);
-        for (int i = 0; i < resolution; i++) {
             rotations[1][i] = new Rotate(-Math.toDegrees(i * angularResolution),
                                          axisOfRotation);
         }
+
+        axisOfRotation = new Point3D(1, 0, 0);
         for (int i = 0; i < resolution; i++) {
-            Transform rotateAroundCenter = new Rotate(-Math.toDegrees(i
-                                                                      * angularResolution),
+            rotations[2][i] = new Rotate(Math.toDegrees(i * angularResolution),
+                                         axisOfRotation);
+            rotations[3][i] = new Rotate(-Math.toDegrees(i * angularResolution),
+                                         axisOfRotation);
+        }
+        for (int i = 0; i < resolution; i++) {
+            Transform rotateAroundCenter = new Rotate(Math.toDegrees(i
+                                                                     * angularResolution),
                                                       axisOfRotation);
-            rotations[2][i] = new Rotate(90, new Point3D(0, 0,
+            rotations[4][i] = new Rotate(90, new Point3D(0, 0,
+                                                         1)).createConcatenation(rotateAroundCenter);
+            rotateAroundCenter = new Rotate(-Math.toDegrees(i
+                                                            * angularResolution),
+                                            axisOfRotation);
+            rotations[5][i] = new Rotate(90, new Point3D(0, 0,
                                                          1)).createConcatenation(rotateAroundCenter);
         }
     }
@@ -225,45 +239,46 @@ public class AutomataVisualization extends Group {
         return line;
     }
 
-    private Transform scale(int increment) {
-        if (increment < lengths.length) {
-            return lengths[increment];
+    private Transform scale(int step) {
+        if (step < lengths.length) {
+            return lengths[step];
         }
-        if (increment < lengths.length * 2) {
-            return lengths[lengths.length - (increment - lengths.length) - 1];
+        if (step < lengths.length * 2) {
+            return lengths[lengths.length - (step - lengths.length) - 1];
         }
-        if (increment < lengths.length * 3) {
-            return lengths[increment - (lengths.length * 2)];
+        if (step < lengths.length * 3) {
+            return lengths[step - (lengths.length * 2)];
         }
-        if (increment < lengths.length * 4) {
-            return lengths[lengths.length - (increment - lengths.length * 3)
-                           - 1];
+        if (step < lengths.length * 4) {
+            return lengths[lengths.length - (step - lengths.length * 3) - 1];
         }
-        if (increment < lengths.length * 5) {
-            return lengths[increment - (lengths.length * 4)];
+        if (step < lengths.length * 5) {
+            return lengths[step - (lengths.length * 4)];
         }
-        if (increment < lengths.length * 6) {
-            return lengths[lengths.length - (increment - lengths.length * 5)
-                           - 1];
+        if (step < lengths.length * 6) {
+            return lengths[lengths.length - (step - lengths.length * 5) - 1];
         }
-        if (increment < lengths.length * 7) {
-            return lengths[increment - (lengths.length * 6)];
+        if (step < lengths.length * 7) {
+            return lengths[step - (lengths.length * 6)];
         }
-        return lengths[lengths.length - (increment - lengths.length * 7) - 1];
+        int i = lengths.length - (step - lengths.length * 7) - 1;
+        return lengths[i < 0 ? 0 : i];
     }
 
     private void setState(float[] angle, int cell, MeshView[][] struts) {
-        System.out.println(angle[0]);
         int index = cell * STRUTS_PER_CELL;
         for (int cube = 0; cube < 5; cube++) {
-            for (int side = 0; side < 3; side++) {
-                for (int face = 0; face < 2; face++) {
-                    int step = (int) (angle[index++] / angularResolution);
-                    MeshView strut = struts[cube][(side * 2) + face];
-                    List<Transform> transforms = strut.getTransforms();
-                    transforms.set(0, scale(step));
-                    transforms.set(2, rotations[side][step]);
+            for (int face = 0; face < 6; face++) {
+                double normalized = angle[index++] % TWO_PI;
+                if (normalized < 0) {
+                    normalized = TWO_PI + normalized;
                 }
+                int step = ((int) (normalized / angularResolution))
+                           % resolution;
+                MeshView strut = struts[cube][face];
+                List<Transform> transforms = strut.getTransforms();
+                transforms.set(0, scale(step));
+                transforms.set(2, rotations[face][step]);
             }
         }
     }

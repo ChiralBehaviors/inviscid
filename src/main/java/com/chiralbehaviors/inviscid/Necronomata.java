@@ -168,7 +168,7 @@ public class Necronomata implements Iterable<Point3i> {
 
     public void drive(float[] delta) {
         assert delta.length == 6;
-        for (int i = 0; i < angle.length; i++) {
+        for (int i = 0; i < deltaA.length; i++) {
             deltaA[i] = delta[i % 6];
         }
     }
