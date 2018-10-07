@@ -16,7 +16,6 @@
 
 package com.chiralbehaviors.inviscid.animations;
 
-import static com.chiralbehaviors.inviscid.Constants.HALF_PI;
 import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
 import static com.chiralbehaviors.inviscid.animations.Colors.blueMaterial;
 
@@ -62,10 +61,10 @@ public class AutomataAnimation extends PolyView {
         Group group = new Group();
         content.setContent(group);
         Necronomata automata = new Necronomata(new Point3i(1, 1, 1));
-        AutomataVisualization visualization = new AutomataVisualization(360,
-                                                                        (float) 0.015,
-                                                                        automata,
-                                                                        edgeMaterials);
+        NecronomataVisualization visualization = new NecronomataVisualization(360,
+                                                                              (float) 0.015,
+                                                                              automata,
+                                                                              edgeMaterials);
         group.getChildren()
              .add(visualization);
 
@@ -73,18 +72,19 @@ public class AutomataAnimation extends PolyView {
              .add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
 
         float[] delta = new float[6];
+        float[] minusDelta = new float[6];
         for (int i = 0; i < 6; i++) {
             delta[i] = (float) (Math.PI / 180);
-
-            //            delta[i] = (i % 2 == 0) ? -(float) (Math.PI / 180)
-            //                                    : (float) (Math.PI / 180);
+            minusDelta[i] = (float) -(Math.PI / 180);
         }
-        automata.drive(AutomataVisualization.getPositiveTet());
+        automata.drive(NecronomataVisualization.getPositiveTet());
         automata.step();
         final Timeline timeline = new Timeline();
         timeline.getKeyFrames()
                 .add(new KeyFrame(Duration.millis(2_500),
                                   new KeyValue(new WritableValue<Float>() {
+                                      volatile int lastIndex = 0;
+
                                       @Override
                                       public Float getValue() {
                                           return 0f;
@@ -92,11 +92,22 @@ public class AutomataAnimation extends PolyView {
 
                                       @Override
                                       public void setValue(Float value) {
-                                          automata.drive(delta);
-                                          automata.step();
-                                          visualization.update();
+                                          int nextIndex = (int) (Math.toRadians(value)
+                                                                 / visualization.getAngularResolution());
+                                          int currentIndex = lastIndex;
+                                          if (currentIndex != nextIndex) {
+                                              int deltaIndex = nextIndex
+                                                               - currentIndex;
+                                              lastIndex = nextIndex;
+                                              for (int step = 0; step < Math.abs(deltaIndex); step++) {
+                                                  automata.drive(deltaIndex < 0 ? minusDelta
+                                                                                : delta);
+                                                  automata.step();
+                                              }
+                                              visualization.update();
+                                          }
                                       }
-                                  }, HALF_PI)));
+                                  }, 90f)));
         timeline.setCycleCount(9000);
         timeline.setAutoReverse(true);
         content.setTimeline(timeline);

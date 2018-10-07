@@ -50,29 +50,7 @@ import mesh.Line;
  * @author halhildebrand
  *
  */
-public class AutomataVisualization extends Group {
-
-    class CellAnimator {
-        private final MeshView[][] struts;
-
-        public CellAnimator(MeshView[][] struts) {
-            this.struts = struts;
-        }
-
-        public List<MeshView> allStuts() {
-            List<MeshView> allStruts = new ArrayList<>();
-            for (MeshView strut : struts[3]) {
-                allStruts.add(strut);
-            }
-            return allStruts;
-        }
-
-        public void update(int cell) {
-            automata.process((angle, frequency, deltaA, deltaF) -> {
-                setState(angle, cell, struts);
-            });
-        }
-    }
+public class NecronomataVisualization extends Group {
 
     private static Point3D       CANONICAL_Y_AXIS = new Point3D(0, 1, 0);
 
@@ -107,15 +85,16 @@ public class AutomataVisualization extends Group {
         return new Rotate(-Math.toDegrees(angle), axisOfRotation);
     }
 
-    private final Necronomata        automata;
-    private final List<CellAnimator> cells = new ArrayList<>();
-    private final Transform[]        lengths;
     private final float              angularResolution;
-    private final Transform[][]      rotations;
+    private final Necronomata        automata;
+    private final List<MeshView[][]> cells = new ArrayList<>();
+    private final Transform[]        lengths;
     private final int                resolution;
+    private final Transform[][]      rotations;
 
-    public AutomataVisualization(int resolution, float radius,
-                                 Necronomata automata, Material[] materials) {
+    public NecronomataVisualization(int resolution, float radius,
+                                    Necronomata automata,
+                                    Material[] materials) {
         assert resolution
                % 8 == 0 : "Angular resolution must be divisable by 8: "
                           + resolution;
@@ -143,16 +122,24 @@ public class AutomataVisualization extends Group {
         }
         createCellAnimators(grid, materials, exemplar, halfInterval);
         ObservableList<Node> children = getChildren();
-        cells.forEach(cell -> children.addAll(cell.allStuts()));
+        cells.forEach(cell -> {
+            for (int cube = 0; cube < 5; cube++) {
+                children.addAll(cell[cube]);
+            }
+        });
+    }
+
+    public float getAngularResolution() {
+        return angularResolution;
     }
 
     public void update() {
         for (int i = 0; i < cells.size(); i++) {
-            cells.get(i)
-                 .update(i);
+            int cell = i;
+            automata.process((angle, frequency, deltaA, deltaF) -> {
+                setState(angle, cell, cells.get(cell));
+            });
         }
-        setNeedsLayout(true);
-        layout();
     }
 
     private void buildRotations(int resolution) {
@@ -225,7 +212,7 @@ public class AutomataVisualization extends Group {
                 view.setMaterial(materials[5]);
                 cell[cube][5] = view;
             }
-            cells.add(new CellAnimator(cell));
+            cells.add(cell);
         });
 
     }

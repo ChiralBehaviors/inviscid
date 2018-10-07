@@ -175,5 +175,5 @@ public class Necronomata implements Iterable<Point3i> {
 
     public void process(Processor action) {
         action.process(angle, frequency, deltaA, deltaF);
-    }
+    } 
 }
