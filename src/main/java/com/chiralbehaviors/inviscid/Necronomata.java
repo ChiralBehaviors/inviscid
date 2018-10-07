@@ -18,6 +18,7 @@ package com.chiralbehaviors.inviscid;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import javax.vecmath.Point3i;
@@ -28,7 +29,13 @@ import javax.vecmath.Point3i;
  */
 public class Necronomata implements Iterable<Point3i> {
 
-    private final float[] angles;
+    @FunctionalInterface
+    public interface Processor {
+        void process(float[] angle, float[] frequency, float[] deltaA,
+                     float[] deltaF);
+    }
+
+    private final float[] angle;
     @SuppressWarnings("unused")
     private final float[] deltaA;
     @SuppressWarnings("unused")
@@ -43,15 +50,15 @@ public class Necronomata implements Iterable<Point3i> {
         assert frequency.length == 6 * extent.x * extent.y
                                    * extent.z : "frequencies are not correct in extent";
         this.extent = extent;
-        this.angles = angles;
+        this.angle = angles;
         this.frequency = frequency;
         this.deltaA = angles.clone();
         this.deltaF = frequency.clone();
     }
 
     public Necronomata(int i, int j, int k) {
-        this(new float[6 * i * j * k], new Point3i(i, j, k),
-             new float[6 * i * j * k]);
+        this(new float[30 * i * j * k], new Point3i(i, j, k),
+             new float[30 * i * j * k]);
     }
 
     public Necronomata(Point3i extent) {
@@ -60,7 +67,13 @@ public class Necronomata implements Iterable<Point3i> {
 
     public float[] anglesOf(Point3i c) {
         int index = indexOfCell(c);
-        return Arrays.copyOfRange(angles, index, index + 30);
+        return Arrays.copyOfRange(angle, index, index + 30);
+    }
+
+    public int cellCount() {
+        AtomicInteger i = new AtomicInteger();
+        forEach(cell -> i.incrementAndGet());
+        return i.get();
     }
 
     @Override
@@ -86,23 +99,6 @@ public class Necronomata implements Iterable<Point3i> {
 
     public int indexOfCell(Point3i cell) {
         return indexOfCell(cell.x, cell.y, cell.z);
-    }
-
-    public void process(Point3i cell) {
-        /*
-        [+1] = { i+1, j  , k-1 }
-        [-1] = { i-1, j  , k+1 }
-        [+2] = { i  , j-1, k+1 }
-        [-2] = { i  , j+1, k-1 }
-        [+3] = { i+1, j  , k+1 }
-        [-3] = { i-1, j  , k-1 }
-        [+4] = { i+1, j+1, k   }
-        [-4] = { i-1, j-1, k   }
-        [+5] = { i  , j+1, k+1 }
-        [-5] = { i  , j-1, k-1 }
-        [+6] = { i-1, j+1, k   }
-        [-6] = { i+1, j-1, k   }
-        */
     }
 
     @Override
@@ -144,5 +140,40 @@ public class Necronomata implements Iterable<Point3i> {
                 i += 1;
             }
         };
+    }
+
+    public void process(Point3i cell) {
+        /*
+        [+1] = { i+1, j  , k-1 }
+        [-1] = { i-1, j  , k+1 }
+        [+2] = { i  , j-1, k+1 }
+        [-2] = { i  , j+1, k-1 }
+        [+3] = { i+1, j  , k+1 }
+        [-3] = { i-1, j  , k-1 }
+        [+4] = { i+1, j+1, k   }
+        [-4] = { i-1, j-1, k   }
+        [+5] = { i  , j+1, k+1 }
+        [-5] = { i  , j-1, k-1 }
+        [+6] = { i-1, j+1, k   }
+        [-6] = { i+1, j-1, k   }
+        */
+    }
+
+    public void step() {
+        for (int i = 0; i < angle.length; i++) {
+            angle[i] = angle[i] + deltaA[i];
+            frequency[i] = frequency[i] + deltaF[i];
+        }
+    }
+
+    public void drive(float[] delta) {
+        assert delta.length == 6;
+        for (int i = 0; i < angle.length; i++) {
+            deltaA[i] = delta[i % 6];
+        }
+    }
+
+    public void process(Processor action) {
+        action.process(angle, frequency, deltaA, deltaF);
     }
 }

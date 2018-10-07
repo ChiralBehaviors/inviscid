@@ -16,7 +16,7 @@
 
 package com.chiralbehaviors.inviscid.animations;
 
-import static com.chiralbehaviors.inviscid.Constants.QUARTER_PI;
+import static com.chiralbehaviors.inviscid.Constants.*;
 import static com.chiralbehaviors.inviscid.Constants.ROOT_2_DIV_2;
 import static com.chiralbehaviors.inviscid.Constants.THREE_QUARTERS_PI;
 import static com.chiralbehaviors.inviscid.Constants.TWO_PI;
@@ -26,19 +26,22 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.vecmath.Point3i;
-
 import com.chiralbehaviors.inviscid.CubicGrid;
 import com.chiralbehaviors.inviscid.CubicGrid.Neighborhood;
 import com.chiralbehaviors.inviscid.LengthTable;
 import com.chiralbehaviors.inviscid.Necronomata;
 import com.chiralbehaviors.inviscid.PhiCoordinates;
 
+import javafx.collections.ObservableList;
 import javafx.geometry.Point3D;
+import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.paint.Material;
+import javafx.scene.shape.Mesh;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.transform.Rotate;
+import javafx.scene.transform.Scale;
 import javafx.scene.transform.Transform;
 import javafx.scene.transform.Translate;
 import mesh.Line;
@@ -47,7 +50,29 @@ import mesh.Line;
  * @author halhildebrand
  *
  */
-public class AutomataVisualization {
+public class AutomataVisualization extends Group {
+
+    class CellAnimator {
+        private final MeshView[][] struts;
+
+        public CellAnimator(MeshView[][] struts) {
+            this.struts = struts;
+        }
+
+        public List<MeshView> allStuts() {
+            List<MeshView> allStruts = new ArrayList<>();
+            for (MeshView strut : struts[3]) {
+                allStruts.add(strut);
+            }
+            return allStruts;
+        }
+
+        public void update(int cell) {
+            automata.process((angle, frequency, deltaA, deltaF) -> {
+                setState(angle, cell, struts);
+            });
+        }
+    }
 
     private static Point3D       CANONICAL_Y_AXIS = new Point3D(0, 1, 0);
 
@@ -65,6 +90,8 @@ public class AutomataVisualization {
                                                                   THREE_QUARTERS_PI,
                                                                   QUARTER_PI };
 
+    private static final int     STRUTS_PER_CELL  = 6 * 5;
+
     public static float[] getNegativeTet() {
         return Arrays.copyOf(NEGATIVE_TET, NEGATIVE_TET.length);
     }
@@ -80,163 +107,165 @@ public class AutomataVisualization {
         return new Rotate(-Math.toDegrees(angle), axisOfRotation);
     }
 
-    private final float          angularResolution;
-    @SuppressWarnings("unused")
-    private final Necronomata    automata;
-    private final TriangleMesh[] exemplars;
-    private final float          halfInterval;
-    private final LengthTable    lengths;
-    private final CellNode[]     nodes;
+    private final Necronomata        automata;
+    private final List<CellAnimator> cells             = new ArrayList<>();
+    private final Transform[]        lengths;
+    private float                    angularResolution = TWO_PI;
+    private final Transform[][]      rotations;
 
     public AutomataVisualization(int resolution, float radius,
                                  Necronomata automata, Material[] materials) {
         assert resolution
                % 8 == 0 : "Angular resolution must be divisable by 8: "
                           + resolution;
+        angularResolution = TWO_PI / resolution;
         CubicGrid grid = new CubicGrid(Neighborhood.SIX,
                                        PhiCoordinates.Cubes[3],
                                        automata.getExtent().x);
         this.automata = automata;
-        Point3i extent = automata.getExtent();
-        Point3i halfExtent = new Point3i(extent.x / 2, extent.y / 2,
-                                         extent.z / 2);
-        angularResolution = TWO_PI / resolution;
-        exemplars = new TriangleMesh[resolution / 8];
-        halfInterval = (float) (PhiCoordinates.Cubes[0].getEdgeLength() / 2.0);
-        lengths = new LengthTable(resolution,
-                                  PhiCoordinates.Cubes[0].getEdgeLength()
-                                              * ROOT_2_DIV_2);
-        for (int i = 0; i < exemplars.length; i++) {
-            exemplars[i] = Line.createLine(lengths.length(i * angularResolution)
-                                           * 2, radius);
+        float halfInterval = (float) (PhiCoordinates.Cubes[0].getEdgeLength()
+                                      / 2.0);
+        TriangleMesh exemplar = Line.createLine(PhiCoordinates.Cubes[0].getEdgeLength()
+                                                * ROOT_2, radius);
+        rotations = new Transform[3][];
+        for (int i = 0; i < 3; i++) {
+            rotations[i] = new Transform[resolution];
         }
-
-        List<CellNode> n = new ArrayList<>();
-        automata.forEach(c -> {
-            CellNode cell = cellNode(automata.anglesOf(c), materials);
-            grid.postition(c.x - halfExtent.x, c.y - halfExtent.y,
-                           c.z - halfExtent.z, cell);
-            n.add(cell);
-        });
-        nodes = n.toArray(new CellNode[n.size()]);
+        lengths = new Transform[resolution / 8];
+        buildRotations(resolution);
+        LengthTable table = new LengthTable(resolution);
+        for (int i1 = 0; i1 < resolution / 8; i1++) {
+            lengths[i1] = new Scale(table.lengthAt(i1), 1.0, 1.0);
+        }
+        createCellAnimators(grid, materials, exemplar, halfInterval);
+        ObservableList<Node> children = getChildren();
+        cells.forEach(cell -> children.addAll(cell.allStuts()));
     }
 
-    public CellNode[] getNodes() {
-        return nodes;
+    public void update() {
+        for (int i = 0; i < cells.size(); i++) {
+            cells.get(i)
+                 .update(i);
+        }
+        setNeedsLayout(true);
+        layout();
     }
 
-    public CellNode cellNode(float[] initialState, Material[] materials) {
+    private void buildRotations(int resolution) {
+        Point3D axisOfRotation = new Point3D(0, 0, 1);
+        for (int i = 0; i < resolution; i++) {
+            rotations[0][i] = new Rotate(-Math.toDegrees(i * angularResolution),
+                                         axisOfRotation);
+        }
+        axisOfRotation = new Point3D(1, 0, 0);
+        for (int i = 0; i < resolution; i++) {
+            rotations[1][i] = new Rotate(-Math.toDegrees(i * angularResolution),
+                                         axisOfRotation);
+        }
+        for (int i = 0; i < resolution; i++) {
+            Transform rotateAroundCenter = new Rotate(-Math.toDegrees(i
+                                                                      * angularResolution),
+                                                      axisOfRotation);
+            rotations[2][i] = new Rotate(90, new Point3D(0, 0,
+                                                         1)).createConcatenation(rotateAroundCenter);
+        }
+    }
+
+    private void createCellAnimators(CubicGrid grid, Material[] materials,
+                                     Mesh exemplar, float halfInterval) {
         Translate xPos = new Translate(0, 0, halfInterval);
         Translate xNeg = new Translate(0, 0, -halfInterval);
         Translate yPos = new Translate(halfInterval, 0, 0);
         Translate yNeg = new Translate(-halfInterval, 0, -0);
-        MeshView[][] struts = new MeshView[6 * 5][];
-        for (int c = 0; c < PhiCoordinates.Cubes.length; c++) {
-            for (int i = 0; i < 6; i++) {
-                int cube_ish = c * 6;
-                struts[cube_ish + i] = new MeshView[exemplars.length * 8];
-            }
-        }
-        for (int c = 0; c < PhiCoordinates.Cubes.length; c++) {
-            Rotate base = base(yAxis(PhiCoordinates.Cubes[c]));
-            for (int i = 0; i < exemplars.length * 8; i++) {
+
+        automata.forEach(location -> {
+            MeshView[][] cell = new MeshView[5][];
+            for (int cube = 0; cube < 5; cube++) {
+                cell[cube] = new MeshView[6];
+                Rotate base = base(yAxis(PhiCoordinates.Cubes[cube]));
                 MeshView view;
-                view = xExemplar(i, xPos, base);
+                Transform position = grid.postitionTransform(location.x,
+                                                             location.y,
+                                                             location.z);
+                view = exemplar(0, xPos, base, exemplar, position);
                 view.setMaterial(materials[0]);
-                int cube_ish = c * 6;
-                struts[cube_ish][i] = view;
+                cell[cube][0] = view;
 
-                view = xExemplar(i, xNeg, base);
+                view = exemplar(0, xNeg, base, exemplar, position);
                 view.setMaterial(materials[1]);
-                struts[cube_ish + 1][i] = view;
+                cell[cube][1] = view;
 
-                view = yExemplar(i, yPos, base);
+                view = exemplar(1, yPos, base, exemplar, position);
                 view.setMaterial(materials[2]);
-                struts[cube_ish + 2][i] = view;
+                cell[cube][2] = view;
 
-                view = yExemplar(i, yNeg, base);
+                view = exemplar(1, yNeg, base, exemplar, position);
                 view.setMaterial(materials[3]);
-                struts[cube_ish + 3][i] = view;
+                cell[cube][3] = view;
 
-                view = zExemplar(i, yPos, base);
+                view = exemplar(2, yPos, base, exemplar, position);
                 view.setMaterial(materials[4]);
-                struts[cube_ish + 4][i] = view;
+                cell[cube][4] = view;
 
-                view = zExemplar(i, yNeg, base);
+                view = exemplar(2, yNeg, base, exemplar, position);
                 view.setMaterial(materials[5]);
-                struts[cube_ish + 5][i] = view;
+                cell[cube][5] = view;
+            }
+            cells.add(new CellAnimator(cell));
+        });
+
+    }
+
+    private MeshView exemplar(int axis, Translate translate, Rotate base,
+                              Mesh exemplar, Transform position) {
+        MeshView line = new MeshView(exemplar);
+        line.getTransforms()
+            .addAll(scale(0).clone(), base, rotations[axis][0].clone(),
+                    translate, position);
+        return line;
+    }
+
+    private Transform scale(int increment) {
+        if (increment < lengths.length) {
+            return lengths[increment];
+        }
+        if (increment < lengths.length * 2) {
+            return lengths[lengths.length - (increment - lengths.length) - 1];
+        }
+        if (increment < lengths.length * 3) {
+            return lengths[increment - (lengths.length * 2)];
+        }
+        if (increment < lengths.length * 4) {
+            return lengths[lengths.length - (increment - lengths.length * 3)
+                           - 1];
+        }
+        if (increment < lengths.length * 5) {
+            return lengths[increment - (lengths.length * 4)];
+        }
+        if (increment < lengths.length * 6) {
+            return lengths[lengths.length - (increment - lengths.length * 5)
+                           - 1];
+        }
+        if (increment < lengths.length * 7) {
+            return lengths[increment - (lengths.length * 6)];
+        }
+        return lengths[lengths.length - (increment - lengths.length * 7) - 1];
+    }
+
+    private void setState(float[] angle, int cell, MeshView[][] struts) {
+        System.out.println(angle[0]);
+        int index = cell * STRUTS_PER_CELL;
+        for (int cube = 0; cube < 5; cube++) {
+            for (int side = 0; side < 3; side++) {
+                for (int face = 0; face < 2; face++) {
+                    int step = (int) (angle[index++] / angularResolution);
+                    MeshView strut = struts[cube][(side * 2) + face];
+                    List<Transform> transforms = strut.getTransforms();
+                    transforms.set(0, scale(step));
+                    transforms.set(2, rotations[side][step]);
+                }
             }
         }
-        return new CellNode(angularResolution, struts, initialState);
     }
 
-    private TriangleMesh x(int increment, TriangleMesh[] exemplars) {
-        if (increment < exemplars.length) {
-            return exemplars[increment];
-        }
-        if (increment < exemplars.length * 2) {
-            return exemplars[exemplars.length - (increment - exemplars.length)
-                             - 1];
-        }
-        if (increment < exemplars.length * 3) {
-            return exemplars[increment - (exemplars.length * 2)];
-        }
-        if (increment < exemplars.length * 4) {
-            return exemplars[exemplars.length
-                             - (increment - exemplars.length * 3) - 1];
-        }
-        if (increment < exemplars.length * 5) {
-            return exemplars[increment - (exemplars.length * 4)];
-        }
-        if (increment < exemplars.length * 6) {
-            return exemplars[exemplars.length
-                             - (increment - exemplars.length * 5) - 1];
-        }
-        if (increment < exemplars.length * 7) {
-            return exemplars[increment - (exemplars.length * 6)];
-        }
-        return exemplars[exemplars.length - (increment - exemplars.length * 7)
-                         - 1];
-    }
-
-    private MeshView xExemplar(int increment, Translate translate,
-                               Rotate base) {
-        Point3D axisOfRotation = new Point3D(0, 0, 1);
-        Rotate rotateAroundCenter = new Rotate(-Math.toDegrees(increment
-                                                               * angularResolution),
-                                               axisOfRotation);
-        MeshView line = new MeshView(x(increment, exemplars));
-
-        line.getTransforms()
-            .add(base.createConcatenation(rotateAroundCenter.createConcatenation(translate)));
-        return line;
-    }
-
-    private MeshView yExemplar(int increment, Translate translate,
-                               Rotate base) {
-        Point3D axisOfRotation = new Point3D(1, 0, 0);
-        Rotate rotateAroundCenter = new Rotate(-Math.toDegrees(increment
-                                                               * angularResolution),
-                                               axisOfRotation);
-        MeshView line = new MeshView(x(increment, exemplars));
-
-        line.getTransforms()
-            .add(base.createConcatenation(rotateAroundCenter.createConcatenation(translate)));
-        return line;
-    }
-
-    private MeshView zExemplar(int increment, Translate translate,
-                               Rotate base) {
-        Point3D axisOfRotation = new Point3D(1, 0, 0);
-        Transform rotateAroundCenter = new Rotate(-Math.toDegrees(increment
-                                                                  * angularResolution),
-                                                  axisOfRotation);
-        rotateAroundCenter = new Rotate(90, new Point3D(0, 0,
-                                                        1)).createConcatenation(rotateAroundCenter);
-        MeshView line = new MeshView(x(increment, exemplars));
-
-        line.getTransforms()
-            .add(base.createConcatenation(rotateAroundCenter.createConcatenation(translate)));
-        return line;
-    }
 }

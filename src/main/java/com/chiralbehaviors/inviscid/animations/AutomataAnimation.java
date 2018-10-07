@@ -18,6 +18,8 @@ package com.chiralbehaviors.inviscid.animations;
 
 import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
 import static com.chiralbehaviors.inviscid.animations.Colors.blueMaterial;
+import static com.chiralbehaviors.inviscid.Constants.*;
+import java.util.Arrays;
 
 import javax.vecmath.Point3i;
 
@@ -55,32 +57,27 @@ public class AutomataAnimation extends PolyView {
     @Override
     protected void initializeContentModel() {
         CubicGrid grid = new CubicGrid(Neighborhood.SIX,
-                                       PhiCoordinates.Cubes[3], 2);
-        
+                                       PhiCoordinates.Cubes[3], 0);
+
         ContentModel content = getContentModel();
         Group group = new Group();
         content.setContent(group);
-        Necronomata automata = new Necronomata(new Point3i(5, 5, 5));
-        AutomataVisualization a = new AutomataVisualization(360, (float) 0.015,
-                                                            automata,
-                                                            edgeMaterials);
+        Necronomata automata = new Necronomata(new Point3i(1, 1, 1));
+        AutomataVisualization visualization = new AutomataVisualization(360,
+                                                                        (float) 0.015,
+                                                                        automata,
+                                                                        edgeMaterials);
         group.getChildren()
-             .addAll(a.getNodes());
-
-        float[] plus = AutomataVisualization.getPositiveTet();
-        float[] newPlus = new float[30];
-        for (int i = 0; i < 5; i++) {
-            for (int j = 0; j < 6; j++) {
-                newPlus[i * 6 + j] = plus[j];
-            }
-        }
-        for (int i = 0; i < a.getNodes().length; i++) {
-            a.getNodes()[i].setState(newPlus);
-        }
-
+             .add(visualization);
 
         group.getChildren()
              .add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
+
+        automata.drive(AutomataVisualization.getPositiveTet());
+
+        float[] delta = new float[6];
+        Arrays.fill(delta, (float) (Math.PI / 180));
+        automata.step();
         final Timeline timeline = new Timeline();
         timeline.getKeyFrames()
                 .add(new KeyFrame(Duration.millis(2_500),
@@ -92,20 +89,11 @@ public class AutomataAnimation extends PolyView {
 
                                       @Override
                                       public void setValue(Float value) {
-                                          for (int c = 0; c < 5; c++) {
-                                              for (int i = 0; i < 6; i++) {
-                                                  newPlus[(c * 6)
-                                                          + i] = (float) (plus[i]
-                                                                          + (i
-                                                                             % 2 == 0 ? -Math.toRadians(value)
-                                                                                      : Math.toRadians(value)));
-                                              }
-                                          }
-                                          for (int i = 0; i < a.getNodes().length; i++) {
-                                              a.getNodes()[i].setState(newPlus);
-                                          }
+                                          automata.drive(delta);
+                                          automata.step();
+                                          visualization.update();
                                       }
-                                  }, 90f)));
+                                  }, HALF_PI)));
         timeline.setCycleCount(9000);
         timeline.setAutoReverse(true);
         content.setTimeline(timeline);

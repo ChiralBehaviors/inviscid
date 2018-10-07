@@ -28,7 +28,7 @@ import javax.vecmath.Vector2d;
  * @author halhildebrand
  *
  */
-public class LengthTable {
+public class OldLengthTable {
 
     private static Vector2d intersect(Vector2d a, Vector2d b, Vector2d c,
                                       Vector2d d) {
@@ -57,29 +57,30 @@ public class LengthTable {
 
     private final double   resolution;
 
-    public LengthTable(int subdivisions) {
+    public OldLengthTable(int subdivisions, double radius) {
         if (subdivisions % 8 != 0) {
             throw new IllegalArgumentException("Subdivsions must be divisible by 8: "
                                                + subdivisions);
         }
 
-        double halfEdge = 1.0 / ROOT_2;
         Vector2d center = new Vector2d();
+        double halfEdge = radius / ROOT_2;
         Vector2d left = new Vector2d(halfEdge, -halfEdge);
         Vector2d right = new Vector2d(halfEdge, 2 * halfEdge);
         lengths = new double[(subdivisions / 8) + 1];
         resolution = TWO_PI / subdivisions;
         double angle = 0;
         for (int i = 0; i < lengths.length; i++) {
-            Vector2d pointing = new Vector2d(Math.cos(angle), Math.sin(angle));
+            Vector2d pointing = new Vector2d(Math.cos(angle) * radius,
+                                             Math.sin(angle) * radius);
             Vector2d intersection = intersect(center, pointing, left, right);
-            lengths[i] = Math.min(1, intersection.length());
+            lengths[i] = Math.min(radius, intersection.length());
             angle += resolution;
         }
     }
 
     public double length(double angle) {
-        angle = angle % TWO_PI;
+         angle = angle % TWO_PI;
 
         if (angle <= QUARTER_PI) {
             return lengths[(int) (angle / resolution)];
