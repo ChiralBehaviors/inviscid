@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.chiralbehaviors.inviscid;
+package com.chiralbehaviors.inviscid.animations;
 
-import static com.chiralbehaviors.inviscid.Constants.*;
+import static com.chiralbehaviors.inviscid.Constants.TWO_PI;
+
 import javafx.scene.Group;
 import javafx.scene.shape.MeshView;
 
@@ -28,20 +29,22 @@ public class CellNode extends Group {
     private final double       resolution;
     private final MeshView[][] struts;
 
-    public CellNode(double resolution, MeshView[][] struts) {
+    public CellNode(float resolution, MeshView[][] struts) {
+        assert struts.length == 6 * 5;
         this.struts = struts;
         this.resolution = resolution;
     }
 
-    public CellNode(double resolution, MeshView[][] struts,
-                    double[] initialState) {
+    public CellNode(float resolution, MeshView[][] struts,
+                    float[] initialState) {
         this(resolution, struts);
         setState(initialState);
     }
 
-    public void setState(double[] angles) {
+    public void setState(float[] angles) {
+        assert angles.length == 6 * 5;
         getChildren().clear();
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < angles.length; i++) {
             double angle = angles[i] % TWO_PI;
             if (angle < 0) {
                 angle = TWO_PI + angle;

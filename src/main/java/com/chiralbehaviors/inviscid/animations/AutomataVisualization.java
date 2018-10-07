@@ -14,15 +14,25 @@
  * limitations under the License.
  */
 
-package com.chiralbehaviors.inviscid;
+package com.chiralbehaviors.inviscid.animations;
 
 import static com.chiralbehaviors.inviscid.Constants.QUARTER_PI;
+import static com.chiralbehaviors.inviscid.Constants.ROOT_2_DIV_2;
 import static com.chiralbehaviors.inviscid.Constants.THREE_QUARTERS_PI;
 import static com.chiralbehaviors.inviscid.Constants.TWO_PI;
+import static com.chiralbehaviors.inviscid.CubicGrid.yAxis;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.vecmath.Point3i;
+
+import com.chiralbehaviors.inviscid.CubicGrid;
+import com.chiralbehaviors.inviscid.CubicGrid.Neighborhood;
+import com.chiralbehaviors.inviscid.LengthTable;
+import com.chiralbehaviors.inviscid.Necronomata;
+import com.chiralbehaviors.inviscid.PhiCoordinates;
 
 import javafx.geometry.Point3D;
 import javafx.scene.paint.Material;
@@ -37,87 +47,125 @@ import mesh.Line;
  * @author halhildebrand
  *
  */
-public class Automata {
+public class AutomataVisualization {
 
-    private static final double[] POSITIVE_TET = new double[] { THREE_QUARTERS_PI,
-                                                                QUARTER_PI,
-                                                                QUARTER_PI,
-                                                                THREE_QUARTERS_PI,
-                                                                THREE_QUARTERS_PI,
-                                                                QUARTER_PI };
+    private static Point3D       CANONICAL_Y_AXIS = new Point3D(0, 1, 0);
 
-    private static final double[] NEGATIVE_TET = new double[] { QUARTER_PI,
-                                                                THREE_QUARTERS_PI,
-                                                                THREE_QUARTERS_PI,
-                                                                QUARTER_PI,
-                                                                QUARTER_PI,
-                                                                THREE_QUARTERS_PI };
+    private static final float[] NEGATIVE_TET     = new float[] { QUARTER_PI,
+                                                                  THREE_QUARTERS_PI,
+                                                                  THREE_QUARTERS_PI,
+                                                                  QUARTER_PI,
+                                                                  QUARTER_PI,
+                                                                  THREE_QUARTERS_PI };
 
-    public static double[] getPositiveTet() {
-        return Arrays.copyOf(POSITIVE_TET, POSITIVE_TET.length);
-    }
+    private static final float[] POSITIVE_TET     = new float[] { THREE_QUARTERS_PI,
+                                                                  QUARTER_PI,
+                                                                  QUARTER_PI,
+                                                                  THREE_QUARTERS_PI,
+                                                                  THREE_QUARTERS_PI,
+                                                                  QUARTER_PI };
 
-    public static double[] getNegativeTet() {
+    public static float[] getNegativeTet() {
         return Arrays.copyOf(NEGATIVE_TET, NEGATIVE_TET.length);
     }
 
-    private final double         angularResolution;
-    private final TriangleMesh[] exemplars;
-    private final CubicGrid      grid;
-    private LengthTable          lengths;
+    public static float[] getPositiveTet() {
+        return Arrays.copyOf(POSITIVE_TET, POSITIVE_TET.length);
+    }
 
-    public Automata(int resolution, CubicGrid grid, Point3i extent,
-                    double radius) {
+    private static Rotate base(Point3D yAxis) {
+        Point3D axisOfRotation = yAxis.crossProduct(CANONICAL_Y_AXIS);
+        double angle = Math.acos(yAxis.normalize()
+                                      .dotProduct(CANONICAL_Y_AXIS));
+        return new Rotate(-Math.toDegrees(angle), axisOfRotation);
+    }
+
+    private final float          angularResolution;
+    @SuppressWarnings("unused")
+    private final Necronomata    automata;
+    private final TriangleMesh[] exemplars;
+    private final float          halfInterval;
+    private final LengthTable    lengths;
+    private final CellNode[]     nodes;
+
+    public AutomataVisualization(int resolution, float radius,
+                                 Necronomata automata, Material[] materials) {
         assert resolution
                % 8 == 0 : "Angular resolution must be divisable by 8: "
                           + resolution;
+        CubicGrid grid = new CubicGrid(Neighborhood.SIX,
+                                       PhiCoordinates.Cubes[3],
+                                       automata.getExtent().x);
+        this.automata = automata;
+        Point3i extent = automata.getExtent();
+        Point3i halfExtent = new Point3i(extent.x / 2, extent.y / 2,
+                                         extent.z / 2);
         angularResolution = TWO_PI / resolution;
-        this.grid = grid;
         exemplars = new TriangleMesh[resolution / 8];
+        halfInterval = (float) (PhiCoordinates.Cubes[0].getEdgeLength() / 2.0);
         lengths = new LengthTable(resolution,
-                                  grid.getIntervalX() * Math.sqrt(2) / 2.0);
+                                  PhiCoordinates.Cubes[0].getEdgeLength()
+                                              * ROOT_2_DIV_2);
         for (int i = 0; i < exemplars.length; i++) {
             exemplars[i] = Line.createLine(lengths.length(i * angularResolution)
                                            * 2, radius);
         }
+
+        List<CellNode> n = new ArrayList<>();
+        automata.forEach(c -> {
+            CellNode cell = cellNode(automata.anglesOf(c), materials);
+            grid.postition(c.x - halfExtent.x, c.y - halfExtent.y,
+                           c.z - halfExtent.z, cell);
+            n.add(cell);
+        });
+        nodes = n.toArray(new CellNode[n.size()]);
     }
 
-    public CellNode cellNode(double[] initialState, Material[] materials) {
-        double halfInterval = grid.getIntervalX() / 2.0;
+    public CellNode[] getNodes() {
+        return nodes;
+    }
+
+    public CellNode cellNode(float[] initialState, Material[] materials) {
         Translate xPos = new Translate(0, 0, halfInterval);
         Translate xNeg = new Translate(0, 0, -halfInterval);
         Translate yPos = new Translate(halfInterval, 0, 0);
         Translate yNeg = new Translate(-halfInterval, 0, -0);
-        MeshView[][] struts = new MeshView[6][];
-        for (int i = 0; i < 6; i++) {
-            struts[i] = new MeshView[exemplars.length * 8];
+        MeshView[][] struts = new MeshView[6 * 5][];
+        for (int c = 0; c < PhiCoordinates.Cubes.length; c++) {
+            for (int i = 0; i < 6; i++) {
+                int cube_ish = c * 6;
+                struts[cube_ish + i] = new MeshView[exemplars.length * 8];
+            }
         }
-        Rotate base = base();
-        for (int i = 0; i < exemplars.length * 8; i++) {
-            MeshView view;
-            view = xExemplar(i, xPos, base);
-            view.setMaterial(materials[0]);
-            struts[0][i] = view;
+        for (int c = 0; c < PhiCoordinates.Cubes.length; c++) {
+            Rotate base = base(yAxis(PhiCoordinates.Cubes[c]));
+            for (int i = 0; i < exemplars.length * 8; i++) {
+                MeshView view;
+                view = xExemplar(i, xPos, base);
+                view.setMaterial(materials[0]);
+                int cube_ish = c * 6;
+                struts[cube_ish][i] = view;
 
-            view = xExemplar(i, xNeg, base);
-            view.setMaterial(materials[1]);
-            struts[1][i] = view;
+                view = xExemplar(i, xNeg, base);
+                view.setMaterial(materials[1]);
+                struts[cube_ish + 1][i] = view;
 
-            view = yExemplar(i, yPos, base);
-            view.setMaterial(materials[2]);
-            struts[2][i] = view;
+                view = yExemplar(i, yPos, base);
+                view.setMaterial(materials[2]);
+                struts[cube_ish + 2][i] = view;
 
-            view = yExemplar(i, yNeg, base);
-            view.setMaterial(materials[3]);
-            struts[3][i] = view;
+                view = yExemplar(i, yNeg, base);
+                view.setMaterial(materials[3]);
+                struts[cube_ish + 3][i] = view;
 
-            view = zExemplar(i, yPos, base);
-            view.setMaterial(materials[4]);
-            struts[4][i] = view;
+                view = zExemplar(i, yPos, base);
+                view.setMaterial(materials[4]);
+                struts[cube_ish + 4][i] = view;
 
-            view = zExemplar(i, yNeg, base);
-            view.setMaterial(materials[5]);
-            struts[5][i] = view;
+                view = zExemplar(i, yNeg, base);
+                view.setMaterial(materials[5]);
+                struts[cube_ish + 5][i] = view;
+            }
         }
         return new CellNode(angularResolution, struts, initialState);
     }
@@ -190,15 +238,5 @@ public class Automata {
         line.getTransforms()
             .add(base.createConcatenation(rotateAroundCenter.createConcatenation(translate)));
         return line;
-    }
-
-    private Rotate base() {
-        Point3D yAxis = new Point3D(0, 1, 0);
-        Point3D axisOfRotation = grid.getyAxis()
-                                     .crossProduct(yAxis);
-        double angle = Math.acos(grid.getyAxis()
-                                     .normalize()
-                                     .dotProduct(yAxis));
-        return new Rotate(-Math.toDegrees(angle), axisOfRotation);
     }
 }

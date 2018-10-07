@@ -22,13 +22,14 @@ package com.chiralbehaviors.inviscid;
  */
 public class Constants {
 
-    public static final double HALF_PI           = Math.PI / 2.0;
-    public static double       PHI               = (1.0 + Math.sqrt(5.0)) / 2.0;
-    public static double       PHI_CUBED         = PHI * PHI * PHI;
-    public static double       PHI_SQUARED       = PHI * PHI;
-    public static final double QUARTER_PI        = Math.PI / 4.0;
-    public static final double ROOT_2            = Math.sqrt(2.0);
-    public static final double THREE_QUARTERS_PI = Math.PI * .75;
-    public static final double TWO_PI            = 2 * Math.PI;
+    public static final float HALF_PI           = (float) (Math.PI / 2.0);
+    public static float       PHI               = (float) ((1.0 + Math.sqrt(5.0)) / 2.0);
+    public static float       PHI_CUBED         = PHI * PHI * PHI;
+    public static float       PHI_SQUARED       = PHI * PHI;
+    public static final float QUARTER_PI        = (float) (Math.PI / 4.0);
+    public static final float ROOT_2            = (float) Math.sqrt(2.0);
+    public static final float ROOT_2_DIV_2      = (float) (ROOT_2 / 2.0);
+    public static final float THREE_QUARTERS_PI = (float) (Math.PI * .75);
+    public static final float TWO_PI            = (float) (2 * Math.PI);
 
 }

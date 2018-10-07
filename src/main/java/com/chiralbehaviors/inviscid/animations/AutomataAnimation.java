@@ -19,15 +19,11 @@ package com.chiralbehaviors.inviscid.animations;
 import static com.chiralbehaviors.inviscid.animations.Colors.blackMaterial;
 import static com.chiralbehaviors.inviscid.animations.Colors.blueMaterial;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import javax.vecmath.Point3i;
 
-import com.chiralbehaviors.inviscid.Automata;
-import com.chiralbehaviors.inviscid.CellNode;
 import com.chiralbehaviors.inviscid.CubicGrid;
 import com.chiralbehaviors.inviscid.CubicGrid.Neighborhood;
+import com.chiralbehaviors.inviscid.Necronomata;
 import com.chiralbehaviors.inviscid.PhiCoordinates;
 import com.javafx.experiments.jfx3dviewer.ContentModel;
 
@@ -39,8 +35,6 @@ import javafx.scene.Group;
 import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
 import javafx.util.Duration;
-import javafx.util.Pair;
-import mesh.polyhedra.plato.Cube;
 
 /**
  * @author halhildebrand
@@ -58,141 +52,60 @@ public class AutomataAnimation extends PolyView {
         launch(args);
     }
 
-    public Pair<List<CellNode>, List<CellNode>> cellArray(Group group,
-                                                          CubicGrid grid,
-                                                          double[] plus,
-                                                          double[] minus) {
-        Automata a = new Automata(360, grid, new Point3i(2, 2, 2), 0.1);
-        List<CellNode> positive = new ArrayList<>();
-        List<CellNode> negative = new ArrayList<>();
-        CellNode cellGroup;
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(-1, -1, 0, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(-1, 0, -1, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(-1, 0, 1, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(-1, 1, 0, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(0, 0, 0, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(0, -1, -1, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(0, -1, 1, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(0, 1, -1, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(0, 1, 1, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(1, 0, -1, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(1, 0, 1, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(1, -1, 0, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-
-        cellGroup = a.cellNode(plus, edgeMaterials);
-        positive.add(cellGroup);
-        grid.postition(1, 1, 0, cellGroup);
-        group.getChildren()
-             .add(cellGroup);
-        return new Pair<>(positive, negative);
-    }
-
     @Override
     protected void initializeContentModel() {
+        CubicGrid grid = new CubicGrid(Neighborhood.SIX,
+                                       PhiCoordinates.Cubes[3], 2);
+        
         ContentModel content = getContentModel();
         Group group = new Group();
         content.setContent(group);
-        CubicGrid grid = new CubicGrid(Neighborhood.SIX,
-                                       PhiCoordinates.Cubes[3], 0);
+        Necronomata automata = new Necronomata(new Point3i(5, 5, 5));
+        AutomataVisualization a = new AutomataVisualization(360, (float) 0.015,
+                                                            automata,
+                                                            edgeMaterials);
         group.getChildren()
-             .add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
-        double[] plus = Automata.getPositiveTet();
-        List<CellNode> necro = new ArrayList<>();
-        for (Cube cube : PhiCoordinates.Cubes) {
-            Automata automata = new Automata(360,
-                                             new CubicGrid(Neighborhood.SIX,
-                                                           cube, 0),
-                                             null, 0.1);
-            CellNode cell = automata.cellNode(plus, edgeMaterials);
-            group.getChildren()
-                 .add(cell);
-            necro.add(cell);
+             .addAll(a.getNodes());
+
+        float[] plus = AutomataVisualization.getPositiveTet();
+        float[] newPlus = new float[30];
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 6; j++) {
+                newPlus[i * 6 + j] = plus[j];
+            }
+        }
+        for (int i = 0; i < a.getNodes().length; i++) {
+            a.getNodes()[i].setState(newPlus);
         }
 
+
+        group.getChildren()
+             .add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
         final Timeline timeline = new Timeline();
         timeline.getKeyFrames()
                 .add(new KeyFrame(Duration.millis(2_500),
-                                  new KeyValue(new WritableValue<Double>() {
+                                  new KeyValue(new WritableValue<Float>() {
                                       @Override
-                                      public Double getValue() {
-                                          return 0D;
+                                      public Float getValue() {
+                                          return 0f;
                                       }
 
                                       @Override
-                                      public void setValue(Double value) {
-                                          double[] newPlus = new double[plus.length];
-                                          for (int i = 0; i < plus.length; i++) {
-                                              newPlus[i] = plus[i]
-                                                           + (i
-                                                              % 2 == 0 ? -Math.toRadians(value)
-                                                                       : Math.toRadians(value));
+                                      public void setValue(Float value) {
+                                          for (int c = 0; c < 5; c++) {
+                                              for (int i = 0; i < 6; i++) {
+                                                  newPlus[(c * 6)
+                                                          + i] = (float) (plus[i]
+                                                                          + (i
+                                                                             % 2 == 0 ? -Math.toRadians(value)
+                                                                                      : Math.toRadians(value)));
+                                              }
                                           }
-                                          for (int i = 0; i < necro.size(); i++) {
-                                              necro.get(i)
-                                                   .setState(newPlus);
+                                          for (int i = 0; i < a.getNodes().length; i++) {
+                                              a.getNodes()[i].setState(newPlus);
                                           }
                                       }
-                                  }, 90D)));
+                                  }, 90f)));
         timeline.setCycleCount(9000);
         timeline.setAutoReverse(true);
         content.setTimeline(timeline);

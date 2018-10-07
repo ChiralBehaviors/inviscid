@@ -16,14 +16,33 @@
 
 package com.chiralbehaviors.inviscid;
 
+import static org.junit.Assert.assertEquals;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.vecmath.Point3i;
+
+import org.junit.Test;
+
 /**
  * @author halhildebrand
  *
  */
-public class Cell {
-    private final float[] rotations = new float[6];
-
-    public float rotation(int face) {
-        return rotations[face];
+public class AutomataTest {
+    @Test
+    public void testIteration() {
+        Necronomata automata = new Necronomata(7, 6, 6);
+        List<Point3i> loop = new ArrayList<>();
+        
+        automata.forEach(c -> loop.add(c));
+        
+        List<Point3i> collected = new ArrayList<>();
+        for (Point3i c: automata) {
+            collected.add(c);
+        }
+        
+        assertEquals(loop, collected);
+        
     }
 }

@@ -46,21 +46,21 @@ public class CubicGrid {
         SIX
     }
 
-    private static Point3D xAxis(Cube cube) {
+    public static Point3D xAxis(Cube cube) {
         Vector3d vector = cube.getFaces()
                               .get(0)
                               .centroid();
         return new Point3D(vector.x, vector.y, vector.z);
     }
 
-    private static Point3D yAxis(Cube cube) {
+    public static Point3D yAxis(Cube cube) {
         Vector3d vector = cube.getFaces()
                               .get(1)
                               .centroid();
         return new Point3D(vector.x, vector.y, vector.z);
     }
 
-    private static Point3D zAxis(Cube cube) {
+    public static Point3D zAxis(Cube cube) {
         Vector3d vector = cube.getFaces()
                               .get(2)
                               .centroid();
@@ -77,7 +77,6 @@ public class CubicGrid {
     private final Point3D                yAxis;
     private final Pair<Integer, Integer> yExtent;
     private final Point3D                zAxis;
-
     private final Pair<Integer, Integer> zExtent;
 
     public CubicGrid(Neighborhood neighborhood) {
