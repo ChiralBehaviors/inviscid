@@ -55,13 +55,13 @@ public class NecronomataAnimation extends PolyView {
     @Override
     protected void initializeContentModel() {
         CubicGrid grid = new CubicGrid(Neighborhood.SIX,
-                                       PhiCoordinates.Cubes[3], 1);
+                                       PhiCoordinates.Cubes[3], 0);
 
         ContentModel content = getContentModel();
         Group group = new Group();
         content.setContent(group);
-        Necronomata automata = new Necronomata(new Point3i(2, 2, 2));
-        NecronomataVisualization visualization = new NecronomataVisualization(360,
+        Necronomata automata = new Necronomata(new Point3i(5, 5, 5));
+        NecronomataVisualization visualization = new NecronomataVisualization(36000,
                                                                               (float) 0.015,
                                                                               automata,
                                                                               edgeMaterials);
@@ -105,9 +105,9 @@ public class NecronomataAnimation extends PolyView {
                     }
                 }
             }
-        }, 90f);
+        }, 45f);
         timeline.getKeyFrames()
-                .add(new KeyFrame(Duration.millis(5_000), keyValue));
+                .add(new KeyFrame(Duration.millis(1_500), keyValue));
         timeline.setCycleCount(9000);
         timeline.setAutoReverse(true);
         content.setTimeline(timeline);
