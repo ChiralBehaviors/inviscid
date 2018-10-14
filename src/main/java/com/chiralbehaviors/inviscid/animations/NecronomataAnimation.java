@@ -60,7 +60,7 @@ public class NecronomataAnimation extends PolyView {
         ContentModel content = getContentModel();
         Group group = new Group();
         content.setContent(group);
-        Necronomata automata = new Necronomata(new Point3i(1, 1, 1));
+        Necronomata automata = new Necronomata(new Point3i(2, 2, 2));
         NecronomataVisualization visualization = new NecronomataVisualization(360,
                                                                               (float) 0.015,
                                                                               automata,
@@ -101,13 +101,13 @@ public class NecronomataAnimation extends PolyView {
                     for (int step = 0; step < Math.abs(deltaIndex); step++) {
                         automata.drive(apply);
                         automata.step();
+                        visualization.update();
                     }
-                    visualization.update();
                 }
             }
         }, 90f);
         timeline.getKeyFrames()
-                .add(new KeyFrame(Duration.millis(2_500), keyValue));
+                .add(new KeyFrame(Duration.millis(5_000), keyValue));
         timeline.setCycleCount(9000);
         timeline.setAutoReverse(true);
         content.setTimeline(timeline);

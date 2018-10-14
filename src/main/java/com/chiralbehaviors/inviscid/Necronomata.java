@@ -36,19 +36,23 @@ public class Necronomata implements Iterable<Point3i> {
     }
 
     private final float[] angle;
-    @SuppressWarnings("unused")
     private final float[] deltaA;
-    @SuppressWarnings("unused")
     private final float[] deltaF;
     private final Point3i extent;
-    @SuppressWarnings("unused")
     private final float[] frequency;
 
     public Necronomata(float[] angles, Point3i extent, float[] frequency) {
-        assert angles.length == 6 * extent.x * extent.y
-                                * extent.z : "angles are not correct in extent";
-        assert frequency.length == 6 * extent.x * extent.y
-                                   * extent.z : "frequencies are not correct in extent";
+        assert angles.length == 30 * extent.x * extent.y
+                                * extent.z : "angles are not correct :"
+                                             + angles.length + " in extent: "
+                                             + 6 * extent.x * extent.y
+                                               * extent.z;
+        assert frequency.length == 30 * extent.x * extent.y
+                                   * extent.z : "frequencies are not correct in extent :"
+                                                + frequency.length
+                                                + " in extent: "
+                                                + 6 * extent.x * extent.y
+                                                  * extent.z;
         this.extent = extent;
         this.angle = angles;
         this.frequency = frequency;
@@ -175,5 +179,5 @@ public class Necronomata implements Iterable<Point3i> {
 
     public void process(Processor action) {
         action.process(angle, frequency, deltaA, deltaF);
-    } 
+    }
 }

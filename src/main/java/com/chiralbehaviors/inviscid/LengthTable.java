@@ -16,10 +16,7 @@
 
 package com.chiralbehaviors.inviscid;
 
-import static com.chiralbehaviors.inviscid.Constants.HALF_PI;
-import static com.chiralbehaviors.inviscid.Constants.QUARTER_PI;
 import static com.chiralbehaviors.inviscid.Constants.ROOT_2;
-import static com.chiralbehaviors.inviscid.Constants.THREE_QUARTERS_PI;
 import static com.chiralbehaviors.inviscid.Constants.TWO_PI;
 
 import javax.vecmath.Vector2d;
@@ -53,9 +50,7 @@ public class LengthTable {
         return new Vector2d(x, y);
     }
 
-    private final double[] lengths;
-
-    private final double   resolution;
+    public final double[] lengths; 
 
     public LengthTable(int subdivisions) {
         if (subdivisions % 8 != 0) {
@@ -67,8 +62,8 @@ public class LengthTable {
         Vector2d center = new Vector2d();
         Vector2d left = new Vector2d(halfEdge, -halfEdge);
         Vector2d right = new Vector2d(halfEdge, 2 * halfEdge);
-        lengths = new double[(subdivisions / 8) + 1];
-        resolution = TWO_PI / subdivisions;
+        lengths = new double[subdivisions / 8];
+        float resolution = TWO_PI / subdivisions;
         double angle = 0;
         for (int i = 0; i < lengths.length; i++) {
             Vector2d pointing = new Vector2d(Math.cos(angle), Math.sin(angle));
@@ -76,63 +71,30 @@ public class LengthTable {
             lengths[i] = Math.min(1, intersection.length());
             angle += resolution;
         }
-    }
+    } 
 
-    public double length(double angle) {
-        angle = angle % TWO_PI;
-
-        if (angle <= QUARTER_PI) {
-            return lengths[(int) (angle / resolution)];
+    public double lengthAt(int step) {
+        if (step < lengths.length) {
+            return lengths[step];
         }
-        if (angle <= HALF_PI) {
-            return lengths[lengths.length
-                           - (int) ((angle - QUARTER_PI) / resolution)];
+        if (step < lengths.length * 2) {
+            return lengths[lengths.length - (step - lengths.length) - 1];
         }
-        if (angle <= THREE_QUARTERS_PI) {
-            return lengths[(int) ((angle - HALF_PI) / resolution)];
+        if (step < lengths.length * 3) {
+            return lengths[step - (lengths.length * 2)];
         }
-        if (angle <= Math.PI) {
-            return lengths[lengths.length
-                           - (int) ((angle - THREE_QUARTERS_PI) / resolution)];
+        if (step < lengths.length * 4) {
+            return lengths[lengths.length - (step - lengths.length * 3) - 1];
         }
-        if (angle <= Math.PI + QUARTER_PI) {
-            return lengths[(int) ((angle - Math.PI) / resolution)];
+        if (step < lengths.length * 5) {
+            return lengths[step - (lengths.length * 4)];
         }
-        if (angle <= Math.PI + HALF_PI) {
-            return lengths[lengths.length
-                           - (int) ((angle - (Math.PI + QUARTER_PI))
-                                    / resolution)];
+        if (step < lengths.length * 6) {
+            return lengths[lengths.length - (step - lengths.length * 5) - 1];
         }
-        if (angle <= Math.PI + THREE_QUARTERS_PI) {
-            return lengths[(int) ((angle - (Math.PI + HALF_PI)) / resolution)];
+        if (step < lengths.length * 7) {
+            return lengths[step - (lengths.length * 6)];
         }
-        return lengths[lengths.length
-                       - (int) ((angle - (Math.PI + THREE_QUARTERS_PI))
-                                / resolution)];
-    }
-
-    public double lengthAt(int index) {
-        if (index < lengths.length) {
-            return lengths[index];
-        }
-        if (index < lengths.length * 2) {
-            return lengths[lengths.length - (index - lengths.length) - 1];
-        }
-        if (index < lengths.length * 3) {
-            return lengths[index - (lengths.length * 2)];
-        }
-        if (index < lengths.length * 4) {
-            return lengths[lengths.length - (index - lengths.length * 3) - 1];
-        }
-        if (index < lengths.length * 5) {
-            return lengths[index - (lengths.length * 4)];
-        }
-        if (index < lengths.length * 6) {
-            return lengths[lengths.length - (index - lengths.length * 5) - 1];
-        }
-        if (index < lengths.length * 7) {
-            return lengths[index - (lengths.length * 6)];
-        }
-        return lengths[lengths.length - (index - lengths.length * 7) - 1];
+        return lengths[lengths.length - (step - lengths.length * 7) - 1];
     }
 }

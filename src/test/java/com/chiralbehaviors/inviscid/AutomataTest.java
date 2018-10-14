@@ -34,15 +34,15 @@ public class AutomataTest {
     public void testIteration() {
         Necronomata automata = new Necronomata(7, 6, 6);
         List<Point3i> loop = new ArrayList<>();
-        
+
         automata.forEach(c -> loop.add(c));
-        
+
         List<Point3i> collected = new ArrayList<>();
-        for (Point3i c: automata) {
+        for (Point3i c : automata) {
             collected.add(c);
         }
-        
+
         assertEquals(loop, collected);
-        
+
     }
 }

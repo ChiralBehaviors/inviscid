@@ -54,18 +54,18 @@ public class NecronomataVisualization extends Group {
 
     private static Point3D       CANONICAL_Y_AXIS = new Point3D(0, 1, 0);
 
-    private static final float[] NEGATIVE_TET     = new float[] { QUARTER_PI,
-                                                                  THREE_QUARTERS_PI,
+    private static final float[] NEGATIVE_TET     = new float[] { THREE_QUARTERS_PI,
                                                                   THREE_QUARTERS_PI,
                                                                   QUARTER_PI,
                                                                   QUARTER_PI,
+                                                                  THREE_QUARTERS_PI,
                                                                   THREE_QUARTERS_PI };
 
-    private static final float[] POSITIVE_TET     = new float[] { THREE_QUARTERS_PI,
-                                                                  QUARTER_PI,
+    private static final float[] POSITIVE_TET     = new float[] { QUARTER_PI,
                                                                   QUARTER_PI,
                                                                   THREE_QUARTERS_PI,
                                                                   THREE_QUARTERS_PI,
+                                                                  QUARTER_PI,
                                                                   QUARTER_PI };
 
     private static final int     STRUTS_PER_CELL  = 6 * 5;
@@ -110,16 +110,10 @@ public class NecronomataVisualization extends Group {
                                                 * ROOT_2, radius);
 
         rotations = new Transform[6][];
-        for (int i = 0; i < 6; i++) {
-            rotations[i] = new Transform[resolution];
-        }
         buildRotations(resolution);
 
-        lengths = new Transform[resolution / 8];
-        LengthTable table = new LengthTable(resolution);
-        for (int i1 = 0; i1 < resolution / 8; i1++) {
-            lengths[i1] = new Scale(table.lengthAt(i1), 1.0, 1.0);
-        }
+        lengths = new Transform[resolution];
+        buildLengths(resolution);
         createCellAnimators(grid, materials, exemplar, halfInterval);
         ObservableList<Node> children = getChildren();
         cells.forEach(cell -> {
@@ -127,6 +121,19 @@ public class NecronomataVisualization extends Group {
                 children.addAll(cell[cube]);
             }
         });
+    }
+
+    private void buildLengths(int resolution) {
+        LengthTable table = new LengthTable(resolution);
+        int index = 0;
+        for (int step = 0; step < resolution; step++) {
+            lengths[index] = new Scale(1.0, table.lengthAt(step), 1.0);
+            index++;
+        }
+        lengths[1] = lengths[0];
+        lengths[2] = lengths[0];
+        lengths[3] = lengths[0];
+        lengths[5] = lengths[4];
     }
 
     public float getAngularResolution() {
@@ -143,6 +150,9 @@ public class NecronomataVisualization extends Group {
     }
 
     private void buildRotations(int resolution) {
+        for (int i = 0; i < 6; i++) {
+            rotations[i] = new Transform[resolution];
+        }
         Point3D axisOfRotation = new Point3D(0, 0, 1);
         for (int i = 0; i < resolution; i++) {
             rotations[0][i] = new Rotate(Math.toDegrees(i * angularResolution),
@@ -221,35 +231,10 @@ public class NecronomataVisualization extends Group {
                               Mesh exemplar, Transform position) {
         MeshView line = new MeshView(exemplar);
         line.getTransforms()
-            .addAll(scale(0).clone(), base, rotations[axis][0].clone(),
-                    translate, position);
+            .clear();
+        line.getTransforms()
+            .addAll(base, rotations[axis][0], lengths[0], translate, position);
         return line;
-    }
-
-    private Transform scale(int step) {
-        if (step < lengths.length) {
-            return lengths[step];
-        }
-        if (step < lengths.length * 2) {
-            return lengths[lengths.length - (step - lengths.length) - 1];
-        }
-        if (step < lengths.length * 3) {
-            return lengths[step - (lengths.length * 2)];
-        }
-        if (step < lengths.length * 4) {
-            return lengths[lengths.length - (step - lengths.length * 3) - 1];
-        }
-        if (step < lengths.length * 5) {
-            return lengths[step - (lengths.length * 4)];
-        }
-        if (step < lengths.length * 6) {
-            return lengths[lengths.length - (step - lengths.length * 5) - 1];
-        }
-        if (step < lengths.length * 7) {
-            return lengths[step - (lengths.length * 6)];
-        }
-        int i = lengths.length - (step - lengths.length * 7) - 1;
-        return lengths[i < 0 ? 0 : i];
     }
 
     private void setState(float[] angle, int cell, MeshView[][] struts) {
@@ -264,8 +249,8 @@ public class NecronomataVisualization extends Group {
                            % resolution;
                 MeshView strut = struts[cube][face];
                 List<Transform> transforms = strut.getTransforms();
-                transforms.set(0, scale(step));
-                transforms.set(2, rotations[face][step]);
+                transforms.set(2, lengths[step]);
+                transforms.set(1, rotations[face][step]);
             }
         }
     }
