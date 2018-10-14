@@ -233,7 +233,7 @@ public class NecronomataVisualization extends Group {
         line.getTransforms()
             .clear();
         line.getTransforms()
-            .addAll(base, rotations[axis][0], lengths[0], translate, position);
+            .addAll(position, base, rotations[axis][0], translate, lengths[0]);
         return line;
     }
 
@@ -249,8 +249,8 @@ public class NecronomataVisualization extends Group {
                            % resolution;
                 MeshView strut = struts[cube][face];
                 List<Transform> transforms = strut.getTransforms();
-                transforms.set(2, lengths[step]);
-                transforms.set(1, rotations[face][step]);
+                transforms.set(4, lengths[step]);
+                transforms.set(2, rotations[face][step]);
             }
         }
     }

@@ -55,7 +55,7 @@ public class NecronomataAnimation extends PolyView {
     @Override
     protected void initializeContentModel() {
         CubicGrid grid = new CubicGrid(Neighborhood.SIX,
-                                       PhiCoordinates.Cubes[3], 0);
+                                       PhiCoordinates.Cubes[3], 1);
 
         ContentModel content = getContentModel();
         Group group = new Group();
