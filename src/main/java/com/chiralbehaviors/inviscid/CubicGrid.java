@@ -30,6 +30,7 @@ import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Material;
 import javafx.scene.shape.Sphere;
+import javafx.scene.transform.Transform;
 import javafx.scene.transform.Translate;
 import javafx.util.Pair;
 import mesh.Line;
@@ -46,21 +47,21 @@ public class CubicGrid {
         SIX
     }
 
-    private static Point3D xAxis(Cube cube) {
+    public static Point3D xAxis(Cube cube) {
         Vector3d vector = cube.getFaces()
                               .get(0)
                               .centroid();
         return new Point3D(vector.x, vector.y, vector.z);
     }
 
-    private static Point3D yAxis(Cube cube) {
+    public static Point3D yAxis(Cube cube) {
         Vector3d vector = cube.getFaces()
                               .get(1)
                               .centroid();
         return new Point3D(vector.x, vector.y, vector.z);
     }
 
-    private static Point3D zAxis(Cube cube) {
+    public static Point3D zAxis(Cube cube) {
         Vector3d vector = cube.getFaces()
                               .get(2)
                               .centroid();
@@ -77,7 +78,6 @@ public class CubicGrid {
     private final Point3D                yAxis;
     private final Pair<Integer, Integer> yExtent;
     private final Point3D                zAxis;
-
     private final Pair<Integer, Integer> zExtent;
 
     public CubicGrid(Neighborhood neighborhood) {
@@ -216,6 +216,13 @@ public class CubicGrid {
                               .add(zAxis.multiply(k * intervalZ));
         node.getTransforms()
             .add(new Translate(vector.getX(), vector.getY(), vector.getZ()));
+    }
+
+    public Transform postitionTransform(double i, double j, double k) {
+        Point3D vector = xAxis.multiply(i * intervalX)
+                              .add(yAxis.multiply(j * intervalY))
+                              .add(zAxis.multiply(k * intervalZ));
+        return new Translate(vector.getX(), vector.getY(), vector.getZ());
     }
 
     private void addAxes(Group grid) {

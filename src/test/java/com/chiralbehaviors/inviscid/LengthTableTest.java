@@ -28,7 +28,7 @@ public class LengthTableTest {
 
     @Test
     public void testIt() {
-        LengthTable t = new LengthTable(360, 1);
+        OldLengthTable t = new OldLengthTable(360, 1);
         assertEquals(Math.sqrt(2) / 2, t.length(Math.PI / 2), 0.001);
         double degree = (2 * Math.PI) / 360;
         assertEquals(1.0, t.length(45 * degree), 0.001);
