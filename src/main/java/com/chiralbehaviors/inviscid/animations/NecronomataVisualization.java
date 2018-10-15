@@ -26,9 +26,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.vecmath.Vector2d;
+
 import com.chiralbehaviors.inviscid.CubicGrid;
 import com.chiralbehaviors.inviscid.CubicGrid.Neighborhood;
-import com.chiralbehaviors.inviscid.LengthTable;
 import com.chiralbehaviors.inviscid.Necronomata;
 import com.chiralbehaviors.inviscid.PhiCoordinates;
 
@@ -51,9 +52,7 @@ import mesh.Line;
  *
  */
 public class NecronomataVisualization extends Group {
-
     private static Point3D       CANONICAL_Y_AXIS = new Point3D(0, 1, 0);
-
     private static final float[] NEGATIVE_TET     = new float[] { THREE_QUARTERS_PI,
                                                                   THREE_QUARTERS_PI,
                                                                   QUARTER_PI,
@@ -78,11 +77,81 @@ public class NecronomataVisualization extends Group {
         return Arrays.copyOf(POSITIVE_TET, POSITIVE_TET.length);
     }
 
+    public static double lengthAt(int step, double[] lengths) {
+        if (step < lengths.length) {
+            return lengths[step];
+        }
+        if (step < lengths.length * 2) {
+            return lengths[lengths.length - (step - lengths.length) - 1];
+        }
+        if (step < lengths.length * 3) {
+            return lengths[step - (lengths.length * 2)];
+        }
+        if (step < lengths.length * 4) {
+            return lengths[lengths.length - (step - lengths.length * 3) - 1];
+        }
+        if (step < lengths.length * 5) {
+            return lengths[step - (lengths.length * 4)];
+        }
+        if (step < lengths.length * 6) {
+            return lengths[lengths.length - (step - lengths.length * 5) - 1];
+        }
+        if (step < lengths.length * 7) {
+            return lengths[step - (lengths.length * 6)];
+        }
+        return lengths[lengths.length - (step - lengths.length * 7) - 1];
+    }
+
+    public static double[] lengths(int subdivisions) {
+        if (subdivisions % 8 != 0) {
+            throw new IllegalArgumentException("Subdivsions must be divisible by 8: "
+                                               + subdivisions);
+        }
+
+        double halfEdge = 1.0 / ROOT_2;
+        Vector2d center = new Vector2d();
+        Vector2d left = new Vector2d(halfEdge, -halfEdge);
+        Vector2d right = new Vector2d(halfEdge, 2 * halfEdge);
+        double[] lengths = new double[subdivisions / 8];
+        float resolution = TWO_PI / subdivisions;
+        double angle = 0;
+        for (int i = 0; i < lengths.length; i++) {
+            Vector2d pointing = new Vector2d(Math.cos(angle), Math.sin(angle));
+            Vector2d intersection = intersect(center, pointing, left, right);
+            lengths[i] = Math.min(1, intersection.length());
+            angle += resolution;
+        }
+        return lengths;
+    }
+
     private static Rotate base(Point3D yAxis) {
         Point3D axisOfRotation = yAxis.crossProduct(CANONICAL_Y_AXIS);
         double angle = Math.acos(yAxis.normalize()
                                       .dotProduct(CANONICAL_Y_AXIS));
         return new Rotate(-Math.toDegrees(angle), axisOfRotation);
+    }
+
+    private static Vector2d intersect(Vector2d a, Vector2d b, Vector2d c,
+                                      Vector2d d) {
+        // Line AB represented as a1x + b1y = c1 
+        double a1 = b.y - a.y;
+        double b1 = a.x - b.x;
+        double c1 = a1 * a.x + b1 * a.y;
+
+        // Line CD represented as a2x + b2y = c2 
+        double a2 = d.y - c.y;
+        double b2 = c.x - d.x;
+        double c2 = a2 * c.x + b2 * c.y;
+
+        double determinant = a1 * b2 - a2 * b1;
+
+        if (determinant == 0) {
+            return b;
+        }
+
+        double x = (b2 * c1 - b1 * c2) / determinant;
+        double y = (a1 * c2 - a2 * c1) / determinant;
+        return new Vector2d(x, y);
     }
 
     private final float              angularResolution;
@@ -123,19 +192,6 @@ public class NecronomataVisualization extends Group {
         });
     }
 
-    private void buildLengths(int resolution) {
-        LengthTable table = new LengthTable(resolution);
-        int index = 0;
-        for (int step = 0; step < resolution; step++) {
-            lengths[index] = new Scale(1.0, table.lengthAt(step), 1.0);
-            index++;
-        }
-        lengths[1] = lengths[0];
-        lengths[2] = lengths[0];
-        lengths[3] = lengths[0];
-        lengths[5] = lengths[4];
-    }
-
     public float getAngularResolution() {
         return angularResolution;
     }
@@ -147,6 +203,19 @@ public class NecronomataVisualization extends Group {
                 setState(angle, cell, cells.get(cell));
             });
         }
+    }
+
+    private void buildLengths(int resolution) {
+        double[] table = lengths(resolution);
+        int index = 0;
+        for (int step = 0; step < resolution; step++) {
+            lengths[index] = new Scale(1.0, lengthAt(step, table), 1.0);
+            index++;
+        }
+        lengths[1] = lengths[0];
+        lengths[2] = lengths[0];
+        lengths[3] = lengths[0];
+        lengths[5] = lengths[4];
     }
 
     private void buildRotations(int resolution) {
