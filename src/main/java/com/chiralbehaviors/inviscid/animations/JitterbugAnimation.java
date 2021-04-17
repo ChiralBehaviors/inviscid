@@ -46,12 +46,18 @@ import mesh.polyhedra.plato.Octahedron;
  *
  */
 public class JitterbugAnimation extends PolyView {
+    public static class Launcher {
+
+        public static void main(String[] argv) {
+            JitterbugAnimation.main(argv);
+        }
+    }
+
     public static void main(String[] args) {
         launch(args);
     }
 
-    public void jitterbugArray(Group group, Octahedron[] octahedrons,
-                               List<Jitterbug> jitterbugs, CubicGrid grid,
+    public void jitterbugArray(Group group, Octahedron[] octahedrons, List<Jitterbug> jitterbugs, CubicGrid grid,
                                double initialAngle) {
         for (int x : new int[] { -1, 1 }) {
             for (int y : new int[] { -1, 1 }) {
@@ -60,8 +66,7 @@ public class JitterbugAnimation extends PolyView {
                     j.rotateTo(initialAngle);
                     Group jGroup = j.getGroup();
                     grid.postition(x, y, z, jGroup);
-                    group.getChildren()
-                         .add(jGroup);
+                    group.getChildren().add(jGroup);
                     jitterbugs.add(j);
                 }
             }
@@ -74,50 +79,38 @@ public class JitterbugAnimation extends PolyView {
         Group group = new Group();
         List<Jitterbug> jitterbugs = new ArrayList<>();
 
-        CubicGrid grid = new CubicGrid(Neighborhood.EIGHT,
-                                       PhiCoordinates.Cubes[3], 1);
-        group.getChildren()
-             .add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
+        CubicGrid grid = new CubicGrid(Neighborhood.EIGHT, PhiCoordinates.Cubes[3], 1);
+        group.getChildren().add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
 
         Jitterbug j = new Jitterbug(PhiCoordinates.Octahedrons[4], materials,
-                                    new boolean[] { true, false, false, false,
-                                                    false, false, false,
-                                                    false });
+                new boolean[] { true, false, false, false, false, false, false, false });
         j.rotateTo(00);
         Group jGroup = j.getGroup();
-        group.getChildren()
-             .add(jGroup);
+        group.getChildren().add(jGroup);
         jitterbugs.add(j);
 
-        group.getChildren()
-             .add(new Ellipse(0, PhiCoordinates.Octahedrons[4],
-                              0).construct(40, redMaterial, 0.015));
-        group.getChildren()
-             .add(new Ellipse(0, PhiCoordinates.Octahedrons[4],
-                              1).construct(40, blueMaterial, 0.015));
-        group.getChildren()
-             .add(new Ellipse(0, PhiCoordinates.Octahedrons[4],
-                              2).construct(40, greenMaterial, 0.015));
+        group.getChildren().add(new Ellipse(0, PhiCoordinates.Octahedrons[4], 0).construct(40, redMaterial, 0.015));
+        group.getChildren().add(new Ellipse(0, PhiCoordinates.Octahedrons[4], 1).construct(40, blueMaterial, 0.015));
+        group.getChildren().add(new Ellipse(0, PhiCoordinates.Octahedrons[4], 2).construct(40, greenMaterial, 0.015));
 
-        //        jitterbugArray(group, PhiCoordinates.Octahedrons, jitterbugs, grid, (double) 0);
+        // jitterbugArray(group, PhiCoordinates.Octahedrons, jitterbugs, grid, (double)
+        // 0);
 
         content.setContent(group);
         final Timeline timeline = new Timeline();
-        timeline.getKeyFrames()
-                .add(new KeyFrame(Duration.millis(5_000),
-                                  new KeyValue(new WritableValue<Double>() {
-                                      @Override
-                                      public Double getValue() {
-                                          return 0d;
-                                      }
+        timeline.getKeyFrames().add(new KeyFrame(Duration.millis(5_000), new KeyValue(new WritableValue<Double>() {
+            @Override
+            public Double getValue() {
+                return 0d;
+            }
 
-                                      @Override
-                                      public void setValue(Double value) {
-                                          jitterbugs.forEach(j -> j.rotateTo(value));
-                                      }
-                                  }, 60d)));
-                timeline.setCycleCount(9000);
-                timeline.setAutoReverse(true);
+            @Override
+            public void setValue(Double value) {
+                jitterbugs.forEach(j -> j.rotateTo(value));
+            }
+        }, 60d)));
+        timeline.setCycleCount(9000);
+        timeline.setAutoReverse(true);
         content.setTimeline(timeline);
     }
 }

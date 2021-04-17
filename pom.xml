@@ -7,6 +7,14 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<name>Inviscid</name>
 	<description>Cellular automata using jitterbugs</description>
+
+	<properties>
+		<javafx.version>15</javafx.version>
+		<maven.compiler.source>15</maven.compiler.source>
+		<maven.compiler.target>15</maven.compiler.target>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+
 	<licenses>
 		<license>
 			<name>Apache License Version 2.0</name>
@@ -46,9 +54,19 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>com.chiralbehaviors.javafx</groupId>
-			<artifactId>3dviewer</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-controls</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-fxml</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-swing</artifactId>
+			<version>${javafx.version}</version>
 		</dependency>
 
 		<dependency>

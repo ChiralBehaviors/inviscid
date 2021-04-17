@@ -41,12 +41,15 @@ import javafx.util.Duration;
  *
  */
 public class NecronomataAnimation extends PolyView {
-    private static final Material[] edgeMaterials = new PhongMaterial[] { blueMaterial,
-                                                                          blueMaterial,
-                                                                          blueMaterial,
-                                                                          blueMaterial,
-                                                                          blueMaterial,
-                                                                          blueMaterial };
+    public static class Launcher {
+
+        public static void main(String[] argv) {
+            NecronomataAnimation.main(argv);
+        }
+    }
+
+    private static final Material[] edgeMaterials = new PhongMaterial[] { blueMaterial, blueMaterial, blueMaterial,
+                                                                          blueMaterial, blueMaterial, blueMaterial };
 
     public static void main(String[] args) {
         launch(args);
@@ -54,22 +57,17 @@ public class NecronomataAnimation extends PolyView {
 
     @Override
     protected void initializeContentModel() {
-        CubicGrid grid = new CubicGrid(Neighborhood.SIX,
-                                       PhiCoordinates.Cubes[3], 0);
+        CubicGrid grid = new CubicGrid(Neighborhood.SIX, PhiCoordinates.Cubes[3], 0);
 
         ContentModel content = getContentModel();
         Group group = new Group();
         content.setContent(group);
         Necronomata automata = new Necronomata(new Point3i(5, 5, 5));
-        NecronomataVisualization visualization = new NecronomataVisualization(3600,
-                                                                              (float) 0.015,
-                                                                              automata,
-                                                                              edgeMaterials);
-        group.getChildren()
-             .add(visualization);
+        NecronomataVisualization visualization = new NecronomataVisualization(3600, (float) 0.015, automata,
+                edgeMaterials);
+        group.getChildren().add(visualization);
 
-        group.getChildren()
-             .add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
+        group.getChildren().add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
 
         float[] delta = new float[6];
         float[] minusDelta = new float[6];
@@ -91,8 +89,7 @@ public class NecronomataAnimation extends PolyView {
 
             @Override
             public void setValue(Float value) {
-                int nextIndex = (int) (Math.toRadians(value)
-                                       / visualization.getAngularResolution());
+                int nextIndex = (int) (Math.toRadians(value) / visualization.getAngularResolution());
                 int currentIndex = lastIndex;
                 if (currentIndex != nextIndex) {
                     int deltaIndex = nextIndex - currentIndex;
@@ -106,8 +103,7 @@ public class NecronomataAnimation extends PolyView {
                 }
             }
         }, 45f);
-        timeline.getKeyFrames()
-                .add(new KeyFrame(Duration.millis(1_000), keyValue));
+        timeline.getKeyFrames().add(new KeyFrame(Duration.millis(1_000), keyValue));
         timeline.setCycleCount(9000);
         timeline.setAutoReverse(true);
         content.setTimeline(timeline);
