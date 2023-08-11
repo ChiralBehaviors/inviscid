@@ -9,9 +9,9 @@
 	<description>Cellular automata using jitterbugs</description>
 
 	<properties>
-		<javafx.version>15</javafx.version>
-		<maven.compiler.source>15</maven.compiler.source>
-		<maven.compiler.target>15</maven.compiler.target>
+		<javafx.version>20</javafx.version>
+		<maven.compiler.source>20</maven.compiler.source>
+		<maven.compiler.target>20</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
@@ -33,24 +33,7 @@
 	<scm>
 		<connection>git://github.com/ChiralBehaviors/inviscid.git</connection>
 		<url>https://github.com/ChiralBehaviors/inviscid</url>
-	</scm>
-
-	<repositories>
-		<repository>
-			<id>chiralbehaviors-snapshots</id>
-			<url>http://repository-chiralbehaviors.forge.cloudbees.com/snapshot/</url>
-			<snapshots>
-				<enabled>true</enabled>
-			</snapshots>
-		</repository>
-		<repository>
-			<id>chiralbehaviors-release</id>
-			<url>http://repository-chiralbehaviors.forge.cloudbees.com/release/</url>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-		</repository>
-	</repositories>
+	</scm> 
 
 	<dependencies>
 		<dependency>
