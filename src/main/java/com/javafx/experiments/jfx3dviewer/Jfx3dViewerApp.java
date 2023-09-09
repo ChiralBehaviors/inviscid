@@ -44,6 +44,13 @@ import javafx.stage.Stage;
  * JavaFX 3D Viewer Application
  */
 public class Jfx3dViewerApp extends Application {
+    public static class Launcher {
+
+        public static void main(String[] argv) {
+            Jfx3dViewerApp.main(argv);
+        }
+    }
+
     public static final String  FILE_URL_PROPERTY = "fileUrl";
     private static ContentModel contentModel;
 
@@ -67,19 +74,15 @@ public class Jfx3dViewerApp extends Application {
         List<String> args = getParameters().getRaw();
         if (!args.isEmpty()) {
             sessionManager.getProperties()
-                          .setProperty(FILE_URL_PROPERTY,
-                                       new File(args.get(0)).toURI()
-                                                            .toURL()
-                                                            .toString());
+                          .setProperty(FILE_URL_PROPERTY, new File(args.get(0)).toURI().toURL().toString());
         }
-        Scene scene = new Scene(FXMLLoader.<Parent> load(Jfx3dViewerApp.class.getResource("main.fxml")),
-                                1024, 600);
+        Scene scene = new Scene(FXMLLoader.<Parent>load(Jfx3dViewerApp.class.getResource("main.fxml")), 1024, 600);
         stage.setScene(scene);
         stage.show();
 
         stage.setOnCloseRequest(event -> sessionManager.saveSession());
 
-        //        org.scenicview.ScenicView.show(contentModel.getSubScene().getRoot());
+        // org.scenicview.ScenicView.show(contentModel.getSubScene().getRoot());
     }
 
     protected void initializeContentModel() {

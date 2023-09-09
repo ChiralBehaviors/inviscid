@@ -35,79 +35,56 @@ import mesh.polyhedra.Polyhedron;
  */
 public class PolyView extends Jfx3dViewerApp {
 
-    public final double __TAU        = (1.0 + Math.sqrt(5.0)) / 2.0;
-    public final double DODECA_ANGLE = Math.acos((3.0 * (__TAU + (1.0 / 3.0)))
-                                                 / ((__TAU * __TAU)
-                                                    * (2.0 * Math.sqrt(2))));
-    public final double ICOSA_ANGLE  = Math.acos((__TAU * __TAU)
-                                                 / (2.0 * Math.sqrt(2)));
-
-    public void addEdgesOf(Group group, Polyhedron poly, double radius,
-                           Material material) {
+    public void addEdgesOf(Group group, Polyhedron poly, double radius, Material material) {
         for (Edge edge : poly.getEdges()) {
             Line line = edge.createLine(radius);
             line.setMaterial(material);
-            group.getChildren()
-                 .add(line);
+            group.getChildren().add(line);
         }
     }
 
-    public void addFaces(Group group, Polyhedron poly,
-                         Material[] faceMaterials) {
+    public void addFaces(Group group, Polyhedron poly, Material[] faceMaterials) {
         int i = 0;
         for (Face face : poly.getFaces()) {
             MeshView mesh = face.constructMeshView();
             mesh.setMaterial(faceMaterials[i++]);
-            group.getChildren()
-                 .add(mesh);
+            group.getChildren().add(mesh);
         }
     }
 
-    public void addPlainPolyhedron(Group group, Polyhedron poly,
-                                   Material meshMaterial) {
+    public void addPlainPolyhedron(Group group, Polyhedron poly, Material meshMaterial) {
         MeshView view = new MeshView(poly.toTriangleMesh().constructMesh());
         view.setMaterial(meshMaterial);
-        group.getChildren()
-             .add(view);
-        poly.getEdges()
-            .forEach(e -> {
-                Line line = e.createLine(.015);
-                line.setMaterial(blackMaterial);
-                group.getChildren()
-                     .addAll(line);
-            });
+        group.getChildren().add(view);
+        poly.getEdges().forEach(e -> {
+            Line line = e.createLine(.015);
+            line.setMaterial(blackMaterial);
+            group.getChildren().addAll(line);
+        });
     }
 
-    public void addPolyhedron(Group group, Polyhedron poly,
-                              Material meshMaterial,
-                              Material[] vertexMaterials) {
+    public void addPolyhedron(Group group, Polyhedron poly, Material meshMaterial, Material[] vertexMaterials) {
         MeshView view = new MeshView(poly.toTriangleMesh().constructMesh());
         view.setMaterial(meshMaterial);
-        group.getChildren()
-             .add(view);
+        group.getChildren().add(view);
         int i = 0;
         for (Sphere s : poly.getVertices(3.5)) {
             s.setMaterial(vertexMaterials[i]);
             i = (i + 1) % vertexMaterials.length;
-            group.getChildren()
-                 .add(s);
+            group.getChildren().add(s);
         }
-        poly.getEdges()
-            .forEach(e -> {
-                Line line = e.createLine(.015);
-                line.setMaterial(blackMaterial);
-                group.getChildren()
-                     .addAll(line);
-            });
+        poly.getEdges().forEach(e -> {
+            Line line = e.createLine(.015);
+            line.setMaterial(blackMaterial);
+            group.getChildren().addAll(line);
+        });
     }
 
-    public void addVerticesOf(Group group, Polyhedron poly, double radius,
-                              Material[] materials) {
+    public void addVerticesOf(Group group, Polyhedron poly, double radius, Material[] materials) {
         int i = 0;
         for (Sphere s : poly.getVertices(radius)) {
             s.setMaterial(materials[i++]);
-            group.getChildren()
-                 .add(s);
+            group.getChildren().add(s);
         }
     }
 
