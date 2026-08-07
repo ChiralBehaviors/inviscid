@@ -195,7 +195,7 @@ public class NecronomataVisualization extends Group {
                 cell[cube] = new MeshView[6];
                 Rotate base = base(yAxis(PhiCoordinates.Cubes[cube]));
                 MeshView view;
-                Transform position = grid.postitionTransform(location.x
+                Transform position = grid.positionTransform(location.x
                                                              - Math.ceil(automata.getExtent().x
                                                                          / 2),
                                                              location.y - Math.ceil(automata.getExtent().y

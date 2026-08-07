@@ -65,7 +65,7 @@ public class JitterbugAnimation extends PolyView {
                     Jitterbug j = new Jitterbug(octahedrons[4], materials);
                     j.rotateTo(initialAngle);
                     Group jGroup = j.getGroup();
-                    grid.postition(x, y, z, jGroup);
+                    grid.position(x, y, z, jGroup);
                     group.getChildren().add(jGroup);
                     jitterbugs.add(j);
                 }

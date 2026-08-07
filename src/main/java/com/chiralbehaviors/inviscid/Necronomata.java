@@ -45,13 +45,13 @@ public class Necronomata implements Iterable<Point3i> {
         assert angles.length == 30 * extent.x * extent.y
                                 * extent.z : "angles are not correct :"
                                              + angles.length + " in extent: "
-                                             + 6 * extent.x * extent.y
+                                             + 30 * extent.x * extent.y
                                                * extent.z;
         assert frequency.length == 30 * extent.x * extent.y
                                    * extent.z : "frequencies are not correct in extent :"
                                                 + frequency.length
                                                 + " in extent: "
-                                                + 6 * extent.x * extent.y
+                                                + 30 * extent.x * extent.y
                                                   * extent.z;
         this.extent = extent;
         this.angle = angles;
@@ -98,7 +98,7 @@ public class Necronomata implements Iterable<Point3i> {
     }
 
     public int indexOfCell(int i, int j, int k) {
-        return i * extent.x + j * extent.y + k * extent.z;
+        return 30 * ((i * extent.y + j) * extent.z + k);
     }
 
     public int indexOfCell(Point3i cell) {

@@ -185,14 +185,14 @@ public class CubicGrid {
         return zExtent;
     }
 
-    public void postition(double i, double j, double k, Node node) {
+    public void position(double i, double j, double k, Node node) {
         Point3D vector = xAxis.multiply(i * intervalX)
                               .add(yAxis.multiply(j * intervalY))
                               .add(zAxis.multiply(k * intervalZ));
         node.getTransforms().add(new Translate(vector.getX(), vector.getY(), vector.getZ()));
     }
 
-    public Transform postitionTransform(double i, double j, double k) {
+    public Transform positionTransform(double i, double j, double k) {
         Point3D vector = xAxis.multiply(i * intervalX)
                               .add(yAxis.multiply(j * intervalY))
                               .add(zAxis.multiply(k * intervalZ));
