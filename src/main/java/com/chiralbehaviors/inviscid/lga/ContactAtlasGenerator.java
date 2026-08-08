@@ -40,6 +40,25 @@ import com.chiralbehaviors.inviscid.measure.ConservationAudit;
  * this class from the measurement campaign it feeds; this class never picks
  * a final value itself).
  *
+ * <h2>N_lga=24 (the committed artifact's value, USER DECISION 2026-08-08)</h2>
+ * Recorded verbatim on bead inviscid-0nx.16's {@code --design} field, full
+ * data in T2 {@code inviscid/analysis-nlga-candidates.md} (post
+ * inviscid-0nx.16.1 correction). Summary: over the exhaustive 446-combo
+ * campaign (native 360-step discovery, the provable ceiling), transcription
+ * error was lowest at 24 (0.19%, 2x better than 16); 12 was empirically
+ * DOMINATED by 8 (0.49% vs 0.42% - a genuine bin-boundary aliasing effect,
+ * not sampling noise); the 20.18% floor risk (90/446 combos with a
+ * near-point contact region narrower than even the coarsest 45-degree bin)
+ * is N_lga-INVARIANT across the whole {8,12,16,24} candidate range - a
+ * radius/geometry property no candidate resolution fixes, so it did not
+ * discriminate between them; and every candidate's cost (rows, generation
+ * wall time) was trivial. The one real cost of choosing 24 - dynamic
+ * coverage dilution at finer bins - was addressed by scaling up {@code
+ * ticksObserved} for the committed generation run (see {@link
+ * CommittedContactAtlasTest} for the achieved-vs-targeted coverage result,
+ * which came in well below the crude Poisson-saturation extrapolation - an
+ * honestly-reported miss, not a silently-accepted one).
+ *
  * <h2>Two data sources, merged</h2>
  * <ol>
  * <li><b>Geometric ground truth</b> ({@link #sweepGeometricGroundTruth}) -
@@ -408,26 +427,55 @@ public final class ContactAtlasGenerator {
     }
 
     /**
-     * Regenerates a provisional, candidate atlas at {@code args[0]}'s
-     * {@code nLga} (default 12) and writes it under {@code target/} - NEVER
-     * {@code src/test/resources/lga/} (that path is reserved for the final,
-     * user-decided N_lga per bead inviscid-0nx.16). Run manually (IDE or
-     * classpath invocation - no exec plugin is configured in this project).
+     * Regenerates an atlas, reproducible from the header parameters alone
+     * (bead inviscid-0nx.16's acceptance criterion): {@code args[0]} is
+     * {@code nLga} (default 12, a provisional candidate value - NOT the
+     * epic's user-reserved decision unless explicitly passed), {@code
+     * args[1]} is {@code ticksObserved} (default {@link #DEFAULT_TICKS}),
+     * {@code args[2]} is the output path (default {@code
+     * target/contact-atlas-candidate-n<nLga>.tsv} - a caller writing the
+     * FINAL, user-decided atlas must pass {@code
+     * src/test/resources/lga/contact-atlas-v1.tsv} explicitly; this
+     * method never defaults there itself, so an accidental bare
+     * invocation cannot silently overwrite the committed artifact). Run
+     * manually (IDE or classpath invocation - no exec plugin is
+     * configured in this project).
      */
     public static void main(String[] args) throws IOException {
         int nLga = args.length > 0 ? Integer.parseInt(args[0]) : 12;
+        int ticks = args.length > 1 ? Integer.parseInt(args[1])
+                                     : DEFAULT_TICKS;
         Point3i extent = DEFAULT_EXTENT;
         long seed = DEFAULT_SEED;
-        int ticks = DEFAULT_TICKS;
+        Path out = args.length > 2 ? Path.of(args[2])
+                                    : Path.of("target",
+                                              "contact-atlas-candidate-n"
+                                              + nLga + ".tsv");
 
         long start = System.nanoTime();
         ContactAtlas atlas = generate(nLga, extent, seed, ticks);
         long elapsedMs = (System.nanoTime() - start) / 1_000_000;
 
-        Path out = Path.of("target", "contact-atlas-candidate-n" + nLga
-                                      + ".tsv");
+        long contactRows = 0;
+        long observedRows = 0;
+        for (ContactAtlas.Row row : atlas.rows()) {
+            if (row.contact()) {
+                contactRows++;
+            }
+            if (row.observedCount() > 0) {
+                observedRows++;
+            }
+        }
+
         atlas.write(out);
-        System.out.println("nLga=" + nLga + " rows=" + atlas.rows().size()
-                            + " elapsedMs=" + elapsedMs + " -> " + out);
+        System.out.println("nLga=" + nLga + " ticksObserved=" + ticks
+                            + " rows=" + atlas.rows().size() + " (contact="
+                            + contactRows + ", no-contact="
+                            + (atlas.rows().size() - contactRows)
+                            + ") (observed>0=" + observedRows
+                            + ", observed=0=" + (atlas.rows().size()
+                                                  - observedRows)
+                            + ") elapsedMs=" + elapsedMs + " gitCommit="
+                            + atlas.header().gitCommit() + " -> " + out);
     }
 }
