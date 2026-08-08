@@ -1,0 +1,325 @@
+/**
+ * Copyright (c) 2016 Chiral Behaviors, LLC, all rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.chiralbehaviors.inviscid.measure;
+
+import com.chiralbehaviors.inviscid.Necronomata;
+
+/**
+ * Records a per-member angle time series from a {@link Necronomata} and
+ * turns it into a deterministic power spectrum.
+ *
+ * <h2>The ramp-vs-sinusoid choice</h2>
+ * A free rotor's angle is a linear phase ramp - {@code
+ * Necronomata.step()} advances {@code angle[m] += QUANTUM_RATE *
+ * frequency[m]} every tick, unbounded, never wrapped mod 2*pi - so a K=0
+ * baseline member's recorded series looks like {@code theta(n) = theta0 +
+ * omega*n}. Three ways to turn that into something spectrally meaningful
+ * were considered; {@code exp(i*angle)}, the complex analytic-signal
+ * mapping, was chosen:
+ *
+ * <ul>
+ * <li><b>Raw angle.</b> Rejected outright: a ramp is not periodic within a
+ * finite analysis window, so its DFT smears broadband across many bins
+ * (looks like a chirp) even though the physical rotor has one well-defined
+ * frequency. This is "the ramp problem" this class exists to solve.</li>
+ *
+ * <li><b>{@code sin(angle)} / {@code cos(angle)}.</b> Periodic and
+ * tempting, but real-valued: a real signal's DFT is conjugate-symmetric
+ * ({@code X[N-k] == conj(X[k])}), so one physical rotation frequency
+ * produces <i>two</i> equal-magnitude bins (k and N-k), not the single
+ * dominant line the K=0 baseline should show. Making "one line" true would
+ * require an extra half-spectrum convention, and multiple simultaneous
+ * rotors would still waste half the spectrum on mirror images that can
+ * collide with each other under folding.</li>
+ *
+ * <li><b>Differencing</b> ({@code angle[n] - angle[n-1]}). For a pure free
+ * rotor the difference is <i>constant</i> ({@code == QUANTUM_RATE *
+ * frequency}), i.e. differencing collapses exactly the quantity a spectrum
+ * is supposed to reveal - the rotation frequency - into DC (bin 0),
+ * regardless of what that frequency actually is. Useful later as a
+ * collision-event / residual detector once rotors are no longer perfectly
+ * free, wrong as a baseline spectral estimator.</li>
+ *
+ * <li><b>{@code exp(i*angle) = cos(angle) + i*sin(angle)}, the choice made
+ * here.</b> Treats the angle as the instantaneous phase of a complex
+ * analytic signal on the unit circle. For the linear ramp this becomes
+ * {@code exp(i*theta0) * exp(i*omega*n)} - an <i>exact</i> pure complex
+ * exponential at digital frequency {@code omega}, landing on exactly one
+ * non-mirrored bin with no detrending step and no phantom mirror image,
+ * and - unlike {@code sin}/{@code cos} - it discriminates rotation
+ * <i>direction</i>: a negative-rate rotor lands at bin {@code (N-|k|) mod
+ * N}, not at the same bin as its positive-rate mirror (verified by
+ * {@code SpectrumAnalyzerTest#constantRateRotorNegativeFrequencyGivesMirroredSpectralLine}).
+ * This is the standard analytic-signal / instantaneous-phase trick, it
+ * requires no assumption that the ramp stay perfectly linear (a
+ * collision-perturbed phase trajectory still maps to a well-defined
+ * instantaneous complex phase), and it is what makes "one dominant
+ * spectral line per constant-rate rotor" true by construction rather than
+ * by convention.</li>
+ * </ul>
+ *
+ * <h2>Window choice</h2>
+ * {@link #powerSpectrum(float[], WindowFunction)} windows the {@code
+ * exp(i*angle)} series before the FFT. Two windows are exposed:
+ *
+ * <ul>
+ * <li>{@link WindowFunction#RECTANGULAR} - no windowing (multiply by 1).
+ * Correct for the K=0 baseline: a bin-aligned pure tone is already exactly
+ * periodic in the analysis window, so there is no edge discontinuity to
+ * suppress, and rectangular is the only one of the two windows that
+ * concentrates (near) all of a bin-aligned tone's power into its single
+ * bin (empirically &gt;99%; see {@code
+ * SpectrumAnalyzerTest#windowFunctionControlsPeakBinConcentration}). Use
+ * this for any K=0 acceptance check that thresholds peak-bin
+ * concentration (e.g. bead inviscid-0nx.7 / B.2's &gt;=0.95 requirement) -
+ * {@link WindowFunction#HANN} cannot reach that threshold, see below.</li>
+ *
+ * <li>{@link WindowFunction#HANN} ({@code
+ * 0.5*(1-cos(2*pi*n/(N-1)))}). <b>Caps peak-bin concentration at exactly
+ * 2/3 for any bin-aligned tone</b> - this is a provable property of Hann's
+ * three-point (0.25, 0.5, 0.25) frequency-domain smearing across bins
+ * k-1, k, k+1, not an artifact of this implementation (confirmed
+ * empirically at N=256 for k=4 and k=8: 0.664-0.667). An earlier version
+ * of this javadoc claimed Hann was "close to a no-op" for the K=0 case;
+ * that was wrong - it leaks a third of the tone's power out of its home
+ * bin unconditionally. Hann still earns its place once collision physics
+ * (bead inviscid-0nx.14) perturb the phase trajectory: the series is then
+ * no longer a perfect ramp between window edges, and Hann's low sidelobes
+ * keep that leakage from swamping genuine collision-broadened lines in a
+ * way rectangular's high sidelobes would not. Choose it for that
+ * non-periodic case (Phase A / bead inviscid-0nx.9's S(k,omega)), not for
+ * K=0 peak-concentration checks.</li>
+ * </ul>
+ *
+ * {@link #powerSpectrum(float[])} - the no-window-argument convenience
+ * overload - defaults to {@link WindowFunction#HANN} for that same
+ * forward-looking reason; callers that need the K=0
+ * &gt;=0.95-concentration behavior must call {@link
+ * #powerSpectrum(float[], WindowFunction)} with {@link
+ * WindowFunction#RECTANGULAR} explicitly.
+ *
+ * <h2>Float32 angle-accumulation precision ceiling</h2>
+ * {@code Necronomata.angle} is {@code float} (32-bit), accumulated by
+ * {@code step()} unbounded and never wrapped mod 2*pi. Every tick after
+ * the first pushes the value further from zero, and float32's fixed
+ * 24-bit mantissa means the ULP (the smallest representable increment)
+ * grows with magnitude - so a fixed-size {@code deltaA} increment
+ * eventually rounds away partially, then completely. Measured (actual
+ * Java {@code float} accumulation, not a hand-wave estimate) as the
+ * relative error of the locally-observed rotation rate within a
+ * 4096-sample analysis window, as a function of prior warm-up ticks:
+ *
+ * <pre>
+ *     10,000 prior ticks:        0.016% rate error
+ *     1,000,000 prior ticks:     0.72%  rate error
+ *     2^23 (~8,388,608) ticks:  -10.5%  rate error   (universal float32 ULP-crossing threshold)
+ *     50,000,000 ticks:         -100%   rate error   (angle stops advancing entirely)
+ * </pre>
+ *
+ * The {@code 2^23}-tick cliff is <b>frequency-independent</b> - it is the
+ * point at which a float32's ULP first exceeds a full {@code QUANTUM_RATE}
+ * increment regardless of {@code frequency}, so it applies uniformly to
+ * every member, not just fast rotors. This failure mode is silent: it
+ * would present in a spectrum as line broadening or a spurious frequency
+ * shift, indistinguishable from the genuine collision broadening this
+ * measurement layer exists to detect (the "instrument contaminates the
+ * measurement" trap). <b>Guidance:</b> any workflow that warms up a
+ * {@code Necronomata} for many ticks before recording a series must keep
+ * total ticks (warm-up plus the recorded window) well under ~1,000,000 to
+ * stay under ~1% rate error, or must wait for the root-cause fix (wrapping
+ * {@code angle} mod 2*pi in {@code Necronomata}, tracked as bead
+ * inviscid-vb9, deliberately out of scope for this class) before running
+ * long-warm-up experiments. {@code SpectrumAnalyzerTest}'s synthetic rotor
+ * series are generated fresh per sample (not accumulated), so they do not
+ * exercise this failure mode and cannot be used to detect a regression in
+ * it.
+ *
+ * @author halhildebrand
+ */
+public final class SpectrumAnalyzer {
+
+    /**
+     * Window applied to the {@code exp(i*angle)} series before the FFT.
+     * See the class javadoc's "Window choice" section for the tradeoff.
+     */
+    public enum WindowFunction {
+        /** No windowing (multiply by 1 everywhere). */
+        RECTANGULAR,
+        /** {@code 0.5*(1-cos(2*pi*n/(N-1)))}. Caps peak-bin concentration
+         * at 2/3 for a bin-aligned tone; see class javadoc. */
+        HANN
+    }
+
+    private SpectrumAnalyzer() {
+    }
+
+    /**
+     * The expected FFT bin (0..n-1, wrapped) for a member rotating at
+     * {@code frequency} quanta (the same signed quantity {@code
+     * Necronomata.frequency} holds - {@code deltaA == QUANTUM_RATE *
+     * frequency} radians/step). Negative frequencies wrap to the upper
+     * half of the bin range ({@code (N-|k|) mod N}), matching where
+     * {@link #powerSpectrum} actually places a negative-rate rotor's
+     * single line (see the ramp-vs-sinusoid section on direction
+     * discrimination). Inverse of {@link #frequencyForBin(int, int)}.
+     */
+    public static int expectedBinForFrequency(float frequency, int n) {
+        if (n <= 0) {
+            throw new IllegalArgumentException("n must be positive, was "
+                                                + n);
+        }
+        double k = (double) frequency * n / Necronomata.PHASE_RESOLUTION;
+        long rounded = Math.round(k);
+        long wrapped = ((rounded % n) + n) % n;
+        return (int) wrapped;
+    }
+
+    /**
+     * The signed frequency (quanta, {@code Necronomata.frequency}
+     * convention) whose rotor would peak at bin {@code bin} of an
+     * {@code n}-sample spectrum. Bins in the upper half ({@code bin >
+     * n/2}) are interpreted as negative frequencies, per the standard FFT
+     * negative-frequency convention. Approximate inverse of {@link
+     * #expectedBinForFrequency(float, int)} (exact when the forward
+     * mapping did not need rounding).
+     */
+    public static double frequencyForBin(int bin, int n) {
+        if (n <= 0) {
+            throw new IllegalArgumentException("n must be positive, was "
+                                                + n);
+        }
+        int normalized = ((bin % n) + n) % n;
+        int signed = normalized > n / 2 ? normalized - n : normalized;
+        return (double) signed * Necronomata.PHASE_RESOLUTION / n;
+    }
+
+    /**
+     * Peak bin: the index of the largest value in {@code powerSpectrum}.
+     * Ties resolve to the lowest index.
+     */
+    public static int peakBin(double[] powerSpectrum) {
+        int peak = 0;
+        for (int i = 1; i < powerSpectrum.length; i++) {
+            if (powerSpectrum[i] > powerSpectrum[peak]) {
+                peak = i;
+            }
+        }
+        return peak;
+    }
+
+    /**
+     * {@link #powerSpectrum(float[], WindowFunction)} with {@link
+     * WindowFunction#HANN} - see the class javadoc's "Window choice"
+     * section for why that is the default and when callers must instead
+     * pass {@link WindowFunction#RECTANGULAR} explicitly.
+     */
+    public static double[] powerSpectrum(float[] angleSeries) {
+        return powerSpectrum(angleSeries, WindowFunction.HANN);
+    }
+
+    /**
+     * The deterministic power spectrum of {@code angleSeries}: {@code
+     * exp(i*angle[n])} windowed with {@code window}, then FFT'd; {@code
+     * power[k] = re[k]^2 + im[k]^2}. Length must be a power of two (see
+     * {@link Fft}).
+     */
+    public static double[] powerSpectrum(float[] angleSeries,
+                                          WindowFunction window) {
+        int n = angleSeries.length;
+        double[] w = window(window, n);
+        double[] re = new double[n];
+        double[] im = new double[n];
+        for (int i = 0; i < n; i++) {
+            double theta = angleSeries[i];
+            re[i] = Math.cos(theta) * w[i];
+            im[i] = Math.sin(theta) * w[i];
+        }
+
+        Fft.fft(re, im);
+
+        double[] power = new double[n];
+        for (int k = 0; k < n; k++) {
+            power[k] = re[k] * re[k] + im[k] * im[k];
+        }
+        return power;
+    }
+
+    /**
+     * Records {@code steps} consecutive angle values for member {@code
+     * globalMemberIndex} (the flat 0..(30*cellCount-1) index {@link
+     * Necronomata#indexOfCell} addresses into), advancing {@code
+     * automaton} one tick between each sample via {@link
+     * Necronomata#step()}. The first recorded value is the member's angle
+     * <i>before</i> any of these {@code steps} ticks run.
+     *
+     * <p>Uses {@link Necronomata#process(Necronomata.Processor)} strictly
+     * read-only, per that method's javadoc contract - it never writes
+     * {@code angle}/{@code deltaA} (or any other array).
+     *
+     * <p><b>See the class javadoc's "Float32 angle-accumulation precision
+     * ceiling" section</b> before using this to record a series after a
+     * long warm-up: {@code automaton}'s angle accumulation is unbounded
+     * float32 and silently loses rate accuracy well before it stops
+     * advancing entirely.
+     */
+    public static float[] recordAngleSeries(Necronomata automaton,
+                                             int globalMemberIndex,
+                                             int steps) {
+        if (steps <= 0) {
+            throw new IllegalArgumentException(
+            "steps must be positive, was " + steps);
+        }
+        float[] series = new float[steps];
+        float[][] angleBox = new float[1][];
+        for (int t = 0; t < steps; t++) {
+            automaton.process((angle, frequency, deltaA,
+                                deltaF) -> angleBox[0] = angle);
+            series[t] = angleBox[0][globalMemberIndex];
+            automaton.step();
+        }
+        return series;
+    }
+
+    private static double[] hannWindow(int n) {
+        double[] w = new double[n];
+        if (n == 1) {
+            w[0] = 1.0;
+            return w;
+        }
+        for (int i = 0; i < n; i++) {
+            w[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (n - 1)));
+        }
+        return w;
+    }
+
+    private static double[] rectangularWindow(int n) {
+        double[] w = new double[n];
+        java.util.Arrays.fill(w, 1.0);
+        return w;
+    }
+
+    private static double[] window(WindowFunction fn, int n) {
+        switch (fn) {
+        case RECTANGULAR:
+            return rectangularWindow(n);
+        case HANN:
+            return hannWindow(n);
+        default:
+            throw new IllegalArgumentException("unhandled window: " + fn);
+        }
+    }
+}
