@@ -32,6 +32,13 @@ import org.junit.Test;
 public class AutomataTest {
     @Test
     public void testIteration() {
+        // (7, 6, 6): odd x extent. This is a non-PBC configuration —
+        // Necronomata itself accepts any extent, but
+        // com.chiralbehaviors.inviscid.lga.FccNeighborhood's periodic-wrap
+        // neighbor lookup requires all-even extents to keep the
+        // even-parity sublattice closed under wrap (inviscid-0nx.3). This
+        // test only exercises forEach()/iterator() parity traversal, not
+        // wrap-around neighbor lookup, so the odd extent is fine as-is.
         Necronomata automata = new Necronomata(7, 6, 6);
         List<Point3i> loop = new ArrayList<>();
 

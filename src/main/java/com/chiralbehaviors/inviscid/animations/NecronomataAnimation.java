@@ -101,6 +101,13 @@ public class NecronomataAnimation extends PolyView {
         ContentModel content = getContentModel();
         Group group = new Group();
         content.setContent(group);
+        // (5, 5, 5): odd extent on every axis. This is a non-PBC
+        // configuration — Necronomata itself accepts any extent, but
+        // com.chiralbehaviors.inviscid.lga.FccNeighborhood's periodic-wrap
+        // neighbor lookup requires all-even extents to keep the
+        // even-parity sublattice closed under wrap (inviscid-0nx.3).
+        // This visualization does not use FccNeighborhood/wrap-around
+        // neighbors, so the odd extent is fine as-is.
         Necronomata automata = new Necronomata(new Point3i(5, 5, 5));
         NecronomataVisualization visualization = new NecronomataVisualization(3600, (float) 0.015, automata,
                 edgeMaterials);

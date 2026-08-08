@@ -181,21 +181,20 @@ public class Necronomata implements Iterable<Point3i> {
         };
     }
 
+    /**
+     * Collision-rule visitation site (reserved to bead inviscid-0nx.14).
+     * The 12 FCC even-parity neighbor offsets this method will visit are
+     * now data, not comment: see
+     * {@link com.chiralbehaviors.inviscid.lga.FccNeighborhood} for the
+     * offset table, direction indexing, opposite-direction lookup, and
+     * wrap-aware {@code neighbor(Point3i, int)} lookup. Note that
+     * {@code Necronomata} itself still accepts any extent (odd included)
+     * — the even-extent precondition for periodic-wrap parity closure
+     * lives on {@code FccNeighborhood}, not here; a caller that wants
+     * wrap-safe FCC neighbor lookups must construct
+     * {@code FccNeighborhood} with an all-even extent.
+     */
     public void process(Point3i cell) {
-        /*
-        [+1] = { i+1, j  , k-1 }
-        [-1] = { i-1, j  , k+1 }
-        [+2] = { i  , j-1, k+1 }
-        [-2] = { i  , j+1, k-1 }
-        [+3] = { i+1, j  , k+1 }
-        [-3] = { i-1, j  , k-1 }
-        [+4] = { i+1, j+1, k   }
-        [-4] = { i-1, j-1, k   }
-        [+5] = { i  , j+1, k+1 }
-        [-5] = { i  , j-1, k-1 }
-        [+6] = { i-1, j+1, k   }
-        [-6] = { i+1, j-1, k   }
-        */
     }
 
     /**
