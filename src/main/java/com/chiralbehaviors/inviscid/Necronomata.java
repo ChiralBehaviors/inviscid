@@ -36,15 +36,26 @@ public class Necronomata implements Iterable<Point3i> {
     }
 
     /**
+     * The phase LUT resolution QUANTUM_RATE is derived from: one frequency
+     * quantum advances a member by exactly one step of a LUT with this many
+     * steps per revolution. NecronomataVisualization's rotation LUT must be
+     * constructed with this resolution (see NecronomataAnimation) so that
+     * automaton stepping and rendered rotation stay in lock-step.
+     */
+    public static final int   PHASE_RESOLUTION = 3600;
+
+    /**
      * The single coupling constant between the conserved {@code frequency}
      * quanta count and angular rate: {@code deltaA[m] == QUANTUM_RATE *
      * frequency[m]} holds immediately AFTER every {@link #step()} call
      * (not "always" unconditionally — before the first step deltaA is
      * still its zero-initialized value, even if frequency was pre-seeded
      * by the caller). Radians of angle advanced per step, per unit of
-     * frequency.
+     * frequency. Derived from {@link #PHASE_RESOLUTION}: 2*pi/3600 ==
+     * pi/1800.
      */
-    public static final float QUANTUM_RATE = (float) (Math.PI / 1800.0);
+    public static final float QUANTUM_RATE = (float) (2.0 * Math.PI
+                                                      / PHASE_RESOLUTION);
 
     /**
      * Member phase, in radians. 30 values per cell (5 cubes x 6 members).
@@ -215,6 +226,13 @@ public class Necronomata implements Iterable<Point3i> {
         }
     }
 
+    /**
+     * Raw-array escape hatch. Two sanctioned uses: collision-rule
+     * visitation writing {@code deltaF} (the conserved-transfer path,
+     * bead inviscid-0nx.14) and initial-condition seeding writing
+     * {@code frequency} directly (NecronomataAnimation.seedFrequency).
+     * Writers of {@code angle}/{@code deltaA} are outside the contract.
+     */
     public void process(Processor action) {
         action.process(angle, frequency, deltaA, deltaF);
     }

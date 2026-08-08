@@ -65,10 +65,10 @@ public class NecronomataAnimation extends PolyView {
      * per-tick drive rotates every strut together (matches the pre-change
      * behavior, where the timeline's recurring drive fed a uniform
      * angular-resolution rate into every deltaA slot). Necronomata.QUANTUM_RATE
-     * (pi/1800) is intentionally EQUAL to this visualization's angular
-     * resolution (2*pi/3600, the 3600-step LUT constructed below), so a
-     * frequency of 1 advances a member by exactly one LUT step per tick.
-     * The two constants must move together.
+     * is EQUAL BY CONSTRUCTION to this visualization's angular
+     * resolution: both derive from Necronomata.PHASE_RESOLUTION (the LUT
+     * below is constructed with it), so a frequency of 1 advances a
+     * member by exactly one LUT step per tick.
      */
     private static final float[]    UNIFORM_POSITIVE_QUANTA = { 1, 1, 1, 1, 1, 1 };
 
@@ -109,7 +109,8 @@ public class NecronomataAnimation extends PolyView {
         // This visualization does not use FccNeighborhood/wrap-around
         // neighbors, so the odd extent is fine as-is.
         Necronomata automata = new Necronomata(new Point3i(5, 5, 5));
-        NecronomataVisualization visualization = new NecronomataVisualization(3600, (float) 0.015, automata,
+        NecronomataVisualization visualization = new NecronomataVisualization(Necronomata.PHASE_RESOLUTION,
+                (float) 0.015, automata,
                 edgeMaterials);
         group.getChildren().add(visualization);
 
