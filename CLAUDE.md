@@ -17,7 +17,7 @@ No exec/javafx Maven plugin is configured — the animation apps are launched by
 - `com.chiralbehaviors.inviscid.animations.NecronomataAnimation`
 - `com.javafx.experiments.jfx3dviewer.Jfx3dViewerApp` (generic 3D viewer)
 
-Build quirk: `pom.xml` properties declare source/target 20, but the maven-compiler-plugin's explicit `<source>1.8</source>/<target>1.8</target>` configuration overrides them. JavaFX 20 requires a JDK 17+ runtime regardless.
+The build compiles at source/target 20 (pom properties; the old maven-compiler-plugin 1.8 override was removed in 3ae3f77), so Java 16+ features like records are available. JavaFX 20 requires a JDK 17+ runtime.
 
 ## Architecture
 
