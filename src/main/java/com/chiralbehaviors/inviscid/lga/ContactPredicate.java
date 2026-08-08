@@ -181,9 +181,13 @@ public class ContactPredicate {
     /**
      * @return the world-space displacement between a cell and its
      *         neighbor in {@code direction} - see the class Javadoc's
-     *         spacing derivation.
+     *         spacing derivation. Package-private (rather than private)
+     *         so {@code ContactPredicateGridParityTest} can cross-check
+     *         it directly against {@code CubicGrid.positionTransform}
+     *         (inviscid-egm) - a natural inspection point for a future
+     *         A.5 atlas as well.
      */
-    private Vector3d physicalOffset(int direction) {
+    Vector3d physicalOffset(int direction) {
         Point3i offset = FccNeighborhood.offsetOf(direction);
         Vector3d displacement = new Vector3d();
         displacement.scaleAdd(offset.x, GRID_AXIS_X, displacement);
