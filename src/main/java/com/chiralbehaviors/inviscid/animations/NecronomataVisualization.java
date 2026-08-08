@@ -28,6 +28,7 @@ import com.chiralbehaviors.inviscid.CubicGrid.Neighborhood;
 import com.chiralbehaviors.inviscid.LengthTable;
 import com.chiralbehaviors.inviscid.Necronomata;
 import com.chiralbehaviors.inviscid.PhiCoordinates;
+import com.chiralbehaviors.inviscid.lga.VisualizationCellIndex;
 
 import javafx.collections.ObservableList;
 import javafx.geometry.Point3D;
@@ -51,8 +52,6 @@ public class NecronomataVisualization extends Group {
 
     private static Point3D       CANONICAL_Y_AXIS = new Point3D(0, 1, 0);
 
-    private static final int     STRUTS_PER_CELL  = 6 * 5;
-
     private static Rotate base(Point3D yAxis) {
         Point3D axisOfRotation = yAxis.crossProduct(CANONICAL_Y_AXIS);
         double angle = Math.acos(yAxis.normalize()
@@ -63,6 +62,7 @@ public class NecronomataVisualization extends Group {
     private final float              angularResolution;
     private final Necronomata        automata;
     private final List<MeshView[][]> cells = new ArrayList<>();
+    private final int[]              cellOffsets;
     private final Transform[]        lengths;
     private final int                resolution;
     private final Transform[][]      rotations;
@@ -79,6 +79,7 @@ public class NecronomataVisualization extends Group {
                                        PhiCoordinates.Cubes[3],
                                        automata.getExtent().x);
         this.automata = automata;
+        cellOffsets = VisualizationCellIndex.cellOffsets(automata);
         float halfInterval = (float) (PhiCoordinates.Cubes[0].getEdgeLength()
                                       / 2.0);
         TriangleMesh exemplar = Line.createLine(PhiCoordinates.Cubes[0].getEdgeLength()
@@ -98,17 +99,40 @@ public class NecronomataVisualization extends Group {
         });
     }
 
+    /**
+     * Builds the per-step {@link Scale} LUT directly from {@link
+     * LengthTable#lengthAt(int)} — the physical truth for member length
+     * modulation (load-bearing for contact detection, not cosmetic; see
+     * {@code MemberGeometry}'s class Javadoc).
+     *
+     * <p>Until inviscid-6cf, this method additionally overrode
+     * {@code lengths[1] = lengths[2] = lengths[3] = lengths[0]; lengths[5]
+     * = lengths[4]}, a hardcoded flattening that diverged from {@code
+     * LengthTable}'s true values at every non-degenerate resolution this
+     * code is actually exercised with (see {@code
+     * MemberGeometryJavaFxParityTest}'s class Javadoc for the exhaustive
+     * sweep). That override has been removed: the rendered lengths at
+     * steps 1, 2, 3 and 5 now match {@code LengthTable} like every other
+     * step.
+     */
     private void buildLengths(int resolution) {
         LengthTable table = new LengthTable(resolution);
-        int index = 0;
         for (int step = 0; step < resolution; step++) {
-            lengths[index] = new Scale(1.0, table.lengthAt(step), 1.0);
-            index++;
+            lengths[step] = new Scale(1.0, table.lengthAt(step), 1.0);
         }
-        lengths[1] = lengths[0];
-        lengths[2] = lengths[0];
-        lengths[3] = lengths[0];
-        lengths[5] = lengths[4];
+    }
+
+    /**
+     * Test inspection point (package-private, no runtime callers) —
+     * exposes the per-step length {@link Scale} LUT {@link
+     * #buildLengths(int)} builds, so headless tests
+     * (NecronomataVisualizationLengthsTest) can verify it renders {@link
+     * LengthTable#lengthAt(int)} directly and catch a reintroduced
+     * per-step override. Mirrors the {@code
+     * ContactPredicate#physicalOffset(int)} test-accessor pattern.
+     */
+    Transform[] lengths() {
+        return lengths;
     }
 
     public float getAngularResolution() {
@@ -217,7 +241,7 @@ public class NecronomataVisualization extends Group {
     }
 
     private void setState(float[] angle, int cell, MeshView[][] struts) {
-        int index = cell * STRUTS_PER_CELL;
+        int index = cellOffsets[cell];
         for (int cube = 0; cube < 5; cube++) {
             for (int face = 0; face < 6; face++) {
                 double normalized = angle[index++] % TWO_PI;

@@ -53,72 +53,23 @@ import javafx.scene.transform.Translate;
  * {@code Platform.startup} / toolkit initialization to construct or apply,
  * so no fallback was needed here; this runs directly under surefire.
  *
- * <h2>The buildLengths divergence (nx_plan_audit F2 ruling; inviscid-t33)</h2>
- * {@code NecronomataVisualization.buildLengths} overrides its rendered
- * per-step length at indices 1, 2, 3 (forced to index 0's value) and index
- * 5 (forced to index 4's value), regardless of what {@code
- * LengthTable.lengthAt(step)} computes for those steps. This is a genuine,
- * resolution-independent discrepancy, not a small-resolution artifact: an
- * exhaustive sweep (see {@link MemberGeometry}'s class Javadoc) of every
- * resolution divisible by 8 from 8 to 400 found the override coincides
- * with {@code LengthTable}'s own value only at the degenerate {@code
- * resolution == 8} (a single-sample table where everything trivially
- * equals everything), {@code resolution == 16} for step 3 alone, and
- * {@code resolution == 40} for step 5 alone - never for steps 1 or 2 at
- * any non-degenerate resolution checked, and (per that same sweep) not at
- * this test's own {@code RESOLUTION} (360) either. Per that ruling,
- * {@code MemberGeometry} follows {@code LengthTable.lengthAt(step)}
- * directly (the physical truth), so the JavaFX-comparison side here
- * mirrors the visualization's override ({@link #renderedStep(int)}) -
- * matching what {@code NecronomataVisualization} would actually render -
- * for every step, not just the non-overridden ones.
- * <p>
- * Earlier revisions of this test {@code continue}d past steps 1, 2, 3 and
- * 5 before ever reaching the {@code renderedStep(step)} call, leaving that
- * method dead code that could only ever observe its own identity branch
- * (inviscid-t33). This revision exercises all {@code RESOLUTION} steps
- * for every {@code (cube, member)} pair: at the four overridden steps the
- * assertion is inverted to {@link #assertDivergent} - proving
- * {@code MemberGeometry}'s physics-authoritative geometry (true {@code
- * lengthAt(step)}) genuinely differs from what the buggy visualization
- * would render there ({@code lengthAt(renderedStep(step))}) - rather than
- * silently skipping them. {@link #MIN_DIVERGENCE} (1e-4) was chosen from
- * an empirical probe of the world-space displacement the length
- * discrepancy alone produces at {@code RESOLUTION} == 360 (rotations and
- * the shared translate/base transforms are norm-preserving, so the
- * displacement is exactly {@code halfSegmentLength * |lengthAt(step) -
- * lengthAt(renderedStep(step))|}): ~3.99e-4 (step 1), ~1.60e-3 (step 2),
- * ~3.59e-3 (step 3), ~3.61e-3 (step 5) - every one at least ~4x above
- * {@link #MIN_DIVERGENCE} and ~40x above the {@link #DELTA} (1e-5) used
- * for equality elsewhere in this test, so the divergence assertion is not
- * on a knife's edge at this resolution.
+ * <h2>The buildLengths divergence — resolved (inviscid-6cf)</h2>
+ * {@code NecronomataVisualization.buildLengths} used to override its
+ * rendered per-step length at indices 1, 2, 3 (forced to index 0's value)
+ * and index 5 (forced to index 4's value), regardless of what {@code
+ * LengthTable.lengthAt(step)} computed for those steps — a genuine,
+ * resolution-independent discrepancy from the physical truth (nx_plan_audit
+ * F2 ruling; inviscid-t33). That override has been removed: {@code
+ * buildLengths} now renders {@code LengthTable.lengthAt(step)} directly for
+ * every step, matching {@link MemberGeometry}'s physics-authoritative
+ * geometry. This test therefore asserts plain parity ({@link #assertClose})
+ * at every step, with no exceptions.
  */
 public class MemberGeometryJavaFxParityTest {
 
     private static final Point3D CANONICAL_Y_AXIS = new Point3D(0, 1, 0);
     private static final double  DELTA            = 1e-5;
 
-    /**
-     * Lower bound on the world-space displacement the buildLengths
-     * override must produce at steps 1, 2, 3 and 5 for {@link
-     * #assertDivergent} to treat it as a genuine divergence rather than
-     * floating-point noise - see the class Javadoc's empirical probe.
-     *
-     * <p>CALIBRATED FOR {@link #RESOLUTION} == 360 ONLY. The four
-     * divergences shrink roughly quadratically with resolution: at 720
-     * the step-1 divergence (9.97e-5) already drops below this bound,
-     * and at 3600 (Necronomata.PHASE_RESOLUTION) all four do. Anyone
-     * changing RESOLUTION must re-probe the divergences and recalibrate
-     * this threshold, or the assertDivergent calls will spuriously fail.
-     *
-     * <p>FOR THE inviscid-6cf FIXER: once the buildLengths override is
-     * removed from NecronomataVisualization, the four {@code
-     * assertDivergent} calls at steps 1, 2, 3, 5 must flip to {@code
-     * assertClose} - this test deliberately pins the bug's existence as
-     * a tripwire so the fix cannot land without updating the parity
-     * expectations.
-     */
-    private static final double  MIN_DIVERGENCE   = 1e-4;
     private static final int     RESOLUTION       = 360;
 
     /**
@@ -132,28 +83,6 @@ public class MemberGeometryJavaFxParityTest {
         double angle = Math.acos(yAxis.normalize()
                                       .dotProduct(CANONICAL_Y_AXIS));
         return new Rotate(-Math.toDegrees(angle), axisOfRotation);
-    }
-
-    /**
-     * Mirrors {@code NecronomataVisualization.buildLengths}'s override:
-     * {@code lengths[1] = lengths[2] = lengths[3] = lengths[0]; lengths[5]
-     * = lengths[4];}. Returns the LengthTable step whose value would
-     * actually be rendered for the given step - i.e. the identity map
-     * everywhere except the four overridden indices. Called for every
-     * step in {@link #matchesJavaFxTransformComposition()} (inviscid-t33)
-     * - unlike an earlier revision, callers no longer skip past the four
-     * overridden indices before reaching this method, so both its
-     * identity branch and its two non-identity branches are genuinely
-     * exercised.
-     */
-    private static int renderedStep(int step) {
-        if (step == 1 || step == 2 || step == 3) {
-            return 0;
-        }
-        if (step == 5) {
-            return 4;
-        }
-        return step;
     }
 
     /**
@@ -235,7 +164,7 @@ public class MemberGeometryJavaFxParityTest {
                 Translate translate = translateFor(member, halfInterval);
                 for (int step = 0; step < RESOLUTION; step++) {
                     float angle = (float) ((step + 0.5) * angularResolutionRad);
-                    double length = table.lengthAt(renderedStep(step));
+                    double length = table.lengthAt(step);
                     Transform rotate = rotationFor(member, step,
                                                    angularResolutionRad);
                     Scale scale = new Scale(1.0, length, 1.0);
@@ -254,25 +183,6 @@ public class MemberGeometryJavaFxParityTest {
                     Segment actual = geometry.memberSegment(cube, member,
                                                             angle);
 
-                    // See class Javadoc: at the buildLengths override
-                    // indices (1, 2, 3, 5), MemberGeometry's true
-                    // lengthAt(step) and the JavaFX side's patched
-                    // lengthAt(renderedStep(step)) are KNOWN to disagree
-                    // by design - assert that divergence explicitly
-                    // (inviscid-t33) rather than skipping it.
-                    boolean overriddenStep = step == 1 || step == 2
-                                            || step == 3 || step == 5;
-                    if (overriddenStep) {
-                        assertDivergent("cube " + cube + " member " + member
-                                        + " step " + step + " endpoint a",
-                                        toVector(expectedA), actual.getA());
-                        assertDivergent("cube " + cube + " member " + member
-                                        + " step " + step + " endpoint b",
-                                        toVector(expectedB), actual.getB());
-                        compared++;
-                        continue;
-                    }
-
                     assertClose("cube " + cube + " member " + member
                                + " step " + step + " endpoint a",
                                toVector(expectedA), actual.getA());
@@ -284,9 +194,9 @@ public class MemberGeometryJavaFxParityTest {
             }
         }
 
-        // 5 cubes * 6 members * 360 steps = 10800 (no steps excluded any
-        // more - inviscid-t33): every step is either an equality check
-        // (assertClose) or an explicit divergence check (assertDivergent),
+        // 5 cubes * 6 members * 360 steps = 10800: plain parity, no steps
+        // excluded (inviscid-6cf removed the buildLengths override that
+        // used to force a divergence check at steps 1, 2, 3, 5) -
         // comfortably above the bead's ">= 64 angles" floor.
         assertEquals(5 * 6 * RESOLUTION, compared);
     }
@@ -296,28 +206,5 @@ public class MemberGeometryJavaFxParityTest {
         assertEquals(message + " x", expected.x, actual.x, DELTA);
         assertEquals(message + " y", expected.y, actual.y, DELTA);
         assertEquals(message + " z", expected.z, actual.z, DELTA);
-    }
-
-    /**
-     * The inverse of {@link #assertClose}: asserts {@code expected} and
-     * {@code actual} are NOT close - i.e. their Euclidean separation
-     * exceeds {@link #MIN_DIVERGENCE} - used at the four buildLengths
-     * override steps to pin the known, ruled-upon divergence (inviscid-t33
-     * / inviscid-6cf) as an executable fact rather than silently skipping
-     * it.
-     */
-    private void assertDivergent(String message, Vector3d expected,
-                                 Vector3d actual) {
-        Vector3d diff = new Vector3d(expected);
-        diff.sub(actual);
-        double separation = diff.length();
-        org.junit.Assert.assertTrue(message + ": expected " + expected
-                                    + " and actual " + actual
-                                    + " to diverge by more than "
-                                    + MIN_DIVERGENCE
-                                    + " (buildLengths override steps are"
-                                    + " known to disagree by design), but"
-                                    + " separation was only " + separation,
-                                    separation > MIN_DIVERGENCE);
     }
 }
