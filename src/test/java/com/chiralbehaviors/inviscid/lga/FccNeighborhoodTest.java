@@ -27,6 +27,8 @@ import javax.vecmath.Point3i;
 
 import org.junit.Test;
 
+import com.chiralbehaviors.inviscid.Necronomata;
+
 /**
  * @author halhildebrand
  *
@@ -177,6 +179,47 @@ public class FccNeighborhoodTest {
                 }
             }
         }
+    }
+
+    /**
+     * Convenience constructor (bead inviscid-if0): the derived extent must
+     * equal the automaton's own extent -- nothing else in the codebase
+     * enforces this correspondence, so this is the test that would catch a
+     * regression in the delegation itself.
+     */
+    @Test
+    public void constructedFromNecronomataDerivesMatchingExtent() {
+        Point3i extent = new Point3i(6, 4, 8);
+        Necronomata automaton = new Necronomata(extent);
+
+        FccNeighborhood neighborhood = new FccNeighborhood(automaton);
+
+        assertEquals(automaton.getExtent(), neighborhood.getExtent());
+    }
+
+    /**
+     * The convenience constructor derives the extent, it does not relax
+     * the preconditions on it: an automaton whose extent is odd, or whose
+     * extent is even but below the minimum of 4 on some axis, must still
+     * be rejected, and the rejection must still name the offending axis.
+     */
+    @Test
+    public void constructedFromNecronomataStillRejectsOddOrSmallExtent() {
+        Necronomata oddExtentAutomaton = new Necronomata(new Point3i(5, 6, 6));
+        IllegalArgumentException oddRejection = assertThrows(IllegalArgumentException.class,
+                                                               () -> new FccNeighborhood(oddExtentAutomaton));
+        assertTrue("exception message must name the offending axis 'x' but was: "
+                   + oddRejection.getMessage(),
+                   oddRejection.getMessage() != null
+                                && oddRejection.getMessage().contains("x"));
+
+        Necronomata smallExtentAutomaton = new Necronomata(new Point3i(6, 2, 6));
+        IllegalArgumentException smallRejection = assertThrows(IllegalArgumentException.class,
+                                                                 () -> new FccNeighborhood(smallExtentAutomaton));
+        assertTrue("exception message must name the offending axis 'y' but was: "
+                   + smallRejection.getMessage(),
+                   smallRejection.getMessage() != null
+                                 && smallRejection.getMessage().contains("y"));
     }
 
     private void assertAxisRejected(Point3i extent, String axis) {

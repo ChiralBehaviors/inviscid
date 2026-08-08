@@ -294,19 +294,31 @@ public final class BaselineSpectrumHarness {
     }
 
     /**
-     * A coarse-grained transport statistic for the quanta (frequency)
-     * field: the ratio of its across-member variance after the run to
-     * before. Guarded: if the field did not change at all (zero collision
-     * events - exactly the K=0 case, since {@link
+     * A flat, whole-lattice population-variance ratio of the quanta
+     * (frequency) field: the ratio of its across-member variance after the
+     * run to before. Guarded: if the field did not change at all (zero
+     * collision events - exactly the K=0 case, since {@link
      * Necronomata#process(Point3i)} never writes {@code deltaF}), or if
      * the before-variance is zero, the statistic is UNDEFINED and this
      * returns {@link OptionalDouble#empty()} rather than a numeric ratio -
      * a naive computation on identical arrays would otherwise silently
      * return exactly 1.0, which reads as "measured, normal diffusion" when
      * in fact no transport process occurred at all to measure.
+     *
+     * <p><b>NOT a spatial/directional transport statistic (bead
+     * inviscid-3is).</b> This is a single scalar computed over the whole
+     * flat frequency array with no per-cell or per-direction binning --
+     * adequate only as B.2's ({@code BaselineK0SpectrumTest
+     * .k0HasZeroTransport}) binary non-vacuity guard against a naive ratio
+     * silently reading 1.0 on an unchanged field. It carries no spatial
+     * structure and cannot discriminate transport magnitude or direction
+     * along different lattice axes. B.5 (bead inviscid-0nx.10, the
+     * [100]/[110]/[111] anisotropy discriminator) MUST NOT reuse this
+     * method as its transport statistic -- it needs a genuinely
+     * axis-resolved spatial spread measure, not this global scalar.
      */
-    public static OptionalDouble quantaSpreadRatio(float[] frequencyBefore,
-                                                     float[] frequencyAfter) {
+    public static OptionalDouble quantaPopulationVarianceRatio(float[] frequencyBefore,
+                                                                 float[] frequencyAfter) {
         if (Arrays.equals(frequencyBefore, frequencyAfter)) {
             return OptionalDouble.empty();
         }

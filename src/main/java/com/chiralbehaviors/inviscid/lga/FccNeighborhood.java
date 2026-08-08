@@ -23,6 +23,8 @@ import java.util.Map;
 
 import javax.vecmath.Point3i;
 
+import com.chiralbehaviors.inviscid.Necronomata;
+
 /**
  * The 12 nearest-neighbor offsets of the FCC even-parity sublattice used by
  * {@code Necronomata}, plus wrap-aware neighbor lookup. Cells live on the
@@ -186,6 +188,23 @@ public class FccNeighborhood {
         requireEvenAxisAtLeastFour(extent.y, "y");
         requireEvenAxisAtLeastFour(extent.z, "z");
         this.extent = new Point3i(extent);
+    }
+
+    /**
+     * Convenience constructor (bead inviscid-if0): derives the extent from
+     * {@code automaton} via {@link Necronomata#getExtent()} instead of
+     * requiring the caller to independently supply a matching one by hand.
+     * Still subject to the identical preconditions as
+     * {@link #FccNeighborhood(Point3i)} -- deriving the extent does not
+     * relax the even-and-at-least-4-per-axis requirement.
+     *
+     * @param automaton the automaton whose extent this neighborhood will
+     *                   mirror
+     * @throws IllegalArgumentException under the same conditions as
+     *                                  {@link #FccNeighborhood(Point3i)}
+     */
+    public FccNeighborhood(Necronomata automaton) {
+        this(automaton.getExtent());
     }
 
     /**

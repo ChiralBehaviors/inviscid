@@ -71,17 +71,50 @@ import com.chiralbehaviors.inviscid.Necronomata;
  * appearing or disappearing, not quanta moving to the wrong place or the
  * wrong number of times.
  *
+ * <p><b>Frequency-array re-fetch contract (bead inviscid-36g).</b> This
+ * audit does not hold a cached reference to Necronomata's backing
+ * {@code frequency} array across calls. Every reader ({@link
+ * #auditTick(int)}, {@link #currentTotalQuanta()}, and the internal
+ * snapshot machinery they share) re-fetches the array fresh via the
+ * private {@code currentFrequency()} helper at the start of the call --
+ * it audits whatever array {@link Necronomata#process(Necronomata.Processor)}
+ * exposes AT CALL TIME, so it stays attached even if a future tick
+ * implementation swaps Necronomata's internal frequency reference between
+ * buffers. Only the constructor performs a one-time fetch, to establish
+ * {@link #baselineTotal}; see {@code currentFrequency()}'s Javadoc for the
+ * honest caveat that no real swap can be exercised by a test until
+ * {@code Necronomata.frequency} stops being {@code final}.
+ *
  * @author halhildebrand
  */
 public class ConservationAudit {
 
     /**
      * One violation: exact localization of a single {@code frequency}
-     * slot whose value is unaccounted for. {@code direction} is
-     * {@code null} unless the caller has independent knowledge of which
-     * collision direction produced the change -- diffing the raw
-     * {@code frequency} array alone never reveals direction, so it is
-     * "when known", not always.
+     * slot whose value is unaccounted for -- naming the offending
+     * {@code cell}, {@code cube}, {@code member}, and {@code tick}.
+     *
+     * <p><b>Direction attribution is out of scope here (bead
+     * inviscid-17p).</b> This record originally carried a nullable
+     * {@code direction} field, but nothing in this class ever populated
+     * it -- {@code violationAt(...)} was called with {@code direction =
+     * null} at every call site (both the representation-corruption path
+     * in {@code snapshotExact} and the conservation-violation path in
+     * {@code diff}), so the field was unconditionally null, not merely
+     * "null when unknown". It has been removed rather than kept
+     * structurally dead. Diffing the raw {@code frequency} array alone
+     * never reveals which collision direction produced a change --
+     * direction attribution requires cross-referencing
+     * {@code CollisionStatistics}'s caller-supplied direction for the
+     * same {@code (cell, cube, member, tick)}, a reconciliation this
+     * class does not perform. NOTE the aggregate audit-stats cross-check
+     * registered on bead inviscid-0nx.14 (per-tick totals reconciliation,
+     * from inviscid-ce3) does NOT provide per-violation direction
+     * attribution -- that narrower deliverable is tracked separately as
+     * bead inviscid-1yk (blocks .14); the original bead .8 deliverable text
+     * ("violation report naming cell, cube, member, direction, and
+     * tick") is only partially met by this class alone until that
+     * reconciliation lands.
      *
      * <p><b>Check {@link #kind()} before reading {@code cell()} /
      * {@code cube()} / {@code member()}.</b> A
@@ -92,9 +125,8 @@ public class ConservationAudit {
      * Treating those sentinels as a real cell/cube/member is a bug in
      * the consumer, not in this class.
      */
-    public record Violation(Point3i cell, int cube, int member,
-                             Integer direction, int tick, Kind kind,
-                             long previousValue, long newValue) {
+    public record Violation(Point3i cell, int cube, int member, int tick,
+                             Kind kind, long previousValue, long newValue) {
 
         public enum Kind {
             /**
@@ -176,7 +208,6 @@ public class ConservationAudit {
     private static final int MEMBERS_PER_CUBE = 6;
 
     private final Necronomata automaton;
-    private final float[]     frequency;
     private final Point3i     extent;
 
     private final long           baselineTotal;
@@ -194,16 +225,37 @@ public class ConservationAudit {
         this.extent = automaton.getExtent();
         this.strict = strict;
 
-        // Capture a stable reference to the backing frequency array via
-        // the raw-array escape hatch. Necronomata's arrays are final
-        // fields mutated in place, so this reference stays current for
-        // the automaton's lifetime -- no re-capture needed per tick.
-        float[][] captured = new float[1][];
-        automaton.process((angle, freq, deltaA, deltaF) -> captured[0] = freq);
-        this.frequency = captured[0];
-
+        // Constructor-time fetch, ONLY to establish the baseline snapshot
+        // (bead inviscid-36g). Every subsequent reader re-fetches its own
+        // fresh copy via currentFrequency() -- see that method's Javadoc
+        // and the class Javadoc's "Frequency-array re-fetch contract"
+        // section.
         this.previousSnapshot = snapshotExact(new ArrayList<>(), 0);
         this.baselineTotal = sum(previousSnapshot);
+    }
+
+    /**
+     * Re-fetches the automaton's current backing {@code frequency} array
+     * via the raw-array escape hatch, fresh on every call (bead
+     * inviscid-36g) -- never cached across calls. This is what lets the
+     * audit track whatever array
+     * {@link Necronomata#process(Necronomata.Processor)} exposes at call
+     * time rather than a reference frozen at construction.
+     *
+     * <p>HONESTY NOTE: {@code Necronomata.frequency} is a {@code final}
+     * field today, so no consumer can actually swap it out from under a
+     * live {@code Necronomata} instance yet -- there is currently no way
+     * to exercise a real buffer-swap regression test against this method.
+     * If a future double-buffered tick (bead inviscid-0nx.15) makes the
+     * field swappable, a regression test that performs a real swap and
+     * asserts this audit still tracks the live array MUST land with that
+     * bead; until then this method's robustness to swapping is
+     * structural, not test-verified.
+     */
+    private float[] currentFrequency() {
+        float[][] captured = new float[1][];
+        automaton.process((angle, freq, deltaA, deltaF) -> captured[0] = freq);
+        return captured[0];
     }
 
     public boolean isStrict() {
@@ -224,7 +276,7 @@ public class ConservationAudit {
      */
     public long currentTotalQuanta() {
         long total = 0L;
-        for (float v : frequency) {
+        for (float v : currentFrequency()) {
             total += Math.round((double) v);
         }
         return total;
@@ -310,13 +362,14 @@ public class ConservationAudit {
      * silently absorbed.
      */
     private long[] snapshotExact(List<Violation> corruptionSink, int tick) {
+        float[] frequency = currentFrequency();
         long[] snapshot = new long[frequency.length];
         for (int i = 0; i < frequency.length; i++) {
             float v = frequency[i];
             long rounded = Math.round((double) v);
             snapshot[i] = rounded;
             if (Math.rint(v) != v) {
-                corruptionSink.add(violationAt(i, null, tick, 0L, rounded,
+                corruptionSink.add(violationAt(i, tick, 0L, rounded,
                                                 Violation.Kind.REPRESENTATION_CORRUPTION));
             }
         }
@@ -327,16 +380,15 @@ public class ConservationAudit {
         List<Violation> changed = new ArrayList<>();
         for (int i = 0; i < after.length; i++) {
             if (before[i] != after[i]) {
-                changed.add(violationAt(i, null, tick, before[i], after[i],
+                changed.add(violationAt(i, tick, before[i], after[i],
                                          Violation.Kind.CONSERVATION_VIOLATION));
             }
         }
         return changed;
     }
 
-    private Violation violationAt(int index, Integer direction, int tick,
-                                   long previousValue, long newValue,
-                                   Violation.Kind kind) {
+    private Violation violationAt(int index, int tick, long previousValue,
+                                   long newValue, Violation.Kind kind) {
         int cellLinear = index / 30;
         int localIndex = index % 30;
         int k = cellLinear % extent.z;
@@ -345,12 +397,12 @@ public class ConservationAudit {
         int i = rem / extent.y;
         int cube = localIndex / MEMBERS_PER_CUBE;
         int member = localIndex % MEMBERS_PER_CUBE;
-        return new Violation(new Point3i(i, j, k), cube, member, direction,
-                              tick, kind, previousValue, newValue);
+        return new Violation(new Point3i(i, j, k), cube, member, tick, kind,
+                              previousValue, newValue);
     }
 
     private Violation residualDriftViolation(int tick, long currentTotal) {
-        return new Violation(new Point3i(-1, -1, -1), -1, -1, null, tick,
+        return new Violation(new Point3i(-1, -1, -1), -1, -1, tick,
                               Violation.Kind.RESIDUAL_DRIFT, baselineTotal,
                               currentTotal);
     }

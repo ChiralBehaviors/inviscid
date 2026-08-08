@@ -66,8 +66,9 @@ public class BaselineK0SpectrumTest {
      * transport statistic (e.g. a before/after variance ratio) would
      * silently compute exactly 1.0 on identical arrays, which reads as "a
      * clean isotropic diffusion coefficient" - a false positive, since no
-     * transport process exists at all. BaselineSpectrumHarness.quantaSpreadRatio
-     * must guard against this and report DEGENERATE (empty), never 1.0.
+     * transport process exists at all.
+     * BaselineSpectrumHarness.quantaPopulationVarianceRatio must guard
+     * against this and report DEGENERATE (empty), never 1.0.
      */
     @Test
     public void k0HasZeroTransport() {
@@ -75,8 +76,8 @@ public class BaselineK0SpectrumTest {
                    + "transport should be impossible with no collision rule",
                    result.frequencyFieldUnchanged);
 
-        OptionalDouble ratio = BaselineSpectrumHarness.quantaSpreadRatio(result.frequencyBefore,
-                                                                          result.frequencyAfter);
+        OptionalDouble ratio = BaselineSpectrumHarness.quantaPopulationVarianceRatio(result.frequencyBefore,
+                                                                                      result.frequencyAfter);
         assertFalse("transport statistic returned a value despite zero collisions - "
                    + "a clean number here (e.g. a naive ratio of identical arrays would be "
                    + "exactly 1.0) is a false positive that would misreport 'no transport' as "

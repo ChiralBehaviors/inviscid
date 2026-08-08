@@ -118,8 +118,29 @@ public class ContactScan {
     private final FccNeighborhood  neighborhood;
     private final ContactPredicate predicate;
 
+    /**
+     * @throws IllegalArgumentException if {@code automaton}'s extent
+     *                                  ({@link Necronomata#getExtent()})
+     *                                  does not equal {@code
+     *                                  neighborhood}'s extent
+     *                                  ({@link FccNeighborhood#getExtent()})
+     *                                  -- the message names both extents
+     *                                  (bead inviscid-if0: nothing else
+     *                                  ties these two together, so a
+     *                                  mismatch would otherwise silently
+     *                                  wrap {@link #scan()}'s neighbor
+     *                                  lookups into the wrong index space)
+     */
     public ContactScan(Necronomata automaton, FccNeighborhood neighborhood,
                         ContactPredicate predicate) {
+        Point3i automatonExtent = automaton.getExtent();
+        Point3i neighborhoodExtent = neighborhood.getExtent();
+        if (!automatonExtent.equals(neighborhoodExtent)) {
+            throw new IllegalArgumentException("Necronomata extent "
+                                                + automatonExtent
+                                                + " does not match FccNeighborhood extent "
+                                                + neighborhoodExtent);
+        }
         this.automaton = automaton;
         this.neighborhood = neighborhood;
         this.predicate = predicate;

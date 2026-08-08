@@ -18,6 +18,7 @@ package com.chiralbehaviors.inviscid.lga;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashSet;
@@ -75,6 +76,32 @@ public class ContactScanTest {
         automaton.process((angleArray, frequency, deltaA, deltaF) -> {
             angleArray[automaton.indexOfCell(cell) + localIndex] = angle;
         });
+    }
+
+    /**
+     * Bead inviscid-if0: nothing previously tied a {@link FccNeighborhood}'s
+     * extent to the {@link Necronomata} it is scanned against; a caller
+     * could construct the two with mismatched extents and get wrong-cell
+     * lookups (or index-out-of-bounds) once wired together here. The
+     * constructor must reject the mismatch up front, naming both extents.
+     */
+    @Test
+    public void constructorRejectsMismatchedExtents() {
+        Necronomata automaton = new Necronomata(new Point3i(4, 4, 4));
+        FccNeighborhood neighborhood = new FccNeighborhood(new Point3i(6, 6,
+                                                                        6));
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                                                    () -> new ContactScan(automaton,
+                                                                          neighborhood,
+                                                                          newPredicate()));
+        assertTrue("message must name the Necronomata extent: "
+                   + e.getMessage(),
+                   e.getMessage().contains(automaton.getExtent().toString()));
+        assertTrue("message must name the FccNeighborhood extent: "
+                   + e.getMessage(),
+                   e.getMessage().contains(neighborhood.getExtent()
+                                                        .toString()));
     }
 
     /**
