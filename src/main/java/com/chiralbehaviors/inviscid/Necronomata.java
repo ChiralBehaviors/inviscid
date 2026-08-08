@@ -80,6 +80,28 @@ public class Necronomata implements Iterable<Point3i> {
                                                       / PHASE_RESOLUTION);
 
     /**
+     * The largest integer magnitude exactly representable by a 32-bit IEEE
+     * float ({@code frequency}'s storage type, bead inviscid-10d). A
+     * float32 significand carries 24 bits of precision (23 explicit
+     * mantissa bits plus the implicit leading 1), so every integer in
+     * {@code [-2^24, 2^24]} round-trips through {@code float} exactly, and
+     * {@code 2^24 + 1} is the first integer that does not - see {@code
+     * QuantaExchangeRuleTest#quantaStayWithinRepresentableRange} for the
+     * boundary proof on the collision rule's own decision logic. No
+     * production code bounded how large a member's quanta could
+     * random-walk over a long run before this constant existed; {@link
+     * com.chiralbehaviors.inviscid.lga.CollisionSweep#tick(int)} is the
+     * single choke point where quanta change, and guards against a member
+     * random-walking past this ceiling using a documented fraction of it
+     * (not this value directly - see that class's own safety-margin
+     * constant), so the failure is loud BEFORE {@code frequency} silently
+     * loses integer exactness, not after ({@code
+     * ConservationAudit}'s {@code Math.rint}-based corruption check only
+     * fires once the damage is already done).
+     */
+    public static final long  MAX_EXACT_QUANTA_MAGNITUDE = 1L << 24;
+
+    /**
      * Member phase, in radians. 30 values per cell (5 cubes x 6 members).
      */
     private final float[] angle;

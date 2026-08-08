@@ -264,6 +264,187 @@ public class CollisionSweepTest {
         assertThrows(ReconciliationException.class, () -> lying.tick(0));
     }
 
+    /**
+     * Bead inviscid-10d: the runtime float32-exactness guard, positive
+     * control. Member A is seeded one quantum below {@link
+     * CollisionSweep#QUANTA_EXACTNESS_SAFETY_MARGIN} and contact-paired
+     * against a higher-quanta member B, so {@link QuantaExchangeRule}
+     * decides {@code TRANSFER_TO_A} (A gains exactly one quantum) - A's
+     * post-delta effective quanta lands EXACTLY on the safety margin,
+     * which must throw. The thrown message must name the offending
+     * member (cell, cube, member), its value, and the ceiling rationale
+     * (both the safety margin itself and {@code
+     * Necronomata.MAX_EXACT_QUANTA_MAGNITUDE} it is derived from) - fail
+     * loud before {@code frequency}'s float32 storage silently loses
+     * integer exactness, not after.
+     */
+    @Test
+    public void quantaCrossingTheExactnessSafetyMarginThrows() {
+        Point3i extent = new Point3i(4, 4, 4);
+        Necronomata automaton = new Necronomata(extent);
+        Point3i cell = new Point3i(0, 0, 0);
+
+        int cubeA = 0, memberA = 0;
+        int cubeB = 0, memberB = 1;
+
+        long margin = CollisionSweep.QUANTA_EXACTNESS_SAFETY_MARGIN;
+        seedQuanta(automaton, cell, cubeA, memberA, (float) (margin - 1L));
+        seedQuanta(automaton, cell, cubeB, memberB, (float) margin);
+
+        Contact contact = new Contact(cell, cubeA, memberA, cell, cubeB,
+                                       memberB, 1, 0.0);
+        FccNeighborhood neighborhood = new FccNeighborhood(extent);
+        StubScan scan = new StubScan(automaton, neighborhood, newPredicate(),
+                                      List.of(contact));
+        CollisionStatistics statistics = new CollisionStatistics();
+        CollisionSweep sweep = new CollisionSweep(automaton, scan,
+                                                    new QuantaExchangeRule(),
+                                                    statistics);
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class,
+                                                      () -> sweep.tick(0));
+
+        String message = thrown.getMessage();
+        assertTrue("message must name the cell: " + message,
+                   message.contains(cell.toString()));
+        assertTrue("message must name the cube: " + message,
+                   message.contains("cube=" + cubeA));
+        assertTrue("message must name the member: " + message,
+                   message.contains("member=" + memberA));
+        assertTrue("message must name the breaching value: " + message,
+                   message.contains(Long.toString(margin)));
+        assertTrue("message must name the safety-margin rationale: "
+                   + message,
+                   message.contains("safety margin"));
+        assertTrue("message must name Necronomata.MAX_EXACT_QUANTA_MAGNITUDE: "
+                   + message,
+                   message.contains("Necronomata.MAX_EXACT_QUANTA_MAGNITUDE="
+                                     + Necronomata.MAX_EXACT_QUANTA_MAGNITUDE));
+    }
+
+    /**
+     * Bead inviscid-10d: negative control immediately adjacent to the
+     * margin - a member landing exactly ONE below {@link
+     * CollisionSweep#QUANTA_EXACTNESS_SAFETY_MARGIN} after its delta must
+     * NOT throw, proving the guard's boundary is {@code >=}, not an
+     * off-by-one that also rejects legitimate values just under it.
+     */
+    @Test
+    public void quantaJustBelowTheSafetyMarginDoesNotThrow() {
+        Point3i extent = new Point3i(4, 4, 4);
+        Necronomata automaton = new Necronomata(extent);
+        Point3i cell = new Point3i(0, 0, 0);
+
+        int cubeA = 0, memberA = 0;
+        int cubeB = 0, memberB = 1;
+
+        long margin = CollisionSweep.QUANTA_EXACTNESS_SAFETY_MARGIN;
+        seedQuanta(automaton, cell, cubeA, memberA, (float) (margin - 2L));
+        seedQuanta(automaton, cell, cubeB, memberB, (float) (margin - 1L));
+
+        Contact contact = new Contact(cell, cubeA, memberA, cell, cubeB,
+                                       memberB, 1, 0.0);
+        FccNeighborhood neighborhood = new FccNeighborhood(extent);
+        StubScan scan = new StubScan(automaton, neighborhood, newPredicate(),
+                                      List.of(contact));
+        CollisionStatistics statistics = new CollisionStatistics();
+        CollisionSweep sweep = new CollisionSweep(automaton, scan,
+                                                    new QuantaExchangeRule(),
+                                                    statistics);
+
+        TickResult result = sweep.tick(0);
+
+        assertEquals("expected exactly one resolved contact", 1,
+                     result.applied().size());
+    }
+
+    /**
+     * Bead inviscid-10d (FIX 1, stacked-review round 2026-08-08):
+     * regression for the intra-tick-TRANSIENT false-positive the guard's
+     * ORIGINAL per-contact implementation had. Member A is touched by TWO
+     * contacts this tick: the first (A vs B) alone would push A's
+     * running {@code deltaF} to EXACTLY the safety margin - a naive
+     * per-contact check fires right there, mid-tick, before the second
+     * contact is even resolved - but the second (A vs C), independently
+     * resolved against A's FROZEN pre-tick snapshot (never against the
+     * first contact's already-applied delta, per this class's own
+     * "Snapshot resolution within a tick" contract), pulls A's quanta
+     * back down, so A's FINAL tick-end total lands safely under the
+     * margin (snapshot {@code margin-1}, net delta {@code +1-1=0}, final
+     * {@code margin-1}). The guard must NOT throw: this is exactly the
+     * ~18.8% same-member multi-contact case this class's own "Rejected
+     * alternative" Javadoc section already documents as common, not a
+     * corner case - a member whose FINAL tick-end quanta is safe must
+     * never be punished for an intermediate partial sum a later contact
+     * this same tick brings back down.
+     *
+     * <p>This test fails RED against the pre-FIX-1 per-contact
+     * implementation (checked directly: reverting {@link
+     * CollisionSweep#tick(int)} to check {@code snapshotQuanta +
+     * Math.round(deltaF[index])} immediately after each {@code deltaF}
+     * update, inline in the contact loop, makes this test throw {@code
+     * IllegalStateException} on contact 1 before contact 2 ever runs).
+     */
+    @Test
+    public void multiContactMemberTransientlyCrossingTheMarginButEndingSafeDoesNotThrow() {
+        Point3i extent = new Point3i(4, 4, 4);
+        Necronomata automaton = new Necronomata(extent);
+        Point3i cell = new Point3i(0, 0, 0);
+
+        int cubeA = 0, memberA = 0;
+        int cubeB = 0, memberB = 1;
+        int cubeC = 0, memberC = 2;
+
+        long margin = CollisionSweep.QUANTA_EXACTNESS_SAFETY_MARGIN;
+        seedQuanta(automaton, cell, cubeA, memberA, (float) (margin - 1L));
+        seedQuanta(automaton, cell, cubeB, memberB, (float) margin);
+        seedQuanta(automaton, cell, cubeC, memberC, 0f);
+
+        // Contact 1 (A vs B): B > A's snapshot -> TRANSFER_TO_A, A's
+        // running deltaF becomes +1 -> transient A total == margin.
+        Contact contact1 = new Contact(cell, cubeA, memberA, cell, cubeB,
+                                        memberB, 1, 0.0);
+        // Contact 2 (A vs C): resolved against A's FROZEN snapshot
+        // (margin - 1), not the transient - A's snapshot > C's snapshot
+        // -> TRANSFER_TO_B (C), A's running deltaF becomes +1-1=0 ->
+        // final A total == margin - 1, safely under the margin.
+        Contact contact2 = new Contact(cell, cubeA, memberA, cell, cubeC,
+                                        memberC, 2, 0.0);
+
+        FccNeighborhood neighborhood = new FccNeighborhood(extent);
+        StubScan scan = new StubScan(automaton, neighborhood, newPredicate(),
+                                      List.of(contact1, contact2));
+        CollisionStatistics statistics = new CollisionStatistics();
+        CollisionSweep sweep = new CollisionSweep(automaton, scan,
+                                                    new QuantaExchangeRule(),
+                                                    statistics);
+
+        TickResult result = sweep.tick(0);
+
+        assertEquals("expected both contacts to resolve", 2,
+                     result.applied().size());
+    }
+
+    /**
+     * Bead inviscid-10d: negative control at ordinary in-suite magnitudes
+     * (the {@link Fixture}'s quanta of 5 and 2, the same scale every other
+     * {@code CollisionSweepTest}/{@code HybridAutomatonTest} test uses) -
+     * the guard must never fire for values this far below the safety
+     * margin.
+     */
+    @Test
+    public void normalMagnitudeQuantaNeverTriggersTheExactnessGuard() {
+        Fixture fixture = new Fixture();
+        CollisionSweep sweep = new CollisionSweep(fixture.automaton,
+                                                    fixture.scan, fixture.rule,
+                                                    fixture.statistics);
+
+        TickResult result = sweep.tick(0);
+
+        assertTrue("expected at least one resolved contact",
+                   !result.applied().isEmpty());
+    }
+
     @Test
     public void directionsTouchingFindsTheAppliedDirection() {
         Fixture fixture = new Fixture();

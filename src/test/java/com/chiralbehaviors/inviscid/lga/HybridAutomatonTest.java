@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import javax.vecmath.Point3i;
@@ -99,6 +100,32 @@ public class HybridAutomatonTest {
         float[] quanta = new float[length];
         for (int i = 0; i < length; i++) {
             quanta[i] = random.nextInt(bound);
+        }
+        automaton.process((angleArray, frequency, deltaA, deltaF) -> System.arraycopy(quanta,
+                                                                                        0,
+                                                                                        frequency,
+                                                                                        0,
+                                                                                        length));
+    }
+
+    /**
+     * The codebase's canonical signed-quanta seeding convention (see
+     * {@code BaselineSpectrumHarness}, {@code
+     * frequencyDistribution=uniform integer in [-5,5] via new
+     * Random(seed).nextInt(11) + -5}): each member's quanta is an
+     * independent uniform integer in {@code [-5, 5]}, inclusive. Used by
+     * bead inviscid-7a6's rest-pose characterization test, which needs a
+     * NONZERO-quanta lattice (unlike {@link #seedRandomQuanta}'s {@code
+     * [0, bound)} range, this range is symmetric about zero, matching
+     * the convention the bead's own text cites).
+     */
+    private static void seedRandomQuantaSigned(Necronomata automaton,
+                                                Point3i extent, long seed) {
+        Random random = new Random(seed);
+        int length = 30 * extent.x * extent.y * extent.z;
+        float[] quanta = new float[length];
+        for (int i = 0; i < length; i++) {
+            quanta[i] = random.nextInt(11) - 5;
         }
         automaton.process((angleArray, frequency, deltaA, deltaF) -> System.arraycopy(quanta,
                                                                                         0,
@@ -439,6 +466,126 @@ public class HybridAutomatonTest {
                            before.frequency(), after.frequency(), 0f);
         assertEquals("a zero-frequency lattice must never produce a real (non-no-op) transfer",
                      0L, statistics.effectiveCollisions());
+    }
+
+    /**
+     * Test 6b (bead inviscid-7a6, Phase A gate critique, substantive-critic
+     * round, 2026-08-08): tick-0 contact-DENSITY characterization for the
+     * uniform rest pose - angle=0 for EVERY member (the natural boot
+     * condition a quantized automaton, C.1/C.4, will design against) but,
+     * unlike {@link #zeroFrequencyLatticeIsStatic()}, NONZERO quanta (a
+     * {@code frequency=0} lattice has {@code deltaA=0} forever and can
+     * never exercise a real contact - it is a trivial fixed-point check,
+     * not a contact-density check). Because {@link ContactPredicate}'s
+     * threshold is uniform across geometrically-identical member pairs,
+     * angle=0 uniformly is exactly the condition most likely to produce
+     * either a lattice-wide simultaneous-contact spike at boot, or zero
+     * contacts (if angle=0 sits in a non-contacting geometric region) -
+     * nothing established which before this test. Angle is left at its
+     * default JVM-zero-initialized value (uniform rest pose); quanta is
+     * seeded via {@link #seedRandomQuantaSigned} (Random(42L), the
+     * codebase's [-5,5] convention) so contacts CAN actually resolve to
+     * real transfers.
+     *
+     * <p><b>PINNED BOOT-CONDITION FACTS (this seed, extent (4,4,4),
+     * deterministic - geometry + seed fixed):</b> tick 0 resolves 320
+     * contacts total ({@code totalCollisions()}), of which 293 (91.6%)
+     * are effective (non-no-op) transfers ({@code
+     * effectiveCollisions()}). The per-direction breakdown is sharply
+     * concentrated, not lattice-uniform, and answers the open question
+     * decisively: ONLY four of the twelve {@link
+     * FccNeighborhood#DIRECTIONS} - the positive-signed +2 (128), +4
+     * (32), +5 (128), +6 (32) - carry any contacts at all; every one of
+     * the other eight is exactly zero every tick-0 run at this seed, but
+     * NOT for the same reason (FIX 3, stacked-review round 2026-08-08):
+     * all six negative directions -1..-6 are zero STRUCTURALLY, by
+     * construction - {@code ContactScan} is restricted to only the 6
+     * positive directions to prevent double-counting (per bead
+     * inviscid-0nx.13's own recorded NOTES), so -1..-6 read zero on
+     * EVERY run regardless of lattice state, not a fact about this
+     * geometry; +1 and +3 being zero, in contrast, IS a PHYSICAL finding
+     * about this rest-pose geometry specifically (worth re-verifying
+     * under a different seed or a changed {@code ContactPredicate}
+     * geometry, unlike -1..-6 which no re-seed could ever change). This
+     * IS a lattice-wide simultaneous-contact SPIKE at boot, not the
+     * sparse regime: 320 contacts resolving in a single tick, over a
+     * 4^3-cell lattice, is far above the ~1.1e-4 steady-state density
+     * {@code ContactPredicateTest} measures for randomly-angled lattices
+     * - the uniform angle=0 rest pose is exactly the geometrically-
+     * aligned worst case that produces it, confirming (not merely
+     * echoing) .13's cube-3 finding at full lattice scale, and
+     * confirming which of the two possibilities the bead's own text
+     * posed ("(a) ... spike" vs "(b) zero contacts") is the true one.
+     * C.1/C.4 inherit this measured number, not an assumption, for their
+     * boot initial condition: a naive "seed random quanta at angle=0 and
+     * go" boot immediately drives hundreds of same-tick collision
+     * resolutions, concentrated on four directions only, not the sparse
+     * trickle a caller unaware of this finding might expect.</p>
+     *
+     * <p><b>TRIPWIRE NOTICE for the fixer (precedent: bead
+     * inviscid-6cf's tripwire).</b> If the pinned 320 / 293 / {128, 32,
+     * 128, 32} values above ever break, first check whether {@code
+     * ContactPredicate}'s geometry constants ({@link #RADIUS}, {@link
+     * #RESOLUTION}) or {@code FccNeighborhood}'s member offsets changed
+     * - if either did, this is a LEGITIMATE RE-BASELINE: recompute the
+     * new measured numbers with this same seed and re-pin them, updating
+     * this Javadoc's numbers to match. If NEITHER changed, the
+     * divergence is a silent regression in contact-resolution or
+     * collision-rule logic and must be investigated as a bug - do NOT
+     * "fix" a failure here by loosening these exact-equality assertions
+     * into a range or tolerance check; that would convert a tripwire
+     * into a rubber stamp.</p>
+     */
+    @Test
+    public void uniformRestPoseTickZeroContactDensity() {
+        Point3i extent = new Point3i(4, 4, 4);
+        Necronomata automaton = new Necronomata(extent);
+        // angle is left at its default zero-initialized value for every
+        // member -- the uniform rest pose (angle=0 uniformly). Deliberately
+        // NOT seedRandomAngles: this test characterizes the natural boot
+        // condition, not a randomly-angled lattice.
+        seedRandomQuantaSigned(automaton, extent, 42L);
+
+        FccNeighborhood neighborhood = new FccNeighborhood(extent);
+        ContactScan scan = new ContactScan(automaton, neighborhood,
+                                            newPredicate());
+        CollisionStatistics statistics = new CollisionStatistics();
+        CollisionSweep sweep = new CollisionSweep(automaton, scan,
+                                                    new QuantaExchangeRule(),
+                                                    statistics);
+        HybridAutomaton hybrid = new HybridAutomaton(automaton, sweep);
+        ConservationAudit audit = new ConservationAudit(automaton);
+        AuditedRun run = new AuditedRun(hybrid, audit);
+
+        AuditedRun.TickOutcome outcome = run.tick(0);
+
+        assertTrue("audit must stay clean through the uniform rest-pose tick-0: "
+                   + outcome.auditResult().violations(),
+                   outcome.auditResult().isClean());
+
+        assertEquals("pinned tick-0 total resolved-contact count for the uniform rest pose (boot-condition fact, see class javadoc)",
+                     320L, statistics.totalCollisions());
+        assertEquals("pinned tick-0 effective (nonzero-transfer) contact count for the uniform rest pose (boot-condition fact, see class javadoc)",
+                     293L, statistics.effectiveCollisions());
+
+        Map<Integer, Long> perDirection = statistics.collisionsPerDirection();
+        long sum = 0L;
+        for (long count : perDirection.values()) {
+            sum += count;
+        }
+        assertEquals("per-direction breakdown must sum to the total contact count",
+                     statistics.totalCollisions(), sum);
+        assertTrue("per-direction breakdown must be non-vacuous: at least one direction must show tick-0 contacts",
+                   perDirection.values().stream().anyMatch(count -> count > 0));
+
+        assertEquals("pinned per-direction tick-0 breakdown (boot-condition fact, see class javadoc)",
+                     Map.ofEntries(Map.entry(1, 0L), Map.entry(-1, 0L),
+                                    Map.entry(2, 128L), Map.entry(-2, 0L),
+                                    Map.entry(3, 0L), Map.entry(-3, 0L),
+                                    Map.entry(4, 32L), Map.entry(-4, 0L),
+                                    Map.entry(5, 128L), Map.entry(-5, 0L),
+                                    Map.entry(6, 32L), Map.entry(-6, 0L)),
+                     perDirection);
     }
 
     /**
