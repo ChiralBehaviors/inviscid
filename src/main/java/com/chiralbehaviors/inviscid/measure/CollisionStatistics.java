@@ -69,6 +69,25 @@ import com.chiralbehaviors.inviscid.lga.FccNeighborhood;
  * bare {@link java.util.HashMap} -- so repeated runs over the same inputs
  * report statistics in the same order.
  *
+ * <p><b>What counts as a "collision" here.</b> Every resolved contact
+ * {@code CollisionSweep} passes to {@link #recordCollision} counts toward
+ * {@link #totalCollisions()} and {@link #collisionsPerTick()} -- INCLUDING
+ * contacts where the collision rule decided a no-op ({@code
+ * transferMagnitude == 0}); see {@code CollisionSweep}'s class Javadoc,
+ * "Recording convention", for why no-ops are recorded at all. {@link
+ * #effectiveCollisions()} is the narrower, transfer-only count ({@code
+ * transferMagnitude > 0}). In practice a large fraction of recorded
+ * collisions are no-ops (empirically ~60% for {@code QuantaExchangeRule}
+ * against typical seed densities, since a tie is a no-op and quanta
+ * values cluster) -- a caller wanting a "how much actually moved" signal
+ * should read {@link #effectiveCollisions()}, not {@link
+ * #totalCollisions()}.
+ *
+ * <p>Recorded {@code direction} is always one of the 6 canonical
+ * "positive" directions ({@code +1..+6}) -- the caller ({@code
+ * CollisionSweep}) only ever supplies {@code Contact.direction()}, which
+ * by that record's own convention never carries a negative direction.
+ *
  * @author halhildebrand
  */
 public class CollisionStatistics {
@@ -85,6 +104,7 @@ public class CollisionStatistics {
     private final Map<Long, Long> perMemberPair = new TreeMap<>();
 
     private long totalCollisions = 0L;
+    private long effectiveCollisions = 0L;
     private int minTick = Integer.MAX_VALUE;
     private int maxTick = Integer.MIN_VALUE;
 
@@ -97,12 +117,26 @@ public class CollisionStatistics {
     }
 
     /**
-     * @return the total number of collisions across every direction; must
-     *         equal the sum of {@link #collisionsPerDirection()}'s values
-     *         by construction (both are updated together).
+     * @return the total number of RESOLVED contacts recorded across every
+     *         direction -- including zero-transfer no-ops; must equal the
+     *         sum of {@link #collisionsPerDirection()}'s values by
+     *         construction (both are updated together). See class
+     *         Javadoc, "What counts as a collision"; use {@link
+     *         #effectiveCollisions()} for the transfer-only count.
      */
     public long totalCollisions() {
         return totalCollisions;
+    }
+
+    /**
+     * @return the number of recorded collisions with a nonzero {@code
+     *         transferMagnitude} -- the narrower, transfer-only count
+     *         complementing {@link #totalCollisions()} (see class
+     *         Javadoc, "What counts as a collision"). Always {@code <=
+     *         totalCollisions()}.
+     */
+    public long effectiveCollisions() {
+        return effectiveCollisions;
     }
 
     /**
@@ -163,7 +197,12 @@ public class CollisionStatistics {
      * A cheap proxy for mean free path: the tick-span covered by recorded
      * collisions divided by the number of collisions. Not a physical mean
      * free path (no spatial distance is tracked here) -- a coarse "how
-     * often does a collision happen" signal only.
+     * often does a collision happen" signal only. Uses {@link
+     * #totalCollisions()} (includes no-ops -- see class Javadoc, "What
+     * counts as a collision"), so this is a "how often is a member near
+     * another" proxy, coarser than a transfer-only mean free path would
+     * be; divide the span by {@link #effectiveCollisions()} instead if a
+     * transfer-only proxy is wanted.
      *
      * @return the proxy value, or {@link Double#NaN} if no collisions have
      *         been recorded.
@@ -242,6 +281,9 @@ public class CollisionStatistics {
                                                 + transferMagnitude);
         }
         totalCollisions++;
+        if (transferMagnitude > 0) {
+            effectiveCollisions++;
+        }
         perDirection.merge(direction, 1L, Long::sum);
         perTick.merge(tick, 1L, Long::sum);
         perMemberPair.merge(memberPairKey(slotIndex(cubeA, memberA),
