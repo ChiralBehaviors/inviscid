@@ -60,6 +60,28 @@ import javax.vecmath.Point3i;
  * {@link IllegalArgumentException} naming the offending axis rather than
  * silently manufacturing spurious anisotropy in isotropy measurements.
  *
+ * <p><b>Minimum extent 4 per axis.</b> Even alone is not enough: at
+ * extent exactly 2 on some axis, two of the canonical direction offsets
+ * that differ by exactly 2 in that one axis (the pairs {@code (+1,+3)},
+ * {@code (+2,+5)}, {@code (+4,+6)} - see the offset table above) wrap
+ * {@code mod 2} to the identical delta on that axis, so both directions
+ * land on the SAME neighbor cell instead of two distinct ones. That
+ * breaks this class's own "12 distinct neighbors" guarantee (see {@code
+ * FccNeighborhoodTest.twelveDistinctOffsetsAllParityPreserving} - true of
+ * the offset table in isolation, but not of the wrapped neighbor set at
+ * extent 2) for every consumer, not merely {@code ContactScan}: a
+ * consumer relying on {@code neighbor(cell, d1) != neighbor(cell, d2)}
+ * for {@code d1 != d2} silently gets duplicate/aliased neighbors instead.
+ * (Discovered via {@code ContactScan}'s double-count guard firing at
+ * extent {@code (4,2,4)}: the y-axis-2 aliasing produced duplicate
+ * {@code Contact} entries reached via two different canonical directions,
+ * and the losing direction's contact geometry was independently wrong -
+ * {@code ContactPredicate.physicalOffset} computes the RAW un-wrapped
+ * offset for whichever direction is asked, so an aliased direction is
+ * evaluated against the correct wrapped cell but the wrong physical
+ * displacement. Bead inviscid-cb7.) The constructor therefore rejects any
+ * axis {@code < 4}, not just odd or non-positive axes.
+ *
  * <p><b>UNVERIFIED:</b> the correspondence between these 12 direction
  * indices and per-cell member indices (which of the 30 floats-per-cell in
  * {@code Necronomata} a given direction's collision partner reads/writes)
@@ -129,7 +151,7 @@ public class FccNeighborhood {
         }
     }
 
-    private static void requireEvenAxis(int value, String axis) {
+    private static void requireEvenAxisAtLeastFour(int value, String axis) {
         if (value <= 0) {
             throw new IllegalArgumentException("extent." + axis
                                                 + " must be positive, was: "
@@ -140,21 +162,29 @@ public class FccNeighborhood {
                                                 + " must be even for the FCC even-parity sublattice to be closed under periodic wrap, was: "
                                                 + value);
         }
+        if (value < 4) {
+            throw new IllegalArgumentException("extent." + axis
+                                                + " must be at least 4: at extent 2, canonical FCC direction pairs that differ by exactly 2 in this axis (e.g. +1/+3, +2/+5, +4/+6) alias to the SAME wrapped neighbor cell, breaking the 12-distinct-neighbors guarantee this class exists to provide; was: "
+                                                + value);
+        }
     }
 
     private final Point3i extent;
 
     /**
-     * @param extent the periodic-wrap extent; every axis must be positive
-     *               and even.
+     * @param extent the periodic-wrap extent; every axis must be positive,
+     *               even, and at least 4.
      * @throws IllegalArgumentException if any axis of {@code extent} is
-     *                                  zero, negative, or odd; the message
-     *                                  names the offending axis.
+     *                                  zero, negative, odd, or 2; the
+     *                                  message names the offending axis
+     *                                  (and, for the axis-2 case, the
+     *                                  aliasing reason - see class
+     *                                  Javadoc).
      */
     public FccNeighborhood(Point3i extent) {
-        requireEvenAxis(extent.x, "x");
-        requireEvenAxis(extent.y, "y");
-        requireEvenAxis(extent.z, "z");
+        requireEvenAxisAtLeastFour(extent.x, "x");
+        requireEvenAxisAtLeastFour(extent.y, "y");
+        requireEvenAxisAtLeastFour(extent.z, "z");
         this.extent = new Point3i(extent);
     }
 

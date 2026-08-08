@@ -127,6 +127,24 @@ public class FccNeighborhoodTest {
         assertAxisRejected(new Point3i(6, 6, 0), "z");
     }
 
+    /**
+     * Extent 2 is even and positive, but rejected anyway: canonical
+     * direction pairs that differ by exactly 2 on that axis - {@code
+     * (+1,+3)}, {@code (+2,+5)}, {@code (+4,+6)} - alias to the same
+     * wrapped neighbor cell at axis extent 2, breaking the "12 distinct
+     * neighbors" guarantee (bead inviscid-cb7, caught by stacked review on
+     * {@code ContactScan}: empirically confirmed via 32 duplicate {@code
+     * Contact} entries at extent {@code (4,2,4)}). See {@code
+     * FccNeighborhood}'s class Javadoc "Minimum extent 4 per axis"
+     * section.
+     */
+    @Test
+    public void axisExtentTwoIsRejected() {
+        assertAxisRejected(new Point3i(2, 6, 6), "x");
+        assertAxisRejected(new Point3i(6, 2, 6), "y");
+        assertAxisRejected(new Point3i(6, 6, 2), "z");
+    }
+
     @Test
     public void negativeExtentIsRejected() {
         assertAxisRejected(new Point3i(-6, 6, 6), "x");
