@@ -134,11 +134,11 @@ public class ConservationAuditTest {
         Point3i cellA = new Point3i(0, 0, 0);
         Point3i cellB = new Point3i(1, 1, 0);
 
-        stats.recordCollision(cellA, 0, cellB, 1, 1, 1L, 1);
-        stats.recordCollision(cellA, 2, cellB, 3, -1, 1L, 1);
-        stats.recordCollision(cellA, 4, cellB, 5, 4, 2L, 2);
-        stats.recordCollision(cellA, 6, cellB, 7, 4, 1L, 3);
-        stats.recordCollision(cellA, 8, cellB, 9, -6, 3L, 3);
+        stats.recordCollision(cellA, 0, 0, cellB, 0, 1, 1, 1L, 1);
+        stats.recordCollision(cellA, 0, 2, cellB, 0, 3, -1, 1L, 1);
+        stats.recordCollision(cellA, 0, 4, cellB, 0, 5, 4, 2L, 2);
+        stats.recordCollision(cellA, 1, 0, cellB, 1, 1, 4, 1L, 3);
+        stats.recordCollision(cellA, 1, 2, cellB, 1, 3, -6, 3L, 3);
 
         long total = stats.totalCollisions();
         long sum = 0L;
@@ -373,12 +373,109 @@ public class ConservationAuditTest {
         Point3i cellA = new Point3i(0, 0, 0);
         Point3i cellB = new Point3i(1, 1, 0);
 
-        stats.recordCollision(cellA, 2, cellB, 9, 1, 1L, 1);
-        stats.recordCollision(cellA, 9, cellB, 2, 1, 1L, 2);
+        // Cross-cube pair: (cube 0, member 2) <-> (cube 1, member 3),
+        // recorded once in each side order -- symmetry must hold
+        // regardless of which side of the collision each slot was passed
+        // as.
+        stats.recordCollision(cellA, 0, 2, cellB, 1, 3, 1, 1L, 1);
+        stats.recordCollision(cellA, 1, 3, cellB, 0, 2, 1, 1L, 2);
 
-        assertEquals(2L, stats.collisionsForMemberPair(2, 9));
-        assertEquals(2L, stats.collisionsForMemberPair(9, 2));
-        assertEquals(0L, stats.collisionsForMemberPair(2, 3));
+        assertEquals(2L, stats.collisionsForMemberPair(0, 2, 1, 3));
+        assertEquals(2L, stats.collisionsForMemberPair(1, 3, 0, 2));
+        assertEquals(0L, stats.collisionsForMemberPair(0, 2, 0, 3));
+    }
+
+    /**
+     * The bead's named proof test (inviscid-xew): a within-cube member
+     * index alone is not a unique key -- two collisions sharing the same
+     * within-cube {@code (memberA, memberB)} indices but occurring in
+     * different cubes must land in different
+     * {@code collisionsForMemberPair} buckets. Losing the cube axis would
+     * silently conflate distinct face-type pairs.
+     */
+    @Test
+    public void memberPairKeyDistinguishesCubes() {
+        CollisionStatistics stats = new CollisionStatistics();
+        Point3i cellA = new Point3i(0, 0, 0);
+        Point3i cellB = new Point3i(1, 1, 0);
+
+        // Same within-cube member indices (3, 4) in both collisions, but
+        // different cubes (0 vs 1).
+        stats.recordCollision(cellA, 0, 3, cellB, 0, 4, 1, 1L, 1);
+        stats.recordCollision(cellA, 1, 3, cellB, 1, 4, 1, 1L, 2);
+
+        assertEquals("cube-0 pair must be recorded independently of the "
+                     + "cube-1 pair sharing the same member indices", 1L,
+                     stats.collisionsForMemberPair(0, 3, 0, 4));
+        assertEquals("cube-1 pair must be recorded independently of the "
+                     + "cube-0 pair sharing the same member indices", 1L,
+                     stats.collisionsForMemberPair(1, 3, 1, 4));
+        assertEquals("a cross-cube combination that was never recorded "
+                     + "must not be conflated with either same-cube bucket",
+                     0L, stats.collisionsForMemberPair(0, 3, 1, 4));
+        assertEquals(2L, stats.totalCollisions());
+    }
+
+    @Test
+    public void recordCollisionValidatesCubeAndMemberRanges() {
+        CollisionStatistics stats = new CollisionStatistics();
+        Point3i cellA = new Point3i(0, 0, 0);
+        Point3i cellB = new Point3i(1, 1, 0);
+
+        assertRejectsWithArgumentName(() -> stats.recordCollision(cellA, -1,
+                                                                    0, cellB,
+                                                                    0, 0, 1,
+                                                                    1L, 1),
+                                       "cubeA");
+        assertRejectsWithArgumentName(() -> stats.recordCollision(cellA, 5,
+                                                                    0, cellB,
+                                                                    0, 0, 1,
+                                                                    1L, 1),
+                                       "cubeA");
+        assertRejectsWithArgumentName(() -> stats.recordCollision(cellA, 0,
+                                                                    -1, cellB,
+                                                                    0, 0, 1,
+                                                                    1L, 1),
+                                       "memberA");
+        assertRejectsWithArgumentName(() -> stats.recordCollision(cellA, 0,
+                                                                    6, cellB,
+                                                                    0, 0, 1,
+                                                                    1L, 1),
+                                       "memberA");
+        assertRejectsWithArgumentName(() -> stats.recordCollision(cellA, 0,
+                                                                    0, cellB,
+                                                                    -1, 0, 1,
+                                                                    1L, 1),
+                                       "cubeB");
+        assertRejectsWithArgumentName(() -> stats.recordCollision(cellA, 0,
+                                                                    0, cellB,
+                                                                    5, 0, 1,
+                                                                    1L, 1),
+                                       "cubeB");
+        assertRejectsWithArgumentName(() -> stats.recordCollision(cellA, 0,
+                                                                    0, cellB,
+                                                                    0, -1, 1,
+                                                                    1L, 1),
+                                       "memberB");
+        assertRejectsWithArgumentName(() -> stats.recordCollision(cellA, 0,
+                                                                    0, cellB,
+                                                                    0, 6, 1,
+                                                                    1L, 1),
+                                       "memberB");
+        assertEquals("none of the rejected calls may have been recorded",
+                     0L, stats.totalCollisions());
+    }
+
+    private static void assertRejectsWithArgumentName(Runnable call,
+                                                        String argName) {
+        try {
+            call.run();
+            fail("expected IllegalArgumentException naming " + argName);
+        } catch (IllegalArgumentException expected) {
+            assertTrue("exception message must name the rejected argument ("
+                       + argName + "): " + expected.getMessage(),
+                       expected.getMessage().contains(argName));
+        }
     }
 
     @Test
@@ -390,7 +487,8 @@ public class ConservationAuditTest {
         long[] magnitudes = { 1L, 1L, 2L, 3L, 3L, 3L };
         int tick = 1;
         for (long magnitude : magnitudes) {
-            stats.recordCollision(cellA, 0, cellB, 1, 1, magnitude, tick++);
+            stats.recordCollision(cellA, 0, 0, cellB, 0, 1, 1, magnitude,
+                                   tick++);
         }
 
         Map<Long, Long> histogram = stats.transferMagnitudeHistogram();
@@ -410,9 +508,9 @@ public class ConservationAuditTest {
         Point3i cellA = new Point3i(0, 0, 0);
         Point3i cellB = new Point3i(1, 1, 0);
         // 3 collisions spanning ticks 1..5 inclusive -> span 5, proxy 5/3.
-        stats.recordCollision(cellA, 0, cellB, 1, 1, 1L, 1);
-        stats.recordCollision(cellA, 0, cellB, 1, 1, 1L, 2);
-        stats.recordCollision(cellA, 0, cellB, 1, 1, 1L, 5);
+        stats.recordCollision(cellA, 0, 0, cellB, 0, 1, 1, 1L, 1);
+        stats.recordCollision(cellA, 0, 0, cellB, 0, 1, 1, 1L, 2);
+        stats.recordCollision(cellA, 0, 0, cellB, 0, 1, 1, 1L, 5);
 
         assertEquals(5.0 / 3.0, stats.meanFreePathProxy(), 0.0);
     }
@@ -423,7 +521,7 @@ public class ConservationAuditTest {
         Point3i cellA = new Point3i(0, 0, 0);
         Point3i cellB = new Point3i(1, 1, 0);
         try {
-            stats.recordCollision(cellA, 0, cellB, 1, 1, -1L, 1);
+            stats.recordCollision(cellA, 0, 0, cellB, 0, 1, 1, -1L, 1);
             fail("negative transferMagnitude must be rejected");
         } catch (IllegalArgumentException expected) {
             // expected
