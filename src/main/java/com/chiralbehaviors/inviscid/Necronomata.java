@@ -41,8 +41,30 @@ public class Necronomata implements Iterable<Point3i> {
      * steps per revolution. NecronomataVisualization's rotation LUT must be
      * constructed with this resolution (see NecronomataAnimation) so that
      * automaton stepping and rendered rotation stay in lock-step.
+     *
+     * <p><b>This is NOT the formal LGA's phase-quantization resolution
+     * (N_lga).</b> This constant is the VISUALIZATION-LUT-derived
+     * resolution (3600 steps/revolution) that {@link #QUANTUM_RATE} is
+     * built from; the future formal lattice-gas automaton's N_lga (chosen
+     * from {@code {8,12,16,24}} in bead inviscid-0nx.16 / phase A.5, based
+     * on observed contact-angle widths) is a separate, much smaller
+     * quantity - see the design doc (T2 inviscid/design-jitterbug-lga.md)
+     * and plan doc (T2 inviscid/plan-jitterbug-lga.md, structural finding
+     * 6), which explicitly states the visualization LUT stays untouched
+     * by the formal LGA's phase quantization. Bead inviscid-0nx.18 (C.1:
+     * phase quantization + LUT at N_lga) must NOT reach for this constant
+     * as N_lga; it needs its own, independently-derived resolution.
      */
     public static final int   PHASE_RESOLUTION = 3600;
+
+    /**
+     * Double-precision 2*pi used to floor-mod-reduce {@code angle} in
+     * {@link #step()} (inviscid-vb9). Kept as a double so the reduction
+     * itself does not reintroduce the float32 precision loss it exists to
+     * eliminate; the wrapped result is cast back to float only once, at
+     * the end of the reduction.
+     */
+    private static final double TWO_PI = 2.0 * Math.PI;
 
     /**
      * The single coupling constant between the conserved {@code frequency}
@@ -213,16 +235,41 @@ public class Necronomata implements Iterable<Point3i> {
      * absorbs whatever a collision rule accumulated in deltaF and deltaF
      * is zeroed (so it enters the next tick empty); deltaA is then
      * recomputed from the now-current frequency (never independent);
-     * angle is advanced by deltaA. This ordering is same-tick: a quantum
-     * transferred this tick moves its member's angle on this same
-     * step(), not the next one.
+     * angle is advanced by deltaA and wrapped into {@code [0, 2*pi)}.
+     * This ordering is same-tick: a quantum transferred this tick moves
+     * its member's angle on this same step(), not the next one.
+     *
+     * <p>The wrap (inviscid-vb9) is a floor-mod reduction done in double
+     * precision before the result is cast back to the float32 {@code
+     * angle} array: since {@code angle} is thereby always bounded to one
+     * revolution, the per-tick rounding error is a single bounded
+     * mod-reduction plus one add, not an ever-growing accumulation - it
+     * no longer grows with warmup ticks the way unbounded float32
+     * accumulation used to (see {@link
+     * com.chiralbehaviors.inviscid.measure.SpectrumAnalyzer}'s class
+     * javadoc for the retired pre-wrap failure mode this eliminates).
+     * Floor-mod (not truncating {@code %}) guarantees the wrapped result
+     * is never negative, so a negative-rate rotor's angle still lands in
+     * {@code [0, 2*pi)}. Lossless for every current consumer: {@code
+     * exp(i*angle)} (SpectrumAnalyzer) and LUT-index consumers
+     * (NecronomataVisualization) are both exactly invariant under angle
+     * mod 2*pi.
      */
     public void step() {
         for (int i = 0; i < angle.length; i++) {
             frequency[i] = frequency[i] + deltaF[i];
             deltaF[i] = 0f;
             deltaA[i] = QUANTUM_RATE * frequency[i];
-            angle[i] = angle[i] + deltaA[i];
+            double raw = (double) angle[i] + (double) deltaA[i];
+            double wrapped = raw - TWO_PI * Math.floor(raw / TWO_PI);
+            angle[i] = (float) wrapped;
+            // The double result is always < 2*pi, but the float cast can
+            // round UP to exactly (float) TWO_PI when wrapped lands within
+            // one float ULP below the boundary - clamp so the documented
+            // [0, 2*pi) invariant holds at float precision too.
+            if (angle[i] >= (float) TWO_PI) {
+                angle[i] = 0f;
+            }
         }
     }
 
@@ -231,7 +278,26 @@ public class Necronomata implements Iterable<Point3i> {
      * visitation writing {@code deltaF} (the conserved-transfer path,
      * bead inviscid-0nx.14) and initial-condition seeding writing
      * {@code frequency} directly (NecronomataAnimation.seedFrequency).
-     * Writers of {@code angle}/{@code deltaA} are outside the contract.
+     * Writers of {@code angle}/{@code deltaA} are outside the contract -
+     * <b>the exact invariant a {@link Processor} must preserve is: never
+     * write {@code angle} or {@code deltaA}; only write {@code deltaF}
+     * (collision transfer) or {@code frequency} (initial-condition
+     * seeding).</b>
+     *
+     * <p>This is enforced by neither the type system nor a runtime
+     * guard (inviscid-5sk, deliberately accepted for Phase A ergonomics -
+     * see {@code NecronomataStateSemanticsTest}'s
+     * {@code processorWritingAngleIsVisibleDynamics} negative-control
+     * test), but the two writable-in-violation fields are not equally
+     * dangerous: a stray {@code deltaA} write is self-healing - {@link
+     * #step()} unconditionally recomputes {@code deltaA[i] =
+     * QUANTUM_RATE * frequency[i]} every tick, discarding any value a
+     * Processor left there (see {@code
+     * processorWritingDeltaADirectlyIsOverwrittenByNextStep}). A stray
+     * {@code angle} write is NOT self-healing - {@link #step()} reads
+     * the existing {@code angle} value and adds {@code deltaA} to it, so
+     * a direct write permanently perturbs the trajectory from that point
+     * on. This is the real exposure of this escape hatch.
      */
     public void process(Processor action) {
         action.process(angle, frequency, deltaA, deltaF);

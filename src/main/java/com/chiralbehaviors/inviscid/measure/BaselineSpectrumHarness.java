@@ -75,24 +75,36 @@ import com.chiralbehaviors.inviscid.measure.SpectrumAnalyzer.WindowFunction;
  * correct call into the shared {@link SpectrumAnalyzer#expectedBinForFrequency}
  * convention is {@code expectedBinForFrequency(quanta * STRIDE, N)}.
  *
- * <h2>Float32 precision budget - a SECOND footgun the naive fix above walks
- * into</h2>
- * The bin-alignment fix's own total tick count is {@code (N-1)*STRIDE},
- * which GROWS with {@code N} (since the minimal {@code STRIDE} is a fixed
- * 225 for any {@code N >= 16}) - so picking a large FFT length "for better
- * resolution" directly fights the float32 angle-accumulation ceiling
- * documented in {@link SpectrumAnalyzer}'s class javadoc. That javadoc's
- * error table was measured for a short {@code recordAngleSeries} window
- * taken AFTER a long prior warm-up (only the window's own few thousand
- * ticks accumulate further rounding against an already-large angle
- * offset); THIS harness has no separate warm-up phase - the recorded
- * window itself spans the entire accumulation from angle&asymp;0 to
+ * <h2>Float32 precision budget - RETIRED by inviscid-vb9, kept for
+ * historical context</h2>
+ * As of inviscid-vb9, {@code Necronomata.step()} wraps {@code angle} into
+ * {@code [0, 2*pi)} every tick, so the per-tick rounding error stays
+ * bounded regardless of total tick count - the sweep below (run against
+ * the pre-wrap unbounded accumulation) no longer describes current
+ * behavior; peak-bin concentration at the default parameters is now
+ * &gt;=0.9999 for every nonzero-quanta member (see the regenerated golden
+ * artifact), not the 0.9914 worst case this section originally measured.
+ * {@link #FFT_LENGTH} = 256 remains the chosen value (no need to grow it
+ * now that the precision ceiling that motivated keeping it small is
+ * gone), but the reasoning below is retained only as a record of why it
+ * was originally picked.
+ *
+ * <p>The bin-alignment fix's own total tick count is {@code
+ * (N-1)*STRIDE}, which GROWS with {@code N} (since the minimal {@code
+ * STRIDE} is a fixed 225 for any {@code N >= 16}) - before inviscid-vb9,
+ * picking a large FFT length "for better resolution" directly fought the
+ * float32 angle-accumulation ceiling documented in {@link
+ * SpectrumAnalyzer}'s class javadoc. That javadoc's retired error table
+ * was measured for a short {@code recordAngleSeries} window taken AFTER a
+ * long prior warm-up (only the window's own few thousand ticks
+ * accumulated further rounding against an already-large angle offset);
+ * THIS harness had no separate warm-up phase - the recorded window itself
+ * spanned the entire accumulation from angle&asymp;0 to
  * angle&asymp;{@code quanta*QUANTUM_RATE*(N-1)*STRIDE}, so the
- * instantaneous rate drifts (a float32-rounding-induced chirp, not a
- * stationary tone) across the SAME window being analyzed, and the two
- * "well under ~1,000,000 ticks" regimes are not directly comparable.
- * Empirically swept (not guessed) with {@code STRIDE=225}, extent (2,2,2),
- * quanta in [-5,5]:
+ * instantaneous rate drifted (a float32-rounding-induced chirp, not a
+ * stationary tone) across the SAME window being analyzed. Empirically
+ * swept (not guessed) with {@code STRIDE=225}, extent (2,2,2), quanta in
+ * [-5,5], against the PRE-WRAP code:
  *
  * <pre>
  *     N=128  (  28,575 ticks): worst nonzero-quanta peak fraction 0.9996
@@ -103,17 +115,14 @@ import com.chiralbehaviors.inviscid.measure.SpectrumAnalyzer.WindowFunction;
  * </pre>
  *
  * Bin alignment itself (peakBin == expectedBin) held exactly at every N
- * swept - only peak-bin CONCENTRATION degrades with tick count, confirming
- * this is chirp-style leakage from accumulation rounding, not a
- * bin-arithmetic error. {@link #FFT_LENGTH} = 256 is chosen for its
- * comfortable margin above the 0.95 requirement (worst case 0.9914, ~4
- * points of headroom) while still giving a non-trivial 256-bin spectrum -
- * NOT the 4096/8192 lengths a first pass at this bead might reach for
- * without running this sweep. Concentration is NOT monotonic in {@code
- * |quanta|}: at the default parameters the worst case is quanta=-4
+ * swept - only peak-bin CONCENTRATION degraded with tick count, confirming
+ * this was chirp-style leakage from accumulation rounding, not a
+ * bin-arithmetic error. Concentration was NOT monotonic in {@code
+ * |quanta|}: at the default parameters the worst case was quanta=-4
  * (0.9914), not the range extremes quanta=&plusmn;5 - swept empirically,
- * not guessed, so do not assume "larger |quanta| is always worse" when
- * changing the seeded range.
+ * not guessed. This non-monotonicity was itself a symptom of the
+ * pre-wrap rounding-chirp mechanism and should not be assumed to still
+ * hold post-wrap.
  *
  * <h2>Nyquist / aliasing bound on seeded quanta</h2>
  * The bin-alignment math (previous section) maps quanta to a digital

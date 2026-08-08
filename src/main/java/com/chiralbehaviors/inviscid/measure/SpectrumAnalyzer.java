@@ -25,11 +25,14 @@ import com.chiralbehaviors.inviscid.Necronomata;
  * <h2>The ramp-vs-sinusoid choice</h2>
  * A free rotor's angle is a linear phase ramp - {@code
  * Necronomata.step()} advances {@code angle[m] += QUANTUM_RATE *
- * frequency[m]} every tick, unbounded, never wrapped mod 2*pi - so a K=0
- * baseline member's recorded series looks like {@code theta(n) = theta0 +
- * omega*n}. Three ways to turn that into something spectrally meaningful
- * were considered; {@code exp(i*angle)}, the complex analytic-signal
- * mapping, was chosen:
+ * frequency[m]} every tick (wrapped into {@code [0, 2*pi)} since
+ * inviscid-vb9) - so a K=0 baseline member's recorded series is
+ * {@code theta(n) = (theta0 + omega*n) mod 2*pi}: a sawtooth, the
+ * wrapped image of a ramp. Three ways to turn that into something
+ * spectrally meaningful were considered; {@code exp(i*angle)}, the
+ * complex analytic-signal mapping, was chosen (the wrap strengthens the
+ * case: a raw wrapped series has periodic sawtooth discontinuities that
+ * {@code exp(i*angle)}, being exactly mod-2*pi invariant, never sees):
  *
  * <ul>
  * <li><b>Raw angle.</b> Rejected outright: a ramp is not periodic within a
@@ -112,15 +115,25 @@ import com.chiralbehaviors.inviscid.Necronomata;
  * #powerSpectrum(float[], WindowFunction)} with {@link
  * WindowFunction#RECTANGULAR} explicitly.
  *
- * <h2>Float32 angle-accumulation precision ceiling</h2>
- * {@code Necronomata.angle} is {@code float} (32-bit), accumulated by
- * {@code step()} unbounded and never wrapped mod 2*pi. Every tick after
- * the first pushes the value further from zero, and float32's fixed
- * 24-bit mantissa means the ULP (the smallest representable increment)
- * grows with magnitude - so a fixed-size {@code deltaA} increment
- * eventually rounds away partially, then completely. Measured (actual
- * Java {@code float} accumulation, not a hand-wave estimate) as the
- * relative error of the locally-observed rotation rate within a
+ * <h2>Float32 angle-accumulation precision ceiling (RETIRED by inviscid-vb9)</h2>
+ * {@code Necronomata.angle} is {@code float} (32-bit). As of inviscid-vb9,
+ * {@code step()} wraps {@code angle} into {@code [0, 2*pi)} (floor-mod, in
+ * double precision) after every tick, so the value is always bounded to
+ * one revolution - it can no longer walk arbitrarily far from zero, and
+ * the per-tick rounding error is now just one bounded mod-reduction plus
+ * one add on a value under {@code 2*pi}, which does <b>not</b> grow with
+ * warm-up tick count the way unbounded accumulation used to. The residual
+ * error at any tick count is on the order of a single float32 ULP near
+ * {@code 2*pi} (~2.4e-7 rad), not an accumulating drift.
+ *
+ * <p><b>Historical note</b> (true of the code before inviscid-vb9, kept
+ * for context - do not use these numbers to reason about current
+ * behavior): before the wrap, {@code angle} accumulated unbounded and
+ * every tick after the first pushed the value further from zero, so
+ * float32's fixed 24-bit mantissa meant the ULP grew with magnitude and a
+ * fixed-size {@code deltaA} increment eventually rounded away partially,
+ * then completely. Measured (actual Java {@code float} accumulation) as
+ * the relative error of the locally-observed rotation rate within a
  * 4096-sample analysis window, as a function of prior warm-up ticks:
  *
  * <pre>
@@ -130,23 +143,14 @@ import com.chiralbehaviors.inviscid.Necronomata;
  *     50,000,000 ticks:         -100%   rate error   (angle stops advancing entirely)
  * </pre>
  *
- * The {@code 2^23}-tick cliff is <b>frequency-independent</b> - it is the
- * point at which a float32's ULP first exceeds a full {@code QUANTUM_RATE}
- * increment regardless of {@code frequency}, so it applies uniformly to
- * every member, not just fast rotors. This failure mode is silent: it
+ * That {@code 2^23}-tick cliff was frequency-independent and silent: it
  * would present in a spectrum as line broadening or a spurious frequency
- * shift, indistinguishable from the genuine collision broadening this
- * measurement layer exists to detect (the "instrument contaminates the
- * measurement" trap). <b>Guidance:</b> any workflow that warms up a
- * {@code Necronomata} for many ticks before recording a series must keep
- * total ticks (warm-up plus the recorded window) well under ~1,000,000 to
- * stay under ~1% rate error, or must wait for the root-cause fix (wrapping
- * {@code angle} mod 2*pi in {@code Necronomata}, tracked as bead
- * inviscid-vb9, deliberately out of scope for this class) before running
- * long-warm-up experiments. {@code SpectrumAnalyzerTest}'s synthetic rotor
- * series are generated fresh per sample (not accumulated), so they do not
- * exercise this failure mode and cannot be used to detect a regression in
- * it.
+ * shift, indistinguishable from genuine collision broadening (the
+ * "instrument contaminates the measurement" trap) - which is exactly why
+ * inviscid-vb9 fixed it at the source ({@code Necronomata.step()}) rather
+ * than working around it here. {@code SpectrumAnalyzerTest}'s synthetic
+ * rotor series are generated fresh per sample (not accumulated), so they
+ * never exercised this failure mode either way.
  *
  * @author halhildebrand
  */
@@ -270,11 +274,11 @@ public final class SpectrumAnalyzer {
      * read-only, per that method's javadoc contract - it never writes
      * {@code angle}/{@code deltaA} (or any other array).
      *
-     * <p><b>See the class javadoc's "Float32 angle-accumulation precision
-     * ceiling" section</b> before using this to record a series after a
-     * long warm-up: {@code automaton}'s angle accumulation is unbounded
-     * float32 and silently loses rate accuracy well before it stops
-     * advancing entirely.
+     * <p>See the class javadoc's "Float32 angle-accumulation precision
+     * ceiling" section: since inviscid-vb9, {@code automaton}'s angle is
+     * wrapped into {@code [0, 2*pi)} every tick, so its per-tick rounding
+     * error stays bounded regardless of prior warm-up length (that
+     * section's error table is retired, historical-only behavior).
      */
     public static float[] recordAngleSeries(Necronomata automaton,
                                              int globalMemberIndex,
