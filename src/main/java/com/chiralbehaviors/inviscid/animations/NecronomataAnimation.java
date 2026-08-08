@@ -48,11 +48,50 @@ public class NecronomataAnimation extends PolyView {
         }
     }
 
-    private static final Material[] edgeMaterials = new PhongMaterial[] { blueMaterial, blueMaterial, blueMaterial,
-                                                                          blueMaterial, blueMaterial, blueMaterial };
+    private static final Material[] edgeMaterials  = new PhongMaterial[] { blueMaterial, blueMaterial, blueMaterial,
+                                                                            blueMaterial, blueMaterial, blueMaterial };
+
+    /**
+     * Alternating quanta pattern cycling over the 6 members of a cube, used
+     * ONLY for the one-time initial kick before the timeline starts.
+     */
+    private static final float[]    POSITIVE_QUANTA = { 1, 1, -1, -1, 1, 1 };
+
+    /** Negation of {@link #POSITIVE_QUANTA}, one-time initial kick only. */
+    private static final float[]    NEGATIVE_QUANTA = { -1, -1, 1, 1, -1, -1 };
+
+    /**
+     * Uniform quanta magnitude 1 across all six members: the recurring
+     * per-tick drive rotates every strut together (matches the pre-change
+     * behavior, where the timeline's recurring drive fed a uniform
+     * angular-resolution rate into every deltaA slot). Necronomata.QUANTUM_RATE
+     * (pi/1800) is intentionally EQUAL to this visualization's angular
+     * resolution (2*pi/3600, the 3600-step LUT constructed below), so a
+     * frequency of 1 advances a member by exactly one LUT step per tick.
+     * The two constants must move together.
+     */
+    private static final float[]    UNIFORM_POSITIVE_QUANTA = { 1, 1, 1, 1, 1, 1 };
+
+    /** Negation of {@link #UNIFORM_POSITIVE_QUANTA}, recurring per-tick drive only. */
+    private static final float[]    UNIFORM_NEGATIVE_QUANTA = { -1, -1, -1, -1, -1, -1 };
 
     public static void main(String[] args) {
         launch(args);
+    }
+
+    /**
+     * Seed frequency (the conserved quanta count) across every member,
+     * cycling {@code pattern} over the 6 members of a cube. Replaces the
+     * removed {@code Necronomata} drive(float[]) method, which erroneously
+     * wrote directly into deltaA (an angular rate) rather than the
+     * frequency quanta that now drive it via {@link Necronomata#QUANTUM_RATE}.
+     */
+    private static void seedFrequency(Necronomata automata, float[] pattern) {
+        automata.process((angle, frequency, deltaA, deltaF) -> {
+            for (int i = 0; i < frequency.length; i++) {
+                frequency[i] = pattern[i % 6];
+            }
+        });
     }
 
     @Override
@@ -69,13 +108,7 @@ public class NecronomataAnimation extends PolyView {
 
         group.getChildren().add(grid.construct(blackMaterial, blackMaterial, blackMaterial));
 
-        float[] delta = new float[6];
-        float[] minusDelta = new float[6];
-        for (int i = 0; i < 6; i++) {
-            delta[i] = visualization.getAngularResolution();
-            minusDelta[i] = -visualization.getAngularResolution();
-        }
-        automata.drive(NecronomataVisualization.getPositiveTet());
+        seedFrequency(automata, POSITIVE_QUANTA);
         automata.step();
         visualization.update();
         final Timeline timeline = new Timeline();
@@ -94,9 +127,9 @@ public class NecronomataAnimation extends PolyView {
                 if (currentIndex != nextIndex) {
                     int deltaIndex = nextIndex - currentIndex;
                     lastIndex = nextIndex;
-                    float[] apply = deltaIndex < 0 ? minusDelta : delta;
+                    float[] apply = deltaIndex < 0 ? UNIFORM_NEGATIVE_QUANTA : UNIFORM_POSITIVE_QUANTA;
                     for (int step = 0; step < Math.abs(deltaIndex); step++) {
-                        automata.drive(apply);
+                        seedFrequency(automata, apply);
                         automata.step();
                         visualization.update();
                     }

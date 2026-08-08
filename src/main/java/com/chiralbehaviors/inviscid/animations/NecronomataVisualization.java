@@ -16,14 +16,11 @@
 
 package com.chiralbehaviors.inviscid.animations;
 
-import static com.chiralbehaviors.inviscid.Constants.QUARTER_PI;
 import static com.chiralbehaviors.inviscid.Constants.ROOT_2;
-import static com.chiralbehaviors.inviscid.Constants.THREE_QUARTERS_PI;
 import static com.chiralbehaviors.inviscid.Constants.TWO_PI;
 import static com.chiralbehaviors.inviscid.CubicGrid.yAxis;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import com.chiralbehaviors.inviscid.CubicGrid;
@@ -54,29 +51,7 @@ public class NecronomataVisualization extends Group {
 
     private static Point3D       CANONICAL_Y_AXIS = new Point3D(0, 1, 0);
 
-    private static final float[] NEGATIVE_TET     = new float[] { THREE_QUARTERS_PI,
-                                                                  THREE_QUARTERS_PI,
-                                                                  QUARTER_PI,
-                                                                  QUARTER_PI,
-                                                                  THREE_QUARTERS_PI,
-                                                                  THREE_QUARTERS_PI };
-
-    private static final float[] POSITIVE_TET     = new float[] { QUARTER_PI,
-                                                                  QUARTER_PI,
-                                                                  THREE_QUARTERS_PI,
-                                                                  THREE_QUARTERS_PI,
-                                                                  QUARTER_PI,
-                                                                  QUARTER_PI };
-
     private static final int     STRUTS_PER_CELL  = 6 * 5;
-
-    public static float[] getNegativeTet() {
-        return Arrays.copyOf(NEGATIVE_TET, NEGATIVE_TET.length);
-    }
-
-    public static float[] getPositiveTet() {
-        return Arrays.copyOf(POSITIVE_TET, POSITIVE_TET.length);
-    }
 
     private static Rotate base(Point3D yAxis) {
         Point3D axisOfRotation = yAxis.crossProduct(CANONICAL_Y_AXIS);

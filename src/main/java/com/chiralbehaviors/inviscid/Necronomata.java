@@ -35,10 +35,45 @@ public class Necronomata implements Iterable<Point3i> {
                      float[] deltaF);
     }
 
+    /**
+     * The single coupling constant between the conserved {@code frequency}
+     * quanta count and angular rate: {@code deltaA[m] == QUANTUM_RATE *
+     * frequency[m]} holds immediately AFTER every {@link #step()} call
+     * (not "always" unconditionally — before the first step deltaA is
+     * still its zero-initialized value, even if frequency was pre-seeded
+     * by the caller). Radians of angle advanced per step, per unit of
+     * frequency.
+     */
+    public static final float QUANTUM_RATE = (float) (Math.PI / 1800.0);
+
+    /**
+     * Member phase, in radians. 30 values per cell (5 cubes x 6 members).
+     */
     private final float[] angle;
+
+    /**
+     * Angular rate, in radians per step. DERIVED, never independent:
+     * recomputed every {@link #step()} as {@code QUANTUM_RATE *
+     * frequency[m]}, using frequency AFTER that same step's deltaF has
+     * been applied — so a quantum absorbed this tick moves its member on
+     * this same tick. Never seeded or written directly.
+     */
     private final float[] deltaA;
+
+    /**
+     * Transient collision-delta accumulator ONLY. A collision rule writes
+     * the quanta it transfers into a member's slot here; {@link #step()}
+     * applies it to {@code frequency} and zeroes it, so it never survives
+     * past the tick that produced it.
+     */
     private final float[] deltaF;
     private final Point3i extent;
+
+    /**
+     * Signed integer quanta count, held in a float slot, per member. This
+     * is the conserved quantity: members are channels, frequency quanta are
+     * the particles that hop between them at collisions.
+     */
     private final float[] frequency;
 
     public Necronomata(float[] angles, Point3i extent, float[] frequency) {
@@ -56,8 +91,8 @@ public class Necronomata implements Iterable<Point3i> {
         this.extent = extent;
         this.angle = angles;
         this.frequency = frequency;
-        this.deltaA = angles.clone();
-        this.deltaF = frequency.clone();
+        this.deltaA = new float[angles.length];
+        this.deltaF = new float[frequency.length];
     }
 
     public Necronomata(int i, int j, int k) {
@@ -163,17 +198,21 @@ public class Necronomata implements Iterable<Point3i> {
         */
     }
 
+    /**
+     * Advance the automaton one tick. Per member, in order: frequency
+     * absorbs whatever a collision rule accumulated in deltaF and deltaF
+     * is zeroed (so it enters the next tick empty); deltaA is then
+     * recomputed from the now-current frequency (never independent);
+     * angle is advanced by deltaA. This ordering is same-tick: a quantum
+     * transferred this tick moves its member's angle on this same
+     * step(), not the next one.
+     */
     public void step() {
         for (int i = 0; i < angle.length; i++) {
-            angle[i] = angle[i] + deltaA[i];
             frequency[i] = frequency[i] + deltaF[i];
-        }
-    }
-
-    public void drive(float[] delta) {
-        assert delta.length == 6;
-        for (int i = 0; i < deltaA.length; i++) {
-            deltaA[i] = delta[i % 6];
+            deltaF[i] = 0f;
+            deltaA[i] = QUANTUM_RATE * frequency[i];
+            angle[i] = angle[i] + deltaA[i];
         }
     }
 
