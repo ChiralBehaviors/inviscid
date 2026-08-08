@@ -215,9 +215,25 @@ public class Necronomata implements Iterable<Point3i> {
     }
 
     /**
-     * Collision-rule visitation site (reserved to bead inviscid-0nx.14).
-     * The 12 FCC even-parity neighbor offsets this method will visit are
-     * now data, not comment: see
+     * Collision-rule visitation site, originally reserved to bead
+     * inviscid-0nx.14. <b>Closed empty/unused by design (bead
+     * inviscid-0nx.15, Phase A.4) — this is the recorded decision, not an
+     * oversight.</b> The per-tick contact-scan-and-resolve loop was built
+     * as a small stack of composed classes instead of a per-cell {@code
+     * Necronomata} method: {@link com.chiralbehaviors.inviscid.lga.ContactScan}
+     * enumerates contacts (bead inviscid-0nx.13), {@link
+     * com.chiralbehaviors.inviscid.lga.CollisionSweep} resolves and
+     * records them against the frozen pre-tick snapshot (bead
+     * inviscid-0nx.14), and {@link
+     * com.chiralbehaviors.inviscid.lga.HybridAutomaton} composes that
+     * sweep with this class's {@link #step()} into one tick (bead
+     * inviscid-0nx.15) — see {@code HybridAutomaton}'s own Javadoc,
+     * "Decision: a composed class, not a {@code Necronomata} method", for
+     * the full rationale. Filling in this method instead would have
+     * folded contact-scan orchestration and collision-rule dispatch into
+     * the state substrate itself, mixing responsibilities the design memo
+     * keeps layered apart. The 12 FCC even-parity neighbor offsets this
+     * method's original comment described are now data, not comment: see
      * {@link com.chiralbehaviors.inviscid.lga.FccNeighborhood} for the
      * offset table, direction indexing, opposite-direction lookup, and
      * wrap-aware {@code neighbor(Point3i, int)} lookup. Note that
