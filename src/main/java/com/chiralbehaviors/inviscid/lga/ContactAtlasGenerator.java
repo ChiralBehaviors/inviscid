@@ -59,14 +59,20 @@ import com.chiralbehaviors.inviscid.measure.ConservationAudit;
  * which came in well below the crude Poisson-saturation extrapolation - an
  * honestly-reported miss, not a silently-accepted one).
  *
- * <h2>Two data sources, merged</h2>
+ * <h2>Three data sources, merged (v2, bead inviscid-gyt)</h2>
  * <ol>
- * <li><b>Geometric ground truth</b> ({@link #sweepGeometricGroundTruth}) -
- * {@link ContactPredicate} swept over the full bin grid: all 12 {@link
- * FccNeighborhood#DIRECTIONS}, all {@code 30x30} {@code (cubeA, memberA,
- * cubeB, memberB)} combinations, all {@code nLga^2} bin pairs, evaluated at
- * bin centers. Every combination the sweep finds contacting becomes a row
- * (bead: "one row per contacting combination").</li>
+ * <li><b>Overlap + bin-center ground truth</b> ({@link
+ * #sweepOverlapAndCenter}) - for every combo in the exhaustive ever-
+ * contacting universe ({@link ContactComboCache}), a fine {@code
+ * geometryResolution x geometryResolution} angle sweep is aggregated into
+ * each {@code nLga x nLga} bin CELL (not just its center): {@code
+ * overlapFraction = (fine samples in this cell that contact) / (fine
+ * samples in this cell)} - the ANY-OVERLAP transcription signal (USER
+ * DECISION 2026-08-08, bead inviscid-gyt): a cell is "fired" iff {@code
+ * overlapFraction > 0}. {@code contact} (the original v1 signal) is
+ * retained, computed at the bin center only, for comparability - see
+ * {@link #sweepOverlapAndCenter}'s own Javadoc for the proof that {@code
+ * contact=true} always implies {@code overlapFraction > 0}.</li>
  * <li><b>Dynamic reachability</b> ({@link #runDynamicReachability}) - drives
  * a real Phase A {@link AuditedRun} for {@code ticksObserved} ticks,
  * snapshotting {@code angle} PRE-TICK (the .15 planning note recorded on
@@ -74,13 +80,35 @@ import com.chiralbehaviors.inviscid.measure.ConservationAudit;
  * {@code angle} array via {@link Necronomata#process(Necronomata.Processor)}
  * immediately before each {@link AuditedRun#tick(int)} call) and correlating
  * {@code TickResult.applied()}'s resolved contacts against those frozen
- * pre-tick angles, quantized to {@code nLga} bins. A dynamically-observed
- * combination not already present from the geometric sweep (its bin-center
- * verdict can legitimately disagree with the fine-grained angle the dynamic
- * run actually contacted at - exactly the quantization-fidelity risk the
- * bead's measurement campaign quantifies) is still added, with its {@code
- * contact} field recomputed at ITS bin centers, so no dynamically-observed
- * event is ever silently dropped.</li>
+ * pre-tick angles, quantized to {@code nLga} bins. {@link ContactScan}
+ * (the source of every dynamic observation) only ever scans {@link
+ * FccNeighborhood}'s 6 CANONICAL (positive) directions - so a dynamic
+ * observation's {@code direction} is always positive; see "Negative-
+ * direction observedCount mirroring" below for how the other 6 directions
+ * get their {@code observedCount}.</li>
+ * <li><b>Negative-direction observedCount mirroring</b> ({@link
+ * #mirrorNegativeDirectionObservedCounts}, bead inviscid-gyt Phase A gate
+ * finding): because {@link ContactScan} canonicalizes to the 6 positive
+ * directions, a row keyed by a NEGATIVE direction can never receive a
+ * dynamic observation directly - its {@code observedCount} would always
+ * read 0, silently understating real dynamic contact rates for exactly
+ * half of {@link FccNeighborhood#DIRECTIONS}. Fixed by mirroring AT
+ * GENERATION TIME (option (a) of the bead's two choices - keeps the
+ * artifact self-contained, so a Phase C consumer reading the atlas alone
+ * sees every direction's real reachability without also having to
+ * replicate this mirror logic itself): for every row with a positive
+ * {@code direction} and {@code observedCount > 0}, the row keyed by
+ * {@code (oppositeDirection, cubeB, memberB, cubeA, memberA, phaseBinB,
+ * phaseBinA)} - the same physical contact, described from the other
+ * cell's side - has its {@code observedCount} SET (not added) to match.
+ * This is sound, not merely convenient: {@link ContactPredicate#minDistance}
+ * is provably symmetric under this exact transform (translation-invariance
+ * of Euclidean distance - {@code distance(A, B+offset) == distance(B,
+ * A-offset)}), so the mirror row's {@code overlapFraction} independently
+ * computes to the identical value via {@link #sweepOverlapAndCenter} alone
+ * (which already sweeps all 12 directions, not just the canonical 6) -
+ * mirroring only needs to carry {@code observedCount}, which {@code
+ * sweepOverlapAndCenter} cannot supply.</li>
  * </ol>
  * Merge key: {@code (direction, cubeA, memberA, cubeB, memberB, phaseBinA,
  * phaseBinB)}.
@@ -128,13 +156,49 @@ public final class ContactAtlasGenerator {
     }
 
     /**
-     * @return the bin index (in {@code [0, nLga)}) that {@code angle}
-     *         (any real value, wrapped) falls into.
+     * @return the {@code MemberGeometry}-quantized LUT step (in {@code [0,
+     *         geometryResolution)}) that {@code angle} falls into - an
+     *         EXACT replica of {@code MemberGeometry.stepOf}'s private
+     *         arithmetic ({@code Constants.TWO_PI}, float precision), so a
+     *         dynamically-observed contact's step is derived identically
+     *         to the step {@link ContactPredicate} actually evaluated
+     *         geometry at (see {@link #binOfStep} and {@link
+     *         ContactComboCache#angleOf}'s Javadoc for why this exact
+     *         replication, not the more natural {@code
+     *         ContactAtlasGenerator}-local {@code TWO_PI} (double), is
+     *         required for {@code recordObservedContact}'s bin to align
+     *         with {@link #sweepOverlapAndCenter}'s fine-grid bins - bead
+     *         inviscid-gyt Phase A gate rework).
      */
-    static int binOf(float angle, int nLga) {
-        double normalized = ((angle % TWO_PI) + TWO_PI) % TWO_PI;
-        int bin = (int) Math.floor(normalized / (TWO_PI / nLga));
-        return Math.min(bin, nLga - 1);
+    static int stepOf(float angle, int geometryResolution) {
+        float twoPi = com.chiralbehaviors.inviscid.Constants.TWO_PI;
+        float normalized = angle % twoPi;
+        double widened = normalized;
+        if (widened < 0) {
+            widened += twoPi;
+        }
+        double angularResolution = twoPi / geometryResolution;
+        return ((int) (widened / angularResolution)) % geometryResolution;
+    }
+
+    /**
+     * @return the {@code nLga} bin index a {@code geometryResolution}-step
+     *         LUT {@code step} falls into - PURE INTEGER arithmetic
+     *         ({@code step * nLga / geometryResolution}, Java {@code int}
+     *         division truncates toward zero, equivalent to {@code floor}
+     *         for non-negative operands), deliberately never routed
+     *         through a reconstructed floating-point angle: that round
+     *         trip is exactly what {@link ContactComboCache#angleOf}'s
+     *         Javadoc documents as unreliable. Well-defined even when
+     *         {@code geometryResolution} is not an exact multiple of
+     *         {@code nLga} (e.g. {@code nLga=16}, {@code
+     *         geometryResolution=360}): the resulting bins are merely
+     *         unequal-width in step-count terms, which {@link
+     *         #sweepOverlapAndCenter}'s {@code countPerBin}-based
+     *         denominator already accounts for.
+     */
+    static int binOfStep(int step, int nLga, int geometryResolution) {
+        return step * nLga / geometryResolution;
     }
 
     private record RowKey(int direction, int cubeA, int memberA, int cubeB,
@@ -144,6 +208,7 @@ public final class ContactAtlasGenerator {
     private static final class MutableRow {
         final RowKey key;
         boolean      contact;
+        double       overlapFraction;
         double       minDistance;
         long         observedCount;
 
@@ -192,9 +257,11 @@ public final class ContactAtlasGenerator {
         ContactPredicate predicate = new ContactPredicate(geometry);
 
         Map<RowKey, MutableRow> rows = new LinkedHashMap<>();
-        sweepGeometricGroundTruth(predicate, nLga, rows);
-        runDynamicReachability(predicate, nLga, extent, seed, ticksObserved,
-                                rows);
+        sweepOverlapAndCenter(predicate, nLga, geometryResolution,
+                               memberRadius, rows);
+        runDynamicReachability(predicate, nLga, geometryResolution, extent,
+                                seed, ticksObserved, rows);
+        mirrorNegativeDirectionObservedCounts(predicate, nLga, rows);
 
         List<ContactAtlas.Row> atlasRows = new ArrayList<>(rows.size());
         for (MutableRow row : rows.values()) {
@@ -205,7 +272,9 @@ public final class ContactAtlasGenerator {
                                                 row.key.memberB(),
                                                 row.key.phaseBinA(),
                                                 row.key.phaseBinB(),
-                                                row.contact, row.minDistance,
+                                                row.contact,
+                                                row.overlapFraction,
+                                                row.minDistance,
                                                 row.observedCount));
         }
 
@@ -263,47 +332,161 @@ public final class ContactAtlasGenerator {
     }
 
     /**
-     * The full geometric sweep: {@code 12 * 30 * 30 * nLga^2} {@link
-     * ContactPredicate#contacts} evaluations at bin centers. Only
-     * combinations found contacting are added.
+     * The v2 overlap sweep (bead inviscid-gyt): for every combo in the
+     * exhaustive ever-contacting universe ({@link
+     * ContactComboCache#combosFor}, {@code ~446} at this class's default
+     * geometry - see that class's Javadoc for why the search space is
+     * restricted to that provably-complete set rather than the full
+     * {@code 12 * 30 * 30 == 10,800}), one fine {@code geometryResolution
+     * x geometryResolution} {@link ContactPredicate#contacts} sweep is
+     * aggregated per {@code nLga x nLga} bin cell into {@code
+     * overlapFraction = hits / (fineSamplesPerBinA * fineSamplesPerBinB)}.
+     * A row is created for every cell with {@code overlapFraction > 0}.
+     *
+     * <h2>Proof: {@code contact=true} (bin center) implies {@code
+     * overlapFraction > 0}</h2>
+     * {@link MemberGeometry} quantizes any continuous angle to {@code step
+     * = floor(normalize(angle) / (2*pi/geometryResolution))}. The bin
+     * center angle is {@code (bin+0.5) * (2*pi/nLga)}, so its step is
+     * {@code floor((bin+0.5) * geometryResolution/nLga)} - algebraically
+     * IDENTICAL to the fine sweep's own step-index-to-bin floor mapping
+     * (see {@link #binOf}) evaluated at that same fine index. In other
+     * words, the bin center's {@link ContactPredicate} evaluation and one
+     * specific fine-grid sample (the one at that same LUT step) are
+     * bit-for-bit the same computation. So whenever {@code contact=true}
+     * at a bin center, that specific fine sample is counted as a hit in
+     * this sweep's histogram for that same cell, guaranteeing {@code
+     * overlapFraction >= 1/(fineSamplesPerBinA*fineSamplesPerBinB) > 0}.
+     * {@link ContactAtlasTest} and {@link CommittedContactAtlasTest} both
+     * assert this invariant directly over generated data, not just by
+     * this proof.
      */
-    private static void sweepGeometricGroundTruth(ContactPredicate predicate,
-                                                    int nLga,
-                                                    Map<RowKey, MutableRow> rows) {
-        for (int direction : FccNeighborhood.DIRECTIONS) {
-            for (int cubeA = 0; cubeA < CUBES_PER_CELL; cubeA++) {
-                for (int memberA = 0; memberA < MEMBERS_PER_CUBE; memberA++) {
-                    for (int cubeB = 0; cubeB < CUBES_PER_CELL; cubeB++) {
-                        for (int memberB = 0; memberB < MEMBERS_PER_CUBE; memberB++) {
-                            sweepBinPairs(predicate, nLga, direction, cubeA,
-                                          memberA, cubeB, memberB, rows);
-                        }
-                    }
+    private static void sweepOverlapAndCenter(ContactPredicate predicate,
+                                                int nLga,
+                                                int geometryResolution,
+                                                double memberRadius,
+                                                Map<RowKey, MutableRow> rows) {
+        int[] fineBinOf = new int[geometryResolution];
+        int[] countPerBin = new int[nLga];
+        for (int step = 0; step < geometryResolution; step++) {
+            int bin = binOfStep(step, nLga, geometryResolution);
+            fineBinOf[step] = bin;
+            countPerBin[bin]++;
+        }
+
+        List<ContactComboCache.Combo> combos = ContactComboCache.combosFor(predicate,
+                                                                             geometryResolution,
+                                                                             memberRadius);
+        for (ContactComboCache.Combo combo : combos) {
+            sweepComboOverlap(predicate, nLga, geometryResolution, combo,
+                               fineBinOf, countPerBin, rows);
+        }
+    }
+
+    private static void sweepComboOverlap(ContactPredicate predicate, int nLga,
+                                           int geometryResolution,
+                                           ContactComboCache.Combo combo,
+                                           int[] fineBinOf, int[] countPerBin,
+                                           Map<RowKey, MutableRow> rows) {
+        long[][] contactCount = new long[nLga][nLga];
+        for (int a = 0; a < geometryResolution; a++) {
+            float angleA = ContactComboCache.angleOf(a, geometryResolution);
+            int binA = fineBinOf[a];
+            for (int b = 0; b < geometryResolution; b++) {
+                float angleB = ContactComboCache.angleOf(b, geometryResolution);
+                if (predicate.contacts(combo.cubeA(), combo.memberA(), angleA,
+                                       combo.cubeB(), combo.memberB(), angleB,
+                                       combo.direction())) {
+                    contactCount[binA][fineBinOf[b]]++;
                 }
+            }
+        }
+
+        for (int binA = 0; binA < nLga; binA++) {
+            for (int binB = 0; binB < nLga; binB++) {
+                long hits = contactCount[binA][binB];
+                if (hits == 0) {
+                    continue;
+                }
+                double denominator = (double) countPerBin[binA]
+                                     * countPerBin[binB];
+                double overlapFraction = hits / denominator;
+
+                float centerA = (float) binCenter(binA, nLga);
+                float centerB = (float) binCenter(binB, nLga);
+                boolean centerContact = predicate.contacts(combo.cubeA(),
+                                                            combo.memberA(),
+                                                            centerA,
+                                                            combo.cubeB(),
+                                                            combo.memberB(),
+                                                            centerB,
+                                                            combo.direction());
+                double centerMinDistance = predicate.minDistance(combo.cubeA(),
+                                                                  combo.memberA(),
+                                                                  centerA,
+                                                                  combo.cubeB(),
+                                                                  combo.memberB(),
+                                                                  centerB,
+                                                                  combo.direction());
+
+                RowKey key = new RowKey(combo.direction(), combo.cubeA(),
+                                        combo.memberA(), combo.cubeB(),
+                                        combo.memberB(), binA, binB);
+                MutableRow row = new MutableRow(key, centerContact,
+                                                 centerMinDistance);
+                row.overlapFraction = overlapFraction;
+                rows.put(key, row);
             }
         }
     }
 
-    private static void sweepBinPairs(ContactPredicate predicate, int nLga,
-                                       int direction, int cubeA, int memberA,
-                                       int cubeB, int memberB,
-                                       Map<RowKey, MutableRow> rows) {
-        for (int binA = 0; binA < nLga; binA++) {
-            float angleA = (float) binCenter(binA, nLga);
-            for (int binB = 0; binB < nLga; binB++) {
-                float angleB = (float) binCenter(binB, nLga);
-                if (predicate.contacts(cubeA, memberA, angleA, cubeB, memberB,
-                                       angleB, direction)) {
-                    double minDistance = predicate.minDistance(cubeA, memberA,
-                                                                angleA, cubeB,
-                                                                memberB,
-                                                                angleB,
-                                                                direction);
-                    RowKey key = new RowKey(direction, cubeA, memberA, cubeB,
-                                            memberB, binA, binB);
-                    rows.put(key, new MutableRow(key, true, minDistance));
-                }
+    /**
+     * Fixes the negative-direction {@code observedCount} asymmetry (Phase
+     * A gate finding, bead inviscid-gyt) - see class Javadoc "Negative-
+     * direction observedCount mirroring". Iterates a SNAPSHOT of {@code
+     * rows}'s positive-direction, dynamically-observed entries (not the
+     * live map) because this mutates {@code rows} in place while walking
+     * it.
+     */
+    private static void mirrorNegativeDirectionObservedCounts(ContactPredicate predicate,
+                                                                int nLga,
+                                                                Map<RowKey, MutableRow> rows) {
+        List<MutableRow> positivelyObserved = rows.values().stream()
+                                                    .filter(row -> row.key.direction() > 0
+                                                                   && row.observedCount > 0)
+                                                    .toList();
+        for (MutableRow source : positivelyObserved) {
+            RowKey key = source.key;
+            RowKey mirrorKey = new RowKey(FccNeighborhood.opposite(key.direction()),
+                                          key.cubeB(), key.memberB(),
+                                          key.cubeA(), key.memberA(),
+                                          key.phaseBinB(), key.phaseBinA());
+            MutableRow mirror = rows.get(mirrorKey);
+            if (mirror == null) {
+                // Defensive fallback only - see class Javadoc's symmetry
+                // proof for why sweepOverlapAndCenter (which sweeps all 12
+                // directions) is expected to have already created this row
+                // whenever the source row's overlapFraction is positive.
+                float angleA = (float) binCenter(mirrorKey.phaseBinA(), nLga);
+                float angleB = (float) binCenter(mirrorKey.phaseBinB(), nLga);
+                boolean centerContact = predicate.contacts(mirrorKey.cubeA(),
+                                                            mirrorKey.memberA(),
+                                                            angleA,
+                                                            mirrorKey.cubeB(),
+                                                            mirrorKey.memberB(),
+                                                            angleB,
+                                                            mirrorKey.direction());
+                double minDistance = predicate.minDistance(mirrorKey.cubeA(),
+                                                            mirrorKey.memberA(),
+                                                            angleA,
+                                                            mirrorKey.cubeB(),
+                                                            mirrorKey.memberB(),
+                                                            angleB,
+                                                            mirrorKey.direction());
+                mirror = new MutableRow(mirrorKey, centerContact, minDistance);
+                rows.put(mirrorKey, mirror);
             }
+            mirror.observedCount = source.observedCount;
         }
     }
 
@@ -313,7 +496,9 @@ public final class ContactAtlasGenerator {
      * tick's resolved contacts against it - see class Javadoc.
      */
     private static void runDynamicReachability(ContactPredicate predicate,
-                                                 int nLga, Point3i extent,
+                                                 int nLga,
+                                                 int geometryResolution,
+                                                 Point3i extent,
                                                  long seed, int ticksObserved,
                                                  Map<RowKey, MutableRow> rows) {
         Necronomata automaton = new Necronomata(extent);
@@ -350,14 +535,34 @@ public final class ContactAtlasGenerator {
             for (CollisionSweep.AppliedCollision applied : outcome.collisionResult()
                                                                     .applied()) {
                 recordObservedContact(automaton, predicate, nLga,
-                                       preTickAngles, applied.contact(), rows);
+                                       geometryResolution, preTickAngles,
+                                       applied.contact(), rows);
             }
         }
     }
 
+    /**
+     * Bins a dynamically-observed contact via {@link #stepOf} + {@link
+     * #binOfStep} - the SAME two-step, pure-integer-final-stage pipeline
+     * {@link #sweepOverlapAndCenter} uses to bin its fine-grid samples -
+     * rather than binning the raw continuous angle directly. This is
+     * load-bearing, not stylistic (bead inviscid-gyt Phase A gate rework):
+     * a continuous-angle bin can legitimately disagree with the bin the
+     * fine sweep attributes to the SAME angle's LUT step (measured
+     * ~2.8% mismatch rate on uniform random angles during development),
+     * which would silently make some real dynamic contacts land in a
+     * {@code (binA, binB)} cell {@link #sweepOverlapAndCenter} never
+     * marked as fired - exactly the "falsifies the ribbon explanation"
+     * anomaly {@code CommittedContactAtlasTest
+     * .everyDynamicallyObservedCellHasPositiveOverlapFraction} checks for.
+     * Binning via the same {@code step -> binOfStep} formula both paths
+     * share eliminates the mismatch by construction, not by narrowing
+     * floating-point tolerance.
+     */
     private static void recordObservedContact(Necronomata automaton,
                                                 ContactPredicate predicate,
                                                 int nLga,
+                                                int geometryResolution,
                                                 float[] preTickAngles,
                                                 Contact contact,
                                                 Map<RowKey, MutableRow> rows) {
@@ -365,8 +570,10 @@ public final class ContactAtlasGenerator {
                      + contact.cubeA() * MEMBERS_PER_CUBE + contact.memberA();
         int indexB = automaton.indexOfCell(contact.cellB())
                      + contact.cubeB() * MEMBERS_PER_CUBE + contact.memberB();
-        int binA = binOf(preTickAngles[indexA], nLga);
-        int binB = binOf(preTickAngles[indexB], nLga);
+        int stepA = stepOf(preTickAngles[indexA], geometryResolution);
+        int stepB = stepOf(preTickAngles[indexB], geometryResolution);
+        int binA = binOfStep(stepA, nLga, geometryResolution);
+        int binB = binOfStep(stepB, nLga, geometryResolution);
 
         RowKey key = new RowKey(contact.direction(), contact.cubeA(),
                                 contact.memberA(), contact.cubeB(),
@@ -435,7 +642,7 @@ public final class ContactAtlasGenerator {
      * {@code args[2]} is the output path (default {@code
      * target/contact-atlas-candidate-n<nLga>.tsv} - a caller writing the
      * FINAL, user-decided atlas must pass {@code
-     * src/test/resources/lga/contact-atlas-v1.tsv} explicitly; this
+     * src/test/resources/lga/contact-atlas-v2.tsv} explicitly; this
      * method never defaults there itself, so an accidental bare
      * invocation cannot silently overwrite the committed artifact). Run
      * manually (IDE or classpath invocation - no exec plugin is
@@ -458,14 +665,40 @@ public final class ContactAtlasGenerator {
 
         long contactRows = 0;
         long observedRows = 0;
+        long overlapPositiveRows = 0;
+        long anomalousRows = 0;
+        double overlapSum = 0.0;
+        double overlapMin = Double.POSITIVE_INFINITY;
+        double overlapMax = Double.NEGATIVE_INFINITY;
+        List<Double> nonZeroOverlaps = new ArrayList<>();
         for (ContactAtlas.Row row : atlas.rows()) {
             if (row.contact()) {
                 contactRows++;
             }
             if (row.observedCount() > 0) {
                 observedRows++;
+                if (row.overlapFraction() == 0.0) {
+                    anomalousRows++;
+                }
+            }
+            if (row.overlapFraction() > 0.0) {
+                overlapPositiveRows++;
+                overlapSum += row.overlapFraction();
+                overlapMin = Math.min(overlapMin, row.overlapFraction());
+                overlapMax = Math.max(overlapMax, row.overlapFraction());
+                nonZeroOverlaps.add(row.overlapFraction());
             }
         }
+        nonZeroOverlaps.sort(Double::compareTo);
+        double overlapMedian = nonZeroOverlaps.isEmpty() ? 0.0
+                                                          : nonZeroOverlaps.get(nonZeroOverlaps.size()
+                                                                                 / 2);
+        double overlapMean = overlapPositiveRows == 0 ? 0.0
+                                                       : overlapSum
+                                                         / overlapPositiveRows;
+        double overFireRatio = overlapSum == 0.0 ? 0.0
+                                                  : overlapPositiveRows
+                                                    / overlapSum;
 
         atlas.write(out);
         System.out.println("nLga=" + nLga + " ticksObserved=" + ticks
@@ -477,5 +710,11 @@ public final class ContactAtlasGenerator {
                                                   - observedRows)
                             + ") elapsedMs=" + elapsedMs + " gitCommit="
                             + atlas.header().gitCommit() + " -> " + out);
+        System.out.println("overlapFraction: firedCells=" + overlapPositiveRows
+                            + " min=" + overlapMin + " median=" + overlapMedian
+                            + " mean=" + overlapMean + " max=" + overlapMax
+                            + " overFireRatio(firedCells/sumOverlapFraction)="
+                            + overFireRatio + " anomalousObservedZeroOverlap="
+                            + anomalousRows);
     }
 }

@@ -351,4 +351,181 @@ public class ContactAtlasTest {
                        row.phaseBinB() >= 0 && row.phaseBinB() < TEST_N_LGA);
         }
     }
+
+    /**
+     * bead inviscid-gyt (format v2): every row's {@code overlapFraction}
+     * is a proper fraction in {@code [0, 1]}.
+     */
+    @Test
+    public void overlapFractionIsWithinUnitRange() {
+        for (ContactAtlas.Row row : ATLAS.rows()) {
+            assertTrue("overlapFraction out of [0,1] range: " + row,
+                       row.overlapFraction() >= 0.0
+                       && row.overlapFraction() <= 1.0);
+        }
+    }
+
+    /**
+     * bead inviscid-gyt: {@code contact=true} (the bin-center verdict) must
+     * always imply {@code overlapFraction > 0} - the proof recorded on
+     * {@code ContactAtlasGenerator.sweepOverlapAndCenter}'s Javadoc,
+     * checked here directly against generated data (bead's own C.2 test
+     * spec, this is the property that lets ANY-OVERLAP semantics be a
+     * strict refinement, never a contradiction, of the v1 bin-center
+     * signal).
+     */
+    @Test
+    public void contactAtCenterImpliesPositiveOverlapFraction() {
+        long contactRows = 0;
+        for (ContactAtlas.Row row : ATLAS.rows()) {
+            if (row.contact()) {
+                contactRows++;
+                assertTrue("contact=true but overlapFraction<=0: " + row,
+                           row.overlapFraction() > 0.0);
+            }
+        }
+        assertTrue("expected at least one contact=true row to check",
+                   contactRows > 0);
+    }
+
+    /**
+     * Non-vacuity for the ANY-OVERLAP fix itself (bead inviscid-gyt's
+     * central purpose): at least one row must have {@code contact=false}
+     * at the bin center yet {@code overlapFraction > 0} - a cell the v1
+     * bin-center-only transcription would have missed entirely (the
+     * "ribbon" cells bead inviscid-0nx.16 stage 2 found), now recovered.
+     */
+    @Test
+    public void someCellsFireByOverlapAloneWithoutBinCenterContact() {
+        boolean found = false;
+        for (ContactAtlas.Row row : ATLAS.rows()) {
+            if (!row.contact() && row.overlapFraction() > 0.0) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue("expected at least one contact=false/overlapFraction>0 row "
+                   + "(the ANY-OVERLAP fix's whole point) - none found",
+                   found);
+    }
+
+    /**
+     * bead inviscid-gyt Phase A gate finding: negative-direction rows can
+     * never receive a DIRECT dynamic observation ({@link ContactScan}
+     * canonicalizes to the 6 positive directions) - fixed by mirroring at
+     * generation time. For every positive-direction row with {@code
+     * observedCount > 0}, its mirror ({@code oppositeDirection}, A/B
+     * swapped, bins swapped) must independently appear in the atlas with
+     * the SAME {@code observedCount}.
+     */
+    @Test
+    public void negativeDirectionObservedCountMirrorsThePositiveDirection() {
+        Map<Key, ContactAtlas.Row> byKey = indexByKey(ATLAS);
+        List<ContactAtlas.Row> positivelyObserved = ATLAS.rows().stream()
+                                                           .filter(row -> row.direction() > 0
+                                                                          && row.observedCount() > 0)
+                                                           .toList();
+        assertFalse("need at least one positive-direction observed row to check mirroring on",
+                    positivelyObserved.isEmpty());
+
+        int checked = 0;
+        for (ContactAtlas.Row row : positivelyObserved) {
+            int oppositeDirection = FccNeighborhood.opposite(row.direction());
+            Key mirrorKey = new Key(oppositeDirection, row.cubeB(),
+                                    row.memberB(), row.cubeA(), row.memberA(),
+                                    row.phaseBinB(), row.phaseBinA());
+            ContactAtlas.Row mirror = byKey.get(mirrorKey);
+            assertTrue("expected mirror row " + mirrorKey + " of " + row
+                       + " to exist in the atlas",
+                       mirror != null);
+            assertEquals("mirror observedCount disagrees with source " + row,
+                         row.observedCount(), mirror.observedCount());
+            checked++;
+        }
+        assertTrue(checked > 0);
+    }
+
+    /**
+     * MIRROR-SYMMETRY GUARD (atlas-v2 code-review follow-up): every fired
+     * row's {@code overlapFraction} equals its direction-reversed mirror's
+     * {@code overlapFraction} (opposite direction, A/B swapped, bins
+     * swapped) - the property {@link
+     * ContactAtlasGenerator#sweepOverlapAndCenter}'s Javadoc proves via
+     * {@link ContactPredicate#minDistance}'s translation-invariance
+     * symmetry (the same proof {@link #atlasIsSymmetricUnderDirectionReversal()}
+     * relies on for the {@code contact} verdict). The reviewer
+     * independently verified 0 mismatches over all 4096 rows of the real
+     * committed atlas (see {@link
+     * CommittedContactAtlasTest#overlapFractionIsMirroredInTheCommittedAtlas()});
+     * this test guards the invariant here, at the generated-in-test scale,
+     * against a future {@code sweepOverlapAndCenter} regression, since
+     * nothing previously asserted it directly.
+     */
+    @Test
+    public void overlapFractionIsSymmetricUnderDirectionReversal() {
+        Map<Key, ContactAtlas.Row> byKey = indexByKey(ATLAS);
+        List<ContactAtlas.Row> firedRows = ATLAS.rows().stream()
+                                                 .filter(row -> row.overlapFraction() > 0.0)
+                                                 .toList();
+        assertFalse("need at least one fired row to check overlapFraction mirror symmetry on",
+                    firedRows.isEmpty());
+
+        int checked = 0;
+        for (ContactAtlas.Row row : firedRows) {
+            int oppositeDirection = FccNeighborhood.opposite(row.direction());
+            Key mirrorKey = new Key(oppositeDirection, row.cubeB(),
+                                    row.memberB(), row.cubeA(), row.memberA(),
+                                    row.phaseBinB(), row.phaseBinA());
+            ContactAtlas.Row mirror = byKey.get(mirrorKey);
+            assertTrue("expected mirror row " + mirrorKey + " of " + row
+                       + " to exist in the atlas", mirror != null);
+            assertEquals("mirror overlapFraction disagrees with source "
+                         + row, row.overlapFraction(), mirror.overlapFraction(),
+                         1e-12);
+            checked++;
+        }
+        assertTrue(checked > 0);
+    }
+
+    /**
+     * bead inviscid-gyt: {@link ContactAtlas#read(Path)} intrinsically
+     * refuses a v1-format file (10-column rows, {@code atlasVersion=1}),
+     * naming both the found and the expected version in the failure - see
+     * {@code ContactAtlas.checkVersion}. Hand-crafted inline (not the
+     * committed resource, which is now v2-only) so this test exercises the
+     * refusal mechanism directly, independent of what resource happens to
+     * be committed.
+     */
+    @Test
+    public void refusesAV1FormatFileNamingBothVersions() throws IOException {
+        String v1Tsv = "# ContactAtlas - Phase A -> Phase C contact predicate transcription source\n"
+                        + "# atlasVersion=1\n"
+                        + "# generatorClass=com.chiralbehaviors.inviscid.lga.ContactAtlasGenerator\n"
+                        + "# gitCommit=deadbeef\n"
+                        + "# memberRadius=0.015\n"
+                        + "# geometryResolution=360\n"
+                        + "# cubeEdgeLength=5.236068210225013\n"
+                        + "# phaseResolutionNLga=24\n"
+                        + "# phiCoordinatesCubeSet=Cubes[0]\n"
+                        + "# extent=4,4,4\n" + "# seed=42\n"
+                        + "# ticksObserved=15000\n"
+                        + "# columns=direction\tcubeA\tmemberA\tcubeB\tmemberB\tphaseBinA\tphaseBinB\tcontact\tminDistance\tobservedCount\n"
+                        + "1\t3\t1\t3\t0\t5\t5\ttrue\t0.012\t64\n";
+        Path path = Files.createTempFile("contact-atlas-v1-format", ".tsv");
+        try {
+            Files.writeString(path, v1Tsv);
+            ContactAtlas.HeaderMismatchException thrown = assertThrows(ContactAtlas.HeaderMismatchException.class,
+                                                                          () -> ContactAtlas.read(path));
+            String message = thrown.getMessage();
+            assertTrue("expected \"version\" named in the failure: " + message,
+                       message.toLowerCase(java.util.Locale.ROOT)
+                              .contains("version"));
+            assertTrue("expected the found version (atlasVersion=1) precisely named in the failure: "
+                       + message, message.contains("atlasVersion=1"));
+            assertTrue("expected the supported version (atlasVersion=2) precisely named in the failure: "
+                       + message, message.contains("atlasVersion=2"));
+        } finally {
+            Files.deleteIfExists(path);
+        }
+    }
 }

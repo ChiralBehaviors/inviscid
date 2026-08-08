@@ -25,6 +25,8 @@ import java.util.Locale;
 
 import javax.vecmath.Point3i;
 
+import com.chiralbehaviors.inviscid.lga.ContactComboCache.Combo;
+
 /**
  * The N_lga candidate measurement campaign (bead inviscid-0nx.16's
  * "THE MEASUREMENT CAMPAIGN"): quantifies, for each candidate {@code nLga
@@ -34,35 +36,48 @@ import javax.vecmath.Point3i;
  * is informed by. Read-only / analysis-only: never writes the committed
  * atlas.
  *
+ * <h2>Angle-quantization alignment fix (bead inviscid-gyt follow-up,
+ * corrects inviscid-0nx.16's original campaign numbers)</h2>
+ * This class used to reconstruct fine-grid angles with its own {@code
+ * step * 2*Math.PI/resolution} (double, LEFT-EDGE) formula and bin them
+ * with a matching double-precision {@code floor(angle/binWidth)} - the
+ * exact bug class discovered and fixed in {@link ContactComboCache} and
+ * {@link ContactAtlasGenerator} during bead inviscid-gyt (any-overlap
+ * transcription semantics): {@link MemberGeometry#stepOf} quantizes with
+ * {@code Constants.TWO_PI} (float precision, compounded float-modulo then
+ * division), so a double-precision left-edge reconstruction round-trips
+ * incorrectly for roughly 38% of the 360 steps - it silently evaluates the
+ * WRONG step's geometry for over a third of the fine sweep. This class now
+ * REUSES the corrected, canonical helpers instead of maintaining a third
+ * copy: {@link ContactComboCache#angleOf} (step-CENTER, {@code
+ * Constants.TWO_PI} float) for fine-grid angle reconstruction, and {@link
+ * ContactAtlasGenerator#binOfStep} (pure integer {@code step*nLga/
+ * geometryResolution}, no floating point) for step-to-bin mapping - both
+ * package-private in this same package, no visibility widening required.
+ * See T2 {@code inviscid/analysis-nlga-candidates.md}'s CORRECTION-2
+ * section for the re-run campaign numbers this fix produced.
+ *
  * <h2>Two independently-measured inputs</h2>
  * <ol>
- * <li>{@link #discoverContactingCombos} - an EXHAUSTIVE ({@link
- * #DISCOVERY_STEPS} = {@link #FINE_STEPS} = 360-step) sweep over every
- * {@code (direction, cubeA, memberA, cubeB, memberB)} combination, keeping
- * every combination that contacts anywhere in the grid. 360 is not an
- * arbitrary choice of "finer is better" - it is the PROVABLE CEILING:
- * {@code MemberGeometry.stepOf} floors every continuous angle onto one of
- * exactly {@code resolution} (360, via {@link #GEOMETRY_RESOLUTION})
- * discrete LUT steps before any geometry is computed, so no angle grid
- * finer than 360 steps can ever reveal a combination invisible at 360
- * steps - exhaustive at 360 is exhaustive, full stop. <b>Correction
- * (bead inviscid-0nx.16.1, substantive-critic round):</b> an earlier
- * version of this class used a 24-step coarse grid here (matching {@code
- * ContactPredicateTest}'s own documented sampling methodology, which is a
- * fine choice for THAT class's own non-exhaustive illustrative fixtures
- * but was wrong for this class's discovery role) and undercounted the
- * true combo universe by ~4x (110 vs the true 446) - critically, the 336
- * combos it missed were disproportionately narrow (~20% of the true
- * universe was narrower than a candidate bin, not the ~3.6% the 110-combo
- * sample suggested). A non-exhaustive discovery step count is a silent
+ * <li>Combo discovery - delegates to {@link ContactComboCache#combosFor},
+ * the same EXHAUSTIVE (native {@link #GEOMETRY_RESOLUTION}=360-step, the
+ * provable ceiling - {@code MemberGeometry.stepOf} floors every continuous
+ * angle onto one of exactly 360 discrete LUT steps before any geometry is
+ * computed, so no angle grid finer than 360 steps can ever reveal a
+ * combination invisible at 360 steps) cached discovery every other
+ * atlas-generation caller uses, rather than a duplicate discovery sweep of
+ * this class's own. See {@link ContactComboCache}'s class Javadoc for the
+ * full "why precomputed, not live" / "why a coarse pre-scan was rejected"
+ * argument, and its own history of a prior 24-step under-count (bead
+ * inviscid-0nx.16.1) this class's earlier version independently
+ * reproduced: a non-exhaustive discovery step count is a silent
  * sampling-bias risk for exactly the "how many combos are dangerously
- * narrow" question this campaign exists to answer - never again narrow
- * this below 360 without re-deriving the ceiling argument above.</li>
- * <li>{@link #measureWidth} - for each discovered combo, the SAME
- * 360x360 grid (one sweep serves both discovery and width measurement -
- * see {@link #FINE_STEPS}), from which {@link #circularWidth} extracts
- * the smallest circular arc enclosing every contacting {@code angleA}
- * (resp. {@code angleB}) value - the "angular width of the contact
+ * narrow" question this campaign exists to answer.</li>
+ * <li>{@link #measureWidth} - for each discovered combo, a {@link
+ * #FINE_STEPS}x{@link #FINE_STEPS} grid (one sweep serves both discovery
+ * cross-checking and width measurement), from which {@link #circularWidth}
+ * extracts the smallest circular arc enclosing every contacting {@code
+ * angleA} (resp. {@code angleB}) value - the "angular width of the contact
  * region" the bead's campaign asks for.</li>
  * </ol>
  * {@link #analyze(int)} then compares each candidate's bin width ({@code
@@ -82,27 +97,13 @@ public final class NLgaCandidateCampaign {
     public static final int     GEOMETRY_RESOLUTION = ContactAtlasGenerator.GEOMETRY_RESOLUTION;
     /** Matches {@code ContactPredicateTest}'s own documented "fine sweep" resolution. */
     public static final int     FINE_STEPS          = 360;
-    /**
-     * Exhaustive discovery resolution - deliberately equal to {@link
-     * #FINE_STEPS} (both equal {@link #GEOMETRY_RESOLUTION}, the native
-     * {@code MemberGeometry} LUT step count): see class Javadoc,
-     * "Two independently-measured inputs", for why nothing coarser is
-     * trustworthy and nothing finer can find anything new.
-     */
-    public static final int     DISCOVERY_STEPS     = FINE_STEPS;
     public static final Point3i EXTENT              = ContactAtlasGenerator.DEFAULT_EXTENT;
     public static final long    SEED                = ContactAtlasGenerator.DEFAULT_SEED;
     public static final int     TICKS               = ContactAtlasGenerator.DEFAULT_TICKS;
 
-    private static final int CUBES_PER_CELL   = 5;
-    private static final int MEMBERS_PER_CUBE = 6;
-    private static final double TWO_PI        = 2 * Math.PI;
+    private static final double TWO_PI = 2 * Math.PI;
 
     private NLgaCandidateCampaign() {
-    }
-
-    public record Combo(int direction, int cubeA, int memberA, int cubeB,
-                         int memberB) {
     }
 
     /**
@@ -127,55 +128,9 @@ public final class NLgaCandidateCampaign {
                                   double dynamicCoverageFraction) {
     }
 
-    static float angleOf(int step, int resolution) {
-        return (float) (step * TWO_PI / resolution);
-    }
-
     private static ContactPredicate newPredicate() {
         return new ContactPredicate(new MemberGeometry(GEOMETRY_RESOLUTION,
                                                         RADIUS));
-    }
-
-    /**
-     * @return every {@code (direction, cubeA, memberA, cubeB, memberB)}
-     *         combination that contacts anywhere on a {@link
-     *         #DISCOVERY_STEPS}x{@link #DISCOVERY_STEPS} angle grid.
-     */
-    public static List<Combo> discoverContactingCombos(ContactPredicate predicate) {
-        List<Combo> combos = new ArrayList<>();
-        for (int direction : FccNeighborhood.DIRECTIONS) {
-            for (int cubeA = 0; cubeA < CUBES_PER_CELL; cubeA++) {
-                for (int memberA = 0; memberA < MEMBERS_PER_CUBE; memberA++) {
-                    for (int cubeB = 0; cubeB < CUBES_PER_CELL; cubeB++) {
-                        for (int memberB = 0; memberB < MEMBERS_PER_CUBE; memberB++) {
-                            if (contactsAnywhere(predicate, direction, cubeA,
-                                                 memberA, cubeB, memberB)) {
-                                combos.add(new Combo(direction, cubeA,
-                                                     memberA, cubeB, memberB));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return combos;
-    }
-
-    private static boolean contactsAnywhere(ContactPredicate predicate,
-                                             int direction, int cubeA,
-                                             int memberA, int cubeB,
-                                             int memberB) {
-        for (int a = 0; a < DISCOVERY_STEPS; a++) {
-            float angleA = angleOf(a, DISCOVERY_STEPS);
-            for (int b = 0; b < DISCOVERY_STEPS; b++) {
-                float angleB = angleOf(b, DISCOVERY_STEPS);
-                if (predicate.contacts(cubeA, memberA, angleA, cubeB, memberB,
-                                       angleB, direction)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     public static ComboWidth measureWidth(ContactPredicate predicate,
@@ -186,9 +141,9 @@ public final class NLgaCandidateCampaign {
         int         trueCount = 0;
 
         for (int a = 0; a < FINE_STEPS; a++) {
-            float angleA = angleOf(a, FINE_STEPS);
+            float angleA = ContactComboCache.angleOf(a, FINE_STEPS);
             for (int b = 0; b < FINE_STEPS; b++) {
-                float angleB = angleOf(b, FINE_STEPS);
+                float angleB = ContactComboCache.angleOf(b, FINE_STEPS);
                 boolean contact = predicate.contacts(combo.cubeA(),
                                                       combo.memberA(), angleA,
                                                       combo.cubeB(),
@@ -260,10 +215,19 @@ public final class NLgaCandidateCampaign {
         return new double[] { min, median, mean, max };
     }
 
+    /**
+     * @return the {@code nLga} bin index fine-grid index {@code
+     *         fineIndex} (out of {@link #FINE_STEPS}) falls into - PURE
+     *         INTEGER arithmetic via {@link
+     *         ContactAtlasGenerator#binOfStep}, the same step-to-bin
+     *         mapping {@link ContactAtlasGenerator#sweepOverlapAndCenter}
+     *         uses for its own fine sweep. Deliberately never routed
+     *         through a reconstructed floating-point angle - see this
+     *         class's Javadoc "Angle-quantization alignment fix" section
+     *         for why that reconstruction is unreliable.
+     */
     private static int binOfFineIndex(int fineIndex, int nLga) {
-        double angle = fineIndex * TWO_PI / FINE_STEPS;
-        int bin = (int) Math.floor(angle / (TWO_PI / nLga));
-        return Math.min(bin, nLga - 1);
+        return ContactAtlasGenerator.binOfStep(fineIndex, nLga, FINE_STEPS);
     }
 
     /**
@@ -423,24 +387,30 @@ public final class NLgaCandidateCampaign {
     }
 
     /**
-     * Runs the full campaign: discover combos, measure fine-grid widths
-     * once, then analyze every candidate in {@link #CANDIDATES} against
-     * that shared measurement. Prints a TSV report to stdout and writes
-     * the same report under {@code target/} - never {@code
-     * src/test/resources/lga/} (this class never picks or commits a final
-     * N_lga; see class Javadoc).
+     * Runs the full campaign: discover combos (via {@link
+     * ContactComboCache#combosFor}), measure fine-grid widths once, then
+     * analyze every candidate in {@link #CANDIDATES} against that shared
+     * measurement. Prints a TSV report to stdout and writes the same
+     * report under {@code target/} - never {@code src/test/resources/lga/}
+     * (this class never picks or commits a final N_lga; see class
+     * Javadoc).
      */
     public static void main(String[] args) throws IOException {
         ContactPredicate predicate = newPredicate();
 
         long discoverStart = System.nanoTime();
-        List<Combo> combos = discoverContactingCombos(predicate);
+        List<Combo> combos = ContactComboCache.combosFor(predicate,
+                                                           GEOMETRY_RESOLUTION,
+                                                           RADIUS);
         long discoverMs = (System.nanoTime() - discoverStart) / 1_000_000;
-        System.out.println("Discovered " + combos.size()
-                            + " ever-contacting combos in " + discoverMs
-                            + "ms (exhaustive " + DISCOVERY_STEPS + "x"
-                            + DISCOVERY_STEPS
-                            + " sweep, the native MemberGeometry LUT ceiling)");
+        System.out.println("Loaded " + combos.size()
+                            + " ever-contacting combos via ContactComboCache in "
+                            + discoverMs
+                            + "ms (cache-backed resource load when (geometryResolution="
+                            + GEOMETRY_RESOLUTION + ", memberRadius=" + RADIUS
+                            + ") matches the checked-in header; falls back to a live exhaustive "
+                            + GEOMETRY_RESOLUTION + "x" + GEOMETRY_RESOLUTION
+                            + " sweep otherwise - the native MemberGeometry LUT ceiling)");
 
         long widthStart = System.nanoTime();
         List<ComboWidth> widths = new ArrayList<>(combos.size());

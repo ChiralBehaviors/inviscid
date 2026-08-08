@@ -25,7 +25,10 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import javax.vecmath.Point3i;
@@ -36,13 +39,28 @@ import org.junit.Test;
 import com.chiralbehaviors.inviscid.PhiCoordinates;
 
 /**
- * The COMMITTED contact atlas ({@code src/test/resources/lga/contact-atlas-v1.tsv},
- * bead inviscid-0nx.16 Stage 2): validates the actual Phase A -> Phase C
- * handoff artifact at the USER-DECIDED N_lga=24 (recorded on the bead's
- * {@code --design} field, full justification in T2 {@code
- * inviscid/analysis-nlga-candidates.md}) - as distinct from {@link
- * ContactAtlasTest}'s generated-in-test contract tests at a fixed,
- * clearly-illustrative {@code TEST_N_LGA=12}.
+ * The COMMITTED contact atlas ({@code src/test/resources/lga/contact-atlas-v2.tsv},
+ * bead inviscid-0nx.16 Stage 2, superseded to format v2 by bead
+ * inviscid-gyt's ANY-OVERLAP transcription-semantics decision): validates
+ * the actual Phase A -> Phase C handoff artifact at the USER-DECIDED
+ * N_lga=24 (recorded on bead inviscid-0nx.16's {@code --design} field,
+ * full justification in T2 {@code inviscid/analysis-nlga-candidates.md})
+ * - as distinct from {@link ContactAtlasTest}'s generated-in-test contract
+ * tests at a fixed, clearly-illustrative {@code TEST_N_LGA=12}.
+ *
+ * <h2>v1 -> v2 supersession (bead inviscid-gyt)</h2>
+ * The original {@code contact-atlas-v1.tsv} (bin-center-only {@code
+ * contact} transcription) is DELETED, not kept alongside v2 - bead
+ * inviscid-0nx.16 stage 2's own critique found bin-center transcription
+ * reproduces only ~12% of the hybrid automaton's real per-cell contact
+ * rate (T2 {@code inviscid/critique-contact-atlas-stage2.md}), and the
+ * USER's recorded C.2 decision (bead inviscid-gyt {@code --design}) is
+ * ANY-OVERLAP semantics on the new {@code overlapFraction} column, not a
+ * refinement a consumer picks between at load time. {@link ContactAtlas}
+ * itself refuses to load a v1 file at all (its intrinsic {@code
+ * atlasVersion} self-check - see {@code ContactAtlasTest
+ * .refusesAV1FormatFileNamingBothVersions}), so keeping the v1 resource
+ * around would only be dead weight next to a file every reader rejects.
  *
  * <h2>Why no full-regeneration comparison, unlike {@code
  * BaselineK0SpectrumTest#goldenArtifactMatchesRegeneration}</h2>
@@ -64,8 +82,9 @@ import com.chiralbehaviors.inviscid.PhiCoordinates;
  * <li>{@link #geometricRowsReproduceUnderRegeneration()} specifically
  * re-derives the GEOMETRIC half of the artifact - a direct {@link
  * ContactPredicate} evaluation at bin centers, exactly what {@code
- * ContactAtlasGenerator#sweepGeometricGroundTruth} computes - for a
- * sample, and compares BOTH the {@code contact} verdict and {@code
+ * ContactAtlasGenerator#sweepOverlapAndCenter} computes the bin-center
+ * signal from - for a sample, and compares BOTH the {@code contact}
+ * verdict and {@code
  * minDistance} bit-for-bit. This is the closest cheap analogue to
  * {@code goldenArtifactMatchesRegeneration}: it exercises the exact same
  * deterministic computation the real generator used, just without paying
@@ -79,7 +98,7 @@ import com.chiralbehaviors.inviscid.PhiCoordinates;
  */
 public class CommittedContactAtlasTest {
 
-    private static final String RESOURCE_PATH = "lga/contact-atlas-v1.tsv";
+    private static final String RESOURCE_PATH = "lga/contact-atlas-v2.tsv";
 
     private static final int     EXPECTED_N_LGA               = 24;
     private static final int     EXPECTED_GEOMETRY_RESOLUTION = ContactAtlasGenerator.GEOMETRY_RESOLUTION;
@@ -100,7 +119,7 @@ public class CommittedContactAtlasTest {
                                                         .getResource(RESOURCE_PATH);
         if (resource == null) {
             fail("regenerate with ContactAtlasGenerator and review the diff: "
-               + "committed atlas src/test/resources/lga/contact-atlas-v1.tsv is missing");
+               + "committed atlas src/test/resources/lga/contact-atlas-v2.tsv is missing");
         }
         Path path = Paths.get(resource.getPath());
         return ContactAtlas.read(path);
@@ -219,9 +238,9 @@ public class CommittedContactAtlasTest {
 
     /**
      * Re-derives the GEOMETRIC half of a sample of committed rows - the
-     * exact computation {@code ContactAtlasGenerator#sweepGeometricGroundTruth}
-     * performed at generation time (bin-center {@link ContactPredicate}
-     * evaluation) - and compares BOTH {@code contact} and {@code
+     * exact bin-center {@link ContactPredicate} evaluation {@code
+     * ContactAtlasGenerator#sweepOverlapAndCenter} performed at generation
+     * time - and compares BOTH {@code contact} and {@code
      * minDistance} bit-for-bit (deterministic floating-point recomputation
      * of the same inputs, not a numeric-tolerance comparison). See class
      * Javadoc for why this stands in for a full {@code
@@ -278,5 +297,149 @@ public class CommittedContactAtlasTest {
         assertTrue("regenerate with ContactAtlasGenerator and review the diff: "
                   + "sample contained no non-contacting rows - widen the sample",
                   noContactSeen > 0);
+    }
+
+    /**
+     * bead inviscid-gyt (format v2): {@code overlapFraction} is a proper
+     * fraction in {@code [0,1]} for every committed row, and {@code
+     * contact=true} always implies {@code overlapFraction > 0} (the proof
+     * on {@code ContactAtlasGenerator.sweepOverlapAndCenter}'s Javadoc,
+     * checked here against the real, full 15,000-tick committed artifact -
+     * not just the smaller in-test generation {@link ContactAtlasTest}
+     * already covers).
+     */
+    @Test
+    public void overlapFractionIsSaneAndRefinesContactAtCenter() {
+        long contactRows = 0;
+        for (ContactAtlas.Row row : ATLAS.rows()) {
+            assertTrue("overlapFraction out of [0,1]: " + row,
+                       row.overlapFraction() >= 0.0
+                       && row.overlapFraction() <= 1.0);
+            if (row.contact()) {
+                contactRows++;
+                assertTrue("contact=true but overlapFraction<=0: " + row,
+                           row.overlapFraction() > 0.0);
+            }
+        }
+        assertTrue("expected at least one contact=true row to check",
+                   contactRows > 0);
+    }
+
+    /**
+     * bead inviscid-gyt's central completeness claim, checked against the
+     * REAL committed atlas (the artifact bead inviscid-0nx.16 stage 2's
+     * critique was actually about): every dynamically-observed cell
+     * ({@code observedCount > 0}) has {@code overlapFraction > 0} - i.e.
+     * the ANY-OVERLAP fine sweep independently rediscovers every real
+     * Phase A hybrid-automaton contact the 15,000-tick dynamic run found,
+     * with zero exceptions. A failure here would falsify the "ribbon"
+     * explanation for at least one cell (bead's own words) and is
+     * reported with the full list of offending rows, not just a count.
+     */
+    @Test
+    public void everyDynamicallyObservedCellHasPositiveOverlapFraction() {
+        List<ContactAtlas.Row> anomalies = new ArrayList<>();
+        long observedRows = 0;
+        for (ContactAtlas.Row row : ATLAS.rows()) {
+            if (row.observedCount() > 0) {
+                observedRows++;
+                if (row.overlapFraction() <= 0.0) {
+                    anomalies.add(row);
+                }
+            }
+        }
+        assertTrue("expected at least one observedCount>0 row to check",
+                   observedRows > 0);
+        assertTrue("found " + anomalies.size()
+                   + " dynamically-observed cell(s) with overlapFraction<=0 "
+                   + "(falsifies the ribbon explanation for these cells): "
+                   + anomalies, anomalies.isEmpty());
+    }
+
+    /**
+     * bead inviscid-gyt Phase A gate finding, checked against the real
+     * committed artifact: every positive-direction row with {@code
+     * observedCount > 0} has a mirror row (opposite direction, A/B and
+     * bins swapped) with the SAME {@code observedCount} - see {@link
+     * ContactAtlasGenerator#mirrorNegativeDirectionObservedCounts}.
+     */
+    @Test
+    public void negativeDirectionObservedCountsAreMirroredInTheCommittedAtlas() {
+        Map<List<Integer>, ContactAtlas.Row> byKey = new HashMap<>();
+        for (ContactAtlas.Row row : ATLAS.rows()) {
+            byKey.put(List.of(row.direction(), row.cubeA(), row.memberA(),
+                              row.cubeB(), row.memberB(), row.phaseBinA(),
+                              row.phaseBinB()), row);
+        }
+
+        long checked = 0;
+        for (ContactAtlas.Row row : ATLAS.rows()) {
+            if (row.direction() > 0 && row.observedCount() > 0) {
+                int oppositeDirection = FccNeighborhood.opposite(row.direction());
+                List<Integer> mirrorKey = List.of(oppositeDirection,
+                                                   row.cubeB(), row.memberB(),
+                                                   row.cubeA(), row.memberA(),
+                                                   row.phaseBinB(),
+                                                   row.phaseBinA());
+                ContactAtlas.Row mirror = byKey.get(mirrorKey);
+                assertTrue("expected mirror row " + mirrorKey + " of " + row
+                           + " to exist", mirror != null);
+                assertEquals("mirror observedCount disagrees with source "
+                             + row, row.observedCount(),
+                             mirror.observedCount());
+                checked++;
+            }
+        }
+        assertTrue("expected at least one positive-direction observed row to check",
+                   checked > 0);
+    }
+
+    /**
+     * MIRROR-SYMMETRY GUARD (atlas-v2 code-review follow-up), checked
+     * against the REAL committed artifact: every fired row's {@code
+     * overlapFraction} equals its direction-reversed mirror's {@code
+     * overlapFraction} (opposite direction, A/B swapped, bins swapped) -
+     * see {@link ContactAtlasTest#overlapFractionIsSymmetricUnderDirectionReversal()}
+     * for the translation-invariance proof this relies on. The invariant
+     * holds today (0 mismatches over all 4096 rows, independently
+     * verified by the reviewer); nothing previously guarded it against a
+     * future {@code sweepOverlapAndCenter} regression, so this reports
+     * the full mismatch count (not just the first failure) if it ever
+     * breaks.
+     */
+    @Test
+    public void overlapFractionIsMirroredInTheCommittedAtlas() {
+        Map<List<Integer>, ContactAtlas.Row> byKey = new HashMap<>();
+        for (ContactAtlas.Row row : ATLAS.rows()) {
+            byKey.put(List.of(row.direction(), row.cubeA(), row.memberA(),
+                              row.cubeB(), row.memberB(), row.phaseBinA(),
+                              row.phaseBinB()), row);
+        }
+
+        long checked = 0;
+        long mismatches = 0;
+        for (ContactAtlas.Row row : ATLAS.rows()) {
+            if (row.overlapFraction() <= 0.0) {
+                continue;
+            }
+            int oppositeDirection = FccNeighborhood.opposite(row.direction());
+            List<Integer> mirrorKey = List.of(oppositeDirection,
+                                               row.cubeB(), row.memberB(),
+                                               row.cubeA(), row.memberA(),
+                                               row.phaseBinB(),
+                                               row.phaseBinA());
+            ContactAtlas.Row mirror = byKey.get(mirrorKey);
+            assertTrue("expected mirror row " + mirrorKey + " of " + row
+                       + " to exist", mirror != null);
+            if (Math.abs(row.overlapFraction() - mirror.overlapFraction()) > 1e-12) {
+                mismatches++;
+            }
+            checked++;
+        }
+        assertTrue("expected at least one fired row to check", checked > 0);
+        assertEquals("found " + mismatches
+                     + " row(s) whose overlapFraction disagrees with its direction-reversed mirror - "
+                     + "regenerate with ContactAtlasGenerator and review the diff",
+                     0, mismatches);
     }
 }
