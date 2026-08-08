@@ -1,0 +1,93 @@
+# AnisotropyProbe Phase A measurement report
+# bead=inviscid-0nx.10
+# generator=com.chiralbehaviors.inviscid.measure.AnisotropyProbe
+# gitCommit=a2f8066baa40abc4a43ba0f730f0a14ee27fa6ff-dirty
+# extent=8,8,8
+# ticks=128
+# originCell=4,4,4
+# packetQuanta=30
+# seeds=42,43,44,45,46,47,48,49
+# transportEstimatorDefinition=abs(OLS slope of mass-weighted mean-squared-displacement-from-origin(packet seed cell) projected along d, vs tick t)
+# spectralEstimatorDefinition=abs(StructureFactor.extractRidge(StructureFactor.spectrum(fieldByTick,d)).slope()), raw unfiltered points
+# spectralZeroSlopeFraming=an all-zero spectral ridge slope is the EXPECTED signature of purely diffusive dynamics (no propagating branch, omega~i*D*k^2) - NOT an instrument malfunction, and not "disagreement" in a pejorative sense; TRANSPORT and SPECTRAL measure different physics (real-space spread rate vs. propagating-mode speed)
+# ratioDegenerateEpsilon=1.0E-9
+# naivePerSeedRatioCaveat=SUMMARY rows below (mean of per-seed max/min ratios) are a DIAGNOSTIC, bounded below by 1.0 by construction, upward-biased by seed noise (order-statistic artifact, T3 critique-pattern-max-min-ratio-order-statistic-bias) - the significance statistic is POOLED_SUMMARY (seed-pooled ratio-of-means + permutation null calibration)
+# bootstrapResamples=5000
+# bootstrapRngSeed=1000003
+# permutationCount=2000
+# permutationRngSeed=7000001
+# permutationDefinition=within each seed, shuffle which magnitude is labeled X100/X110/X111, pool into per-direction means across seeds, recompute ratio-of-means; empirical p-value = fraction of permuted ratios >= observed pooled ratio
+# note111=X111 probes half the k-range of X100/X110 (real FCC physics, see StructureFactor) - fewer points, higher variance
+# smallNEarlyTimeFlag=true (mean effective collisions/seed=2.925000000e+01, mean total collisions/seed=3.269125000e+03, threshold=50.0 - FEW real transfer events observed per seed; the OLS-fit diffusive-window assumption is NOT independently verified at this campaign scale, treat as early-time/small-N
+# precision=%.9e
+# columns(DIRECTION rows)=recordType	seed	estimator	direction	magnitude	sampleSize
+# columns(COLLISIONS rows)=recordType	seed	totalCollisions	effectiveCollisions
+# columns(SUMMARY rows, DIAGNOSTIC per-seed-ratio, see naivePerSeedRatioCaveat)=recordType	estimator	ratio	ciLower	ciUpper	nSeedsUsed	nSeedsDegenerate
+# columns(POOLED_DIRECTION rows)=recordType	estimator	direction	mean	ciLower	ciUpper	nSeeds
+# columns(POOLED_SUMMARY rows, THE SIGNIFICANCE STATISTIC)=recordType	estimator	pooledRatio	pooledRatioCiLower	pooledRatioCiUpper	permutationPValue	permutationNull95	permutationCount
+DIRECTION	42	TRANSPORT	X100	1.435049543e-04	128
+DIRECTION	42	TRANSPORT	X110	1.346702120e-04	128
+DIRECTION	42	TRANSPORT	X111	1.451877624e-04	128
+DIRECTION	42	SPECTRAL	X100	0.000000000e+00	8
+DIRECTION	42	SPECTRAL	X110	0.000000000e+00	8
+DIRECTION	42	SPECTRAL	X111	0.000000000e+00	4
+COLLISIONS	42	3579	23
+DIRECTION	43	TRANSPORT	X100	1.812695833e-04	128
+DIRECTION	43	TRANSPORT	X110	1.967502518e-04	128
+DIRECTION	43	TRANSPORT	X111	1.894875786e-04	128
+DIRECTION	43	SPECTRAL	X100	0.000000000e+00	8
+DIRECTION	43	SPECTRAL	X110	0.000000000e+00	8
+DIRECTION	43	SPECTRAL	X111	0.000000000e+00	4
+COLLISIONS	43	3965	28
+DIRECTION	44	TRANSPORT	X100	1.790537447e-04	128
+DIRECTION	44	TRANSPORT	X110	1.395723972e-04	128
+DIRECTION	44	TRANSPORT	X111	1.366719906e-04	128
+DIRECTION	44	SPECTRAL	X100	0.000000000e+00	8
+DIRECTION	44	SPECTRAL	X110	0.000000000e+00	8
+DIRECTION	44	SPECTRAL	X111	0.000000000e+00	4
+COLLISIONS	44	2817	23
+DIRECTION	45	TRANSPORT	X100	1.994731582e-04	128
+DIRECTION	45	TRANSPORT	X110	1.534046980e-04	128
+DIRECTION	45	TRANSPORT	X111	1.486423935e-04	128
+DIRECTION	45	SPECTRAL	X100	0.000000000e+00	8
+DIRECTION	45	SPECTRAL	X110	0.000000000e+00	8
+DIRECTION	45	SPECTRAL	X111	0.000000000e+00	4
+COLLISIONS	45	3077	29
+DIRECTION	46	TRANSPORT	X100	1.521616666e-04	128
+DIRECTION	46	TRANSPORT	X110	1.854040138e-04	128
+DIRECTION	46	TRANSPORT	X111	1.767965778e-04	128
+DIRECTION	46	SPECTRAL	X100	0.000000000e+00	8
+DIRECTION	46	SPECTRAL	X110	0.000000000e+00	8
+DIRECTION	46	SPECTRAL	X111	0.000000000e+00	4
+COLLISIONS	46	2818	24
+DIRECTION	47	TRANSPORT	X100	1.943452563e-04	128
+DIRECTION	47	TRANSPORT	X110	1.173027427e-04	128
+DIRECTION	47	TRANSPORT	X111	1.251254688e-04	128
+DIRECTION	47	SPECTRAL	X100	0.000000000e+00	8
+DIRECTION	47	SPECTRAL	X110	0.000000000e+00	8
+DIRECTION	47	SPECTRAL	X111	0.000000000e+00	4
+COLLISIONS	47	3582	26
+DIRECTION	48	TRANSPORT	X100	9.181900954e-05	128
+DIRECTION	48	TRANSPORT	X110	1.155876137e-04	128
+DIRECTION	48	TRANSPORT	X111	1.148717844e-04	128
+DIRECTION	48	SPECTRAL	X100	0.000000000e+00	8
+DIRECTION	48	SPECTRAL	X110	0.000000000e+00	8
+DIRECTION	48	SPECTRAL	X111	0.000000000e+00	4
+COLLISIONS	48	3748	54
+DIRECTION	49	TRANSPORT	X100	1.589935706e-04	128
+DIRECTION	49	TRANSPORT	X110	2.210942746e-04	128
+DIRECTION	49	TRANSPORT	X111	1.866390974e-04	128
+DIRECTION	49	SPECTRAL	X100	0.000000000e+00	8
+DIRECTION	49	SPECTRAL	X110	0.000000000e+00	8
+DIRECTION	49	SPECTRAL	X111	0.000000000e+00	4
+COLLISIONS	49	2567	27
+SUMMARY	TRANSPORT	1.292533227e+00	1.178825642e+00	1.415498729e+00	8	0
+SUMMARY	SPECTRAL	NaN	NaN	NaN	0	8
+POOLED_DIRECTION	TRANSPORT	X100	1.625776179e-04	1.396379663e-04	1.832187742e-04	8
+POOLED_DIRECTION	TRANSPORT	X110	1.579732755e-04	1.341448643e-04	1.841254161e-04	8
+POOLED_DIRECTION	TRANSPORT	X111	1.529278317e-04	1.351174066e-04	1.715775414e-04	8
+POOLED_DIRECTION	SPECTRAL	X100	0.000000000e+00	0.000000000e+00	0.000000000e+00	8
+POOLED_DIRECTION	SPECTRAL	X110	0.000000000e+00	0.000000000e+00	0.000000000e+00	8
+POOLED_DIRECTION	SPECTRAL	X111	0.000000000e+00	0.000000000e+00	0.000000000e+00	8
+POOLED_SUMMARY	TRANSPORT	1.063100262e+00	1.021857272e+00	1.260916858e+00	7.510000000e-01	1.186056040e+00	2000
+POOLED_SUMMARY	SPECTRAL	NaN	NaN	NaN	NaN	NaN	0
