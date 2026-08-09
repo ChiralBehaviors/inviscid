@@ -74,14 +74,54 @@ import com.chiralbehaviors.inviscid.PhiCoordinates;
  * which throws {@link ContactAtlas.HeaderMismatchException} - naming every
  * mismatched field, not just the first - the moment the atlas file's
  * on-disk header disagrees with the {@code expected} header a caller
- * supplies. A caller pairs this table with a {@link PhaseQuantizer} (or a
- * bare {@link MemberGeometry}) by building BOTH from the exact same {@link
- * ContactAtlas.Header} instance - e.g. {@code
- * PhaseQuantizer.of(header)} alongside {@code ContactTable.load(path,
- * header)} - mirroring {@link PhaseQuantizer#of(ContactAtlas.Header)}'s own
- * single-source-of-truth convention, rather than this class independently
- * re-deriving or duplicating {@code PhaseQuantizer}'s divisibility /
- * geometry-resolution checks. {@link #of(ContactAtlas)} is the unvalidated
+ * supplies. A caller pairs this table with a geometry consumer - a
+ * {@link MemberGeometry}, or the {@link FineStepContactTable} that {@link
+ * LatticeGasAutomaton} actually fires from - by building BOTH from the
+ * exact same {@link ContactAtlas.Header} instance, e.g. {@code
+ * new MemberGeometry(header.geometryResolution(), header.memberRadius())}
+ * alongside {@code ContactTable.load(path, header)}. Deriving every
+ * consumer from one header instance is the single-source-of-truth
+ * convention this class relies on rather than independently re-deriving
+ * or duplicating any resolution / divisibility checks of its own.
+ *
+ * <p><b>Which divisibility invariants survive, precisely (bead
+ * inviscid-0nx.27, E.0 - do not paraphrase this as "the constructor
+ * guards divisibility").</b> Two DIFFERENT invariants are at issue and
+ * only one of them is still enforced anywhere in this tree:
+ * <ul>
+ * <li>{@code phaseResolution % geometryResolution == 0} - ENFORCED, live,
+ * by {@link LatticeGasAutomaton}'s constructor. This is the guard that
+ * makes {@code accumulator / subBinSteps} exact integer arithmetic.</li>
+ * <li>{@code geometryResolution % nLga == 0} - <b>NO LONGER ENFORCED BY
+ * ANYTHING.</b> It belonged to the phase-quantizer class bead
+ * inviscid-0nx.27 retired, and died with it; no successor guard was
+ * added. Losing it is not a runtime regression today, because {@code
+ * N_lga} has no production consumer at all ({@link #contacts} is
+ * test-only; {@link FineStepContactTable} is the firing path). It is a
+ * live hazard the moment {@code N_lga} becomes a swept parameter - see
+ * {@code NLgaCandidateCampaign} (bead inviscid-eho), and note that its
+ * candidates ALREADY include one that violates the retired invariant:
+ * measured, {@code 360 % 16 == 8}, so {@code nLga=16} does not divide
+ * the 360-step geometry resolution ({@code 8}, {@code 12} and {@code 24}
+ * do). The SURVIVING invariant excludes MORE of those candidates than the
+ * retired one does: {@code ContactAtlasGenerator.generate} stamps {@code
+ * subBinSteps = 150} into every header unconditionally, so {@code
+ * phaseResolution = nLga * 150}, and {@code phaseResolution % 360} is
+ * {@code 120} at {@code nLga=8}, {@code 0} at {@code 12}, {@code 240} at
+ * {@code 16}, {@code 0} at {@code 24} - {@code 12} and {@code 24} are
+ * LGA-constructible, {@code 8} and {@code 16} are not. {@code 3600} is
+ * the fine-phase resolution only at {@code nLga=24}. An earlier version
+ * of this paragraph asserted all four "happen to divide 360", and a later
+ * one that all four divide "the 3600 fine-phase resolution"; the first
+ * is arithmetically false, the second true but irrelevant - the
+ * candidates are never checked against a fixed 3600.
+ * {@link ContactAtlasGenerator#binOfStep}'s own Javadoc
+ * names exactly that {@code nLga=16 / geometryResolution=360} case as
+ * one it is well-defined for, at the cost of bins that are unequal-width
+ * in step-count terms; whether that is acceptable for the campaign's
+ * purpose is not settled here.</li>
+ * </ul>
+ * {@link #of(ContactAtlas)} is the unvalidated
  * escape hatch for a caller that has already validated (or otherwise
  * trusts) a {@link ContactAtlas} instance directly - prefer {@link #load}
  * whenever a caller is loading from disk.
@@ -157,11 +197,11 @@ public final class ContactTable {
      * @param atlasPath
      *            path to a v2 {@link ContactAtlas} TSV file
      * @param expected
-     *            the header a paired {@link PhaseQuantizer} /
-     *            {@link MemberGeometry} configuration was built from - the
-     *            SAME {@link ContactAtlas.Header} instance a caller passes
-     *            to {@link PhaseQuantizer#of(ContactAtlas.Header)}, so both
-     *            are provably built from identical parameters
+     *            the header a paired {@link MemberGeometry} /
+     *            {@link FineStepContactTable} configuration was built from
+     *            - the SAME {@link ContactAtlas.Header} instance a caller
+     *            passes to those constructors, so both are provably built
+     *            from identical parameters
      * @return a table transcribing {@code atlasPath}'s any-overlap cells
      * @throws IOException
      *             if {@code atlasPath} cannot be read
@@ -184,9 +224,9 @@ public final class ContactTable {
      *
      * @param atlas
      *            the atlas to transcribe; {@code N_lga} is sourced from
-     *            {@code atlas.header().phaseResolutionNLga()} - the same
-     *            single source of truth {@link
-     *            PhaseQuantizer#of(ContactAtlas.Header)} uses
+     *            {@code atlas.header().phaseResolutionNLga()} - the single
+     *            source of truth every {@code N_lga} consumer reads from,
+     *            never a second hardcoded literal
      * @return a table with one bit set per row whose {@code
      *         overlapFraction > 0} (bead inviscid-gyt's any-overlap
      *         transcription signal)
@@ -249,22 +289,20 @@ public final class ContactTable {
 
     /**
      * @return the {@link ContactAtlas.Header} this table was built from -
-     *         the cross-verification hook a caller pairing this table
-     *         with a {@link PhaseQuantizer} should use: assert {@code
+     *         the cross-verification hook a caller pairing this table with
+     *         a geometry consumer should use: assert {@code
      *         table.header().equals(header)} where {@code header} is the
-     *         SAME {@link ContactAtlas.Header} instance passed to {@link
-     *         PhaseQuantizer#of(ContactAtlas.Header)} (code-review
-     *         follow-up, inviscid-0nx.19 Important finding 3: {@link
-     *         #load(Path, ContactAtlas.Header)}'s REFUSES contract only
-     *         checks the ON-DISK atlas against the caller-supplied {@code
-     *         expected} header - it does nothing to verify {@code
-     *         expected} itself is the header a co-existing {@code
-     *         PhaseQuantizer} was actually built from. This accessor makes
-     *         that cross-check POSSIBLE for a caller to perform; it does
-     *         not perform the check itself - see bead inviscid-0nx.21's
-     *         notes for the remaining enforcement question at the point
-     *         where {@code PhaseQuantizer} and {@code ContactTable} are
-     *         actually wired together at runtime).
+     *         SAME {@link ContactAtlas.Header} instance that consumer was
+     *         built from (code-review follow-up, inviscid-0nx.19 Important
+     *         finding 3: {@link #load(Path, ContactAtlas.Header)}'s
+     *         REFUSES contract only checks the ON-DISK atlas against the
+     *         caller-supplied {@code expected} header - it does nothing to
+     *         verify {@code expected} itself is the header a co-existing
+     *         consumer was actually built from. This accessor makes that
+     *         cross-check POSSIBLE for a caller to perform; it does not
+     *         perform the check itself). {@link LatticeGasAutomaton}'s
+     *         constructor is where that check is actually performed at
+     *         runtime today - see its "Header pairing" Javadoc.
      */
     public ContactAtlas.Header header() {
         return header;

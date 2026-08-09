@@ -92,6 +92,29 @@ import com.chiralbehaviors.inviscid.lga.ContactComboCache.Combo;
  */
 public final class NLgaCandidateCampaign {
 
+    /**
+     * Bead inviscid-eho. The {@code geometryResolution % nLga == 0}
+     * invariant these candidates used to be checked against is NO LONGER
+     * ENFORCED ANYWHERE - it died with the phase-quantizer class bead
+     * inviscid-0nx.27 retired. {@link ContactTable}'s class Javadoc
+     * carries the full account; the short version is that {@code
+     * nLga=16} below already violates it (measured: {@code 360 % 16 ==
+     * 8}), and nothing checks a future candidate. Its call site in this
+     * class is {@code binOfFineIndex} -> {@code
+     * ContactAtlasGenerator.binOfStep(fineIndex, nLga, FINE_STEPS)} ->
+     * {@code analyze}'s {@code transcriptionErrorRate}.
+     *
+     * <p>The SURVIVING invariant, {@code phaseResolution %
+     * geometryResolution == 0} in {@link LatticeGasAutomaton}'s
+     * constructor, excludes MORE of these candidates than the retired one
+     * does. {@code ContactAtlasGenerator.generate} stamps {@code
+     * subBinSteps = 150} into every header unconditionally, so {@code
+     * phaseResolution = nLga * 150}, and {@code phaseResolution % 360} is
+     * {@code 120} at {@code nLga=8}, {@code 0} at {@code 12}, {@code 240}
+     * at {@code 16}, {@code 0} at {@code 24}: only {@code 12} and {@code
+     * 24} are LGA-constructible; {@code 8} and {@code 16} throw from that
+     * constructor.
+     */
     public static final int[]   CANDIDATES          = { 8, 12, 16, 24 };
     public static final double  RADIUS              = ContactAtlasGenerator.RADIUS;
     public static final int     GEOMETRY_RESOLUTION = ContactAtlasGenerator.GEOMETRY_RESOLUTION;

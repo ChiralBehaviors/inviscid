@@ -44,14 +44,14 @@ import com.sun.management.ThreadMXBean;
  * Failing-tests-first (TDD) coverage for {@link ContactTable} (bead
  * inviscid-0nx.19, C.2): the runtime contact-predicate table transcribed
  * from the committed Phase A atlas ({@code contact-atlas-v2.tsv}) plus
- * {@link PhaseQuantizer} geometry - see bead inviscid-gyt's ANY-OVERLAP
+ * {@link MemberGeometry} geometry - see bead inviscid-gyt's ANY-OVERLAP
  * transcription-semantics decision (table fires iff a row's {@code
  * overlapFraction > 0}), which supersedes the bead's original
  * bin-center-only wording.
  *
  * <p>The committed atlas is loaded once ({@link BeforeClass}) and shared
- * read-only across test methods, mirroring {@link CommittedContactAtlasTest}
- * / {@link PhaseQuantizerTest}'s own idiom.
+ * read-only across test methods, mirroring {@link CommittedContactAtlasTest}'s
+ * own idiom.
  *
  * @author halhildebrand
  */
@@ -336,9 +336,9 @@ public class ContactTableTest {
     /**
      * The .19-side defense (correction #3): {@link ContactTable#load}
      * REFUSES to load an atlas whose on-disk header disagrees with the
-     * {@code header} a caller expects (the same header a paired {@link
-     * PhaseQuantizer} would be built from via {@link
-     * PhaseQuantizer#of(ContactAtlas.Header)}) - for each of the four
+     * {@code header} a caller expects (the same header a paired geometry
+     * consumer - {@link MemberGeometry}, {@link FineStepContactTable} -
+     * would be built from) - for each of the four
      * fields the bead's own text names, a copy of the committed atlas with
      * that single header field mutated must be refused, and the failure
      * message must name the offending field.

@@ -186,8 +186,9 @@ public class QuantaFieldSeamTest {
      * through several sub-bin steps WITHIN one contact bin (bin =
      * phase/150, so phase in {0, 10, ..., 140} all stay in bin 0) must
      * produce a CHANGING {@link QuantaField#phaseAt(int)} reading. Under
-     * the rejected {@code PhaseQuantizer.centre(bin)} spec this would be
-     * constant across all 150 sub-steps -- see T2
+     * the REJECTED spec -- reporting the coarse contact-bin CENTRE angle,
+     * {@code (bin + 0.5) * 2*pi/N_lga}, instead of the fine accumulator --
+     * this would be constant across all 150 sub-steps -- see T2
      * analysis-73v-spectral-conversion-and-cadence.md §5 for the
      * quantisation-sideband artifact that regression would (re)introduce.
      */
@@ -212,7 +213,11 @@ public class QuantaFieldSeamTest {
                                  + (phase - 10) + " and " + phase
                                  + " within the SAME bin " + bin
                                  + " -- a constant reading here means "
-                                 + "phaseAt regressed to PhaseQuantizer.centre(bin)",
+                                 + "phaseAt regressed to the REJECTED spec: "
+                                 + "reporting the coarse contact-bin CENTRE "
+                                 + "angle ((bin + 0.5) * 2*pi/N_lga), which is "
+                                 + "invariant within a bin, instead of the fine "
+                                 + "accumulator phase",
                                  previous, current, 0.0f);
             }
             previous = current;

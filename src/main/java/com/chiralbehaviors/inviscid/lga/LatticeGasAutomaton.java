@@ -100,17 +100,17 @@ import com.chiralbehaviors.inviscid.measure.CollisionStatistics;
  * The constructor receives one {@link ContactTable} (built from a
  * {@link ContactAtlas.Header}) and a second {@link ContactAtlas.Header}
  * (today, in practice, the literal same instance) named {@code
- * quantizerHeader}, and asserts {@code table.header().equals(quantizerHeader)}
+ * atlasHeader}, and asserts {@code table.header().equals(atlasHeader)}
  * as a defence-in-depth guard (see {@code ContactTable#header()}'s own
  * Javadoc for why this cross-check exists) - a future refactor that
  * decouples the two construction paths fails loudly here, not silently
  * downstream. <b>This guard compares {@link ContactAtlas.Header}
- * equality ONLY</b> - it does not construct or hold a {@link
- * PhaseQuantizer} instance (bead inviscid-0nx.23's fix-round removed the
- * unused {@code quantizer} field and its package-private accessor, which
- * had zero callers anywhere including tests; {@code quantizerHeader}'s
- * name is retained for its OTHER live uses below - {@code subBinSteps},
- * {@code geometryResolution}, {@code memberRadius}).
+ * equality ONLY</b> - it holds no derived phase-binning object at all.
+ * Bead inviscid-0nx.23's fix-round removed the unused {@code quantizer}
+ * field and its package-private accessor (zero callers anywhere,
+ * including tests), and bead inviscid-0nx.27 retired the phase-quantizer
+ * class outright; the header's remaining live uses below are {@code
+ * subBinSteps}, {@code geometryResolution} and {@code memberRadius}.
  *
  * @author halhildebrand
  */
@@ -154,9 +154,10 @@ public class LatticeGasAutomaton implements QuantaField, TickDriver {
      * @param extent     the periodic-wrap extent; delegated to {@link
      *                   FccNeighborhood}'s constructor for validation
      * @param atlas      the transcribed contact atlas; {@link
-     *                   ContactTable} and {@link PhaseQuantizer} are both
-     *                   built from {@code atlas.header()} - see class
-     *                   Javadoc, "Header pairing"
+     *                   ContactTable} and the fine-step geometry ({@link
+     *                   MemberGeometry} / {@link FineStepContactTable})
+     *                   are all built from {@code atlas.header()} - see
+     *                   class Javadoc, "Header pairing"
      * @param collisions the frozen, conservation-exact collision table
      *                   (bead inviscid-0nx.20) - typically {@link
      *                   CollisionTable#buildFromPhaseARule}
@@ -183,23 +184,22 @@ public class LatticeGasAutomaton implements QuantaField, TickDriver {
      * untestable, vacuous defensive code.
      */
     LatticeGasAutomaton(Point3i extent, ContactTable table,
-                         ContactAtlas.Header quantizerHeader,
+                         ContactAtlas.Header atlasHeader,
                          CollisionTable collisions,
                          CollisionStatistics statistics) {
         // Reused, not re-implemented: validates even-and-at-least-4-per-axis.
         this.neighborhood = new FccNeighborhood(extent);
         this.extent = new Point3i(extent);
-        if (!table.header().equals(quantizerHeader)) {
-            throw new IllegalStateException("ContactTable/PhaseQuantizer header pairing violated (bead inviscid-0nx.19's contract): "
+        if (!table.header().equals(atlasHeader)) {
+            throw new IllegalStateException("ContactTable/atlas header pairing violated (bead inviscid-0nx.19's contract): "
                                              + "table.header()=" + table.header()
-                                             + " but quantizerHeader="
-                                             + quantizerHeader);
+                                             + " but atlasHeader=" + atlasHeader);
         }
         this.table = table;
         this.collisions = collisions;
         this.statistics = statistics;
         this.nLga = table.nLga();
-        this.subBinSteps = quantizerHeader.subBinSteps();
+        this.subBinSteps = atlasHeader.subBinSteps();
         // Computed, never imported: Necronomata.PHASE_RESOLUTION's own
         // javadoc forbids reaching for it as an LGA parameter.
         this.phaseResolution = nLga * subBinSteps;
@@ -209,20 +209,22 @@ public class LatticeGasAutomaton implements QuantaField, TickDriver {
         // structure, built ONCE from the SAME atlas header's geometry
         // (reused, not reimplemented -- ContactComboCache +
         // ContactPredicate, the exact machinery that built the atlas).
-        this.geometryResolution = quantizerHeader.geometryResolution();
+        this.geometryResolution = atlasHeader.geometryResolution();
         if (phaseResolution % geometryResolution != 0) {
             throw new IllegalStateException("phaseResolution (" + phaseResolution
                                              + ") must be evenly divisible by geometryResolution ("
                                              + geometryResolution
                                              + ") for the fine-step accumulator/step conversion to be exact -- "
-                                             + "same divisibility discipline as PhaseQuantizer's nLga/geometryResolution guard");
+                                             + "the package's exact-divisibility discipline for deriving one "
+                                             + "phase quantisation from another (bead inviscid-0nx.27 retired "
+                                             + "the nLga/geometryResolution guard that used to be its sibling)");
         }
         this.fineStepDivisor = phaseResolution / geometryResolution;
         ContactPredicate predicate = new ContactPredicate(new MemberGeometry(geometryResolution,
-                                                                               quantizerHeader.memberRadius()));
+                                                                               atlasHeader.memberRadius()));
         this.fineContacts = FineStepContactTable.buildFor(predicate,
                                                             geometryResolution,
-                                                            quantizerHeader.memberRadius());
+                                                            atlasHeader.memberRadius());
 
         int length = 30 * extent.x * extent.y * extent.z;
         this.phase = new int[length];
@@ -284,7 +286,8 @@ public class LatticeGasAutomaton implements QuantaField, TickDriver {
 
     /**
      * The FINE accumulator phase, {@code 2*pi*phase[slot]/phaseResolution}
-     * - NEVER {@link PhaseQuantizer#centre(int)} (T2
+     * - NEVER the coarse contact-bin CENTRE angle {@code (bin + 0.5) *
+     * 2*pi/N_lga} (T2
      * analysis-73v-spectral-conversion-and-cadence.md §5: a bin-centre
      * read injects a deterministic 24-level staircase quantisation
      * artifact into any angle-spectrum instrument that samples this

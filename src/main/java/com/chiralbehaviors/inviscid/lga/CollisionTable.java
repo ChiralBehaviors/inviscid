@@ -47,8 +47,8 @@ import com.chiralbehaviors.inviscid.lga.CollisionRule.Delta;
  * {@link QuantaExchangeRuleTest} confirms this empirically (varying
  * angle/contact never changes the decision). Consequently the table's key
  * domain is NOT the raw, unbounded {@code long} quanta counts, and does NOT
- * include phase bins or contact identity (both of which {@link
- * ContactTable} / {@link PhaseQuantizer} would supply) - it is exactly the
+ * include phase bins or contact identity (which {@link ContactTable} and
+ * {@link FineStepContactTable} supply) - it is exactly the
  * ternary classification {@link QuantaOrdering}, domain size 3. (This
  * mirrors, but is not itself authorized by, this project's general
  * "minimal abstraction - extract only when repetition is proven" stance;

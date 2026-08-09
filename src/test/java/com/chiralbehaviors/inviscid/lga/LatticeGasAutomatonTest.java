@@ -334,7 +334,7 @@ public class LatticeGasAutomatonTest {
      * construction, not silently accepted.
      */
     @Test
-    public void rejectsAContactTableHeaderMismatchedWithTheQuantizerHeader() throws IOException {
+    public void rejectsAContactTableHeaderMismatchedWithTheAtlasHeader() throws IOException {
         ContactAtlas otherAtlas = ContactAtlasGenerator.generate(12,
                                                                    new Point3i(4,
                                                                                4,
@@ -362,11 +362,18 @@ public class LatticeGasAutomatonTest {
      * {@code accumulator/10} must be exact integer arithmetic since
      * {@code phaseResolution (3600) == geometryResolution (360) * 10}
      * exactly - "a loud guard tying the two resolutions, divisibility-
-     * style like PhaseQuantizer's"). {@code geometryResolution=96} is
-     * chosen deliberately: {@code 24 | 96} (satisfies {@link
-     * PhaseQuantizer}'s OWN {@code nLga}-divides-{@code
-     * geometryResolution} guard, so that guard does not fire first and
-     * mask this one) but {@code 3600 % 96 != 0} (violates THIS guard).
+     * style"). {@code geometryResolution=96} is chosen deliberately:
+     * {@code 3600 % 96 != 0} violates THIS guard, while 96 satisfies every
+     * OTHER divisibility constraint that could fire first and mask it. The
+     * one that is still LIVE is {@link MemberGeometry}'s constructor
+     * requirement that {@code resolution % 8 == 0} - {@code 96 = 8 * 12}
+     * satisfies it. ({@code 24 | 96} was the original reason for this
+     * value: it dodged the {@code nLga}-divides-{@code geometryResolution}
+     * guard of the phase-quantizer class that bead inviscid-0nx.27
+     * retired. That guard is gone and nothing replaced it, so the {@code
+     * 24 | 96} property is now incidental rather than load-bearing; the
+     * value is retained because a fixture that violates exactly one guard
+     * at a time is the point.)
      */
     @Test
     public void rejectsAPhaseResolutionNotDivisibleByGeometryResolution() {
