@@ -17,6 +17,7 @@
 package com.chiralbehaviors.inviscid.measure;
 
 import com.chiralbehaviors.inviscid.Necronomata;
+import com.chiralbehaviors.inviscid.QuantaField;
 
 /**
  * Records a per-member angle time series from a {@link Necronomata} and
@@ -168,7 +169,48 @@ public final class SpectrumAnalyzer {
         HANN
     }
 
+    /**
+     * A recorded angle series carrying the {@link SpectralCadence} it was
+     * sampled at (bead inviscid-ckn / inviscid-0nx.21, 73v option 1D):
+     * unlike a bare {@code float[]}, a {@code PhaseSeries} makes it
+     * structurally impossible to analyse a series against the wrong
+     * phase resolution -- the analyzer reads {@code cadence} instead of
+     * assuming {@code Necronomata.PHASE_RESOLUTION}.
+     */
+    public record PhaseSeries(float[] angles, SpectralCadence cadence) {
+    }
+
     private SpectrumAnalyzer() {
+    }
+
+    /**
+     * QuantaField-typed, read-only phase sampler (bead inviscid-ckn /
+     * inviscid-0nx.21, 73v option 1D): records {@code steps} consecutive
+     * {@link QuantaField#phaseAt(int)} readings for slot {@code
+     * globalMemberIndex}, advancing the substrate between samples via
+     * {@code advanceOneTick} -- a callback the CALLER's own tick loop
+     * supplies (e.g. {@code Necronomata::step} for a free rotor, or
+     * {@code driver::tick} for an audited run), never a {@code step()}
+     * this method owns itself. This is what "read-only" means here: the
+     * method only ever calls {@link QuantaField#phaseAt(int)}; advancing
+     * is entirely the caller's concern, matching the design memo's "do
+     * not put step() on the seam" rule. The first recorded value is the
+     * member's phase <i>before</i> any of these {@code steps} advances
+     * run, matching {@link #recordAngleSeries}'s existing convention.
+     */
+    public static PhaseSeries sampleSeries(QuantaField field,
+                                            int globalMemberIndex, int steps,
+                                            Runnable advanceOneTick) {
+        if (steps <= 0) {
+            throw new IllegalArgumentException("steps must be positive, was "
+                                                + steps);
+        }
+        float[] series = new float[steps];
+        for (int t = 0; t < steps; t++) {
+            series[t] = field.phaseAt(globalMemberIndex);
+            advanceOneTick.run();
+        }
+        return new PhaseSeries(series, SpectralCadence.perTick(field));
     }
 
     /**
@@ -180,16 +222,18 @@ public final class SpectrumAnalyzer {
      * {@link #powerSpectrum} actually places a negative-rate rotor's
      * single line (see the ramp-vs-sinusoid section on direction
      * discrimination). Inverse of {@link #frequencyForBin(int, int)}.
+     *
+     * @deprecated hardwires {@code Necronomata.PHASE_RESOLUTION} (bead
+     *             inviscid-73v). Arithmetically identical delegation to
+     *             {@code new SpectralCadence(Necronomata.PHASE_RESOLUTION, 1).binFor(...)}
+     *             -- prefer {@link SpectralCadence#binFor(double, int)}
+     *             directly, reading {@code phaseResolution} from a
+     *             {@link QuantaField} instead of assuming 3600.
      */
+    @Deprecated
     public static int expectedBinForFrequency(float frequency, int n) {
-        if (n <= 0) {
-            throw new IllegalArgumentException("n must be positive, was "
-                                                + n);
-        }
-        double k = (double) frequency * n / Necronomata.PHASE_RESOLUTION;
-        long rounded = Math.round(k);
-        long wrapped = ((rounded % n) + n) % n;
-        return (int) wrapped;
+        return new SpectralCadence(Necronomata.PHASE_RESOLUTION, 1).binFor(frequency,
+                                                                             n);
     }
 
     /**
@@ -200,15 +244,17 @@ public final class SpectrumAnalyzer {
      * negative-frequency convention. Approximate inverse of {@link
      * #expectedBinForFrequency(float, int)} (exact when the forward
      * mapping did not need rounding).
+     *
+     * @deprecated hardwires {@code Necronomata.PHASE_RESOLUTION} (bead
+     *             inviscid-73v). Arithmetically identical delegation to
+     *             {@code new SpectralCadence(Necronomata.PHASE_RESOLUTION, 1).quantaFor(...)}
+     *             -- prefer {@link SpectralCadence#quantaFor(int, int)}
+     *             directly.
      */
+    @Deprecated
     public static double frequencyForBin(int bin, int n) {
-        if (n <= 0) {
-            throw new IllegalArgumentException("n must be positive, was "
-                                                + n);
-        }
-        int normalized = ((bin % n) + n) % n;
-        int signed = normalized > n / 2 ? normalized - n : normalized;
-        return (double) signed * Necronomata.PHASE_RESOLUTION / n;
+        return new SpectralCadence(Necronomata.PHASE_RESOLUTION,
+                                    1).quantaFor(bin, n);
     }
 
     /**
@@ -279,23 +325,18 @@ public final class SpectrumAnalyzer {
      * wrapped into {@code [0, 2*pi)} every tick, so its per-tick rounding
      * error stays bounded regardless of prior warm-up length (that
      * section's error table is retired, historical-only behavior).
+     *
+     * <p>Necronomata-typed delegation (bead inviscid-ckn /
+     * inviscid-0nx.21) to {@link #sampleSeries(QuantaField, int, int,
+     * Runnable)}, kept byte-identical so Phase B stays untouched -- see
+     * {@link #sampleSeries} for the substrate-agnostic, read-only
+     * replacement.
      */
     public static float[] recordAngleSeries(Necronomata automaton,
                                              int globalMemberIndex,
                                              int steps) {
-        if (steps <= 0) {
-            throw new IllegalArgumentException(
-            "steps must be positive, was " + steps);
-        }
-        float[] series = new float[steps];
-        float[][] angleBox = new float[1][];
-        for (int t = 0; t < steps; t++) {
-            automaton.process((angle, frequency, deltaA,
-                                deltaF) -> angleBox[0] = angle);
-            series[t] = angleBox[0][globalMemberIndex];
-            automaton.step();
-        }
-        return series;
+        return sampleSeries(automaton, globalMemberIndex, steps,
+                             automaton::step).angles();
     }
 
     private static double[] hannWindow(int n) {

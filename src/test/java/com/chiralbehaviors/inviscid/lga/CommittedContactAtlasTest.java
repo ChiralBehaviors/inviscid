@@ -174,6 +174,9 @@ public class CommittedContactAtlasTest {
         assertEquals(prefix + "seed", EXPECTED_SEED, header.seed());
         assertEquals(prefix + "ticksObserved", EXPECTED_TICKS,
                     header.ticksObserved());
+        assertEquals(prefix + "subBinSteps (M, the chosen 2A cadence value)",
+                    ContactAtlasGenerator.SUB_BIN_STEPS,
+                    header.subBinSteps());
     }
 
     /**

@@ -156,7 +156,8 @@ public class ContactAtlasTest {
                                                                             actual.phiCoordinatesCubeSet(),
                                                                             actual.extent(),
                                                                             actual.seed(),
-                                                                            actual.ticksObserved());
+                                                                            actual.ticksObserved(),
+                                                                            actual.subBinSteps());
             ContactAtlas.HeaderMismatchException mismatched = assertThrows(ContactAtlas.HeaderMismatchException.class,
                                                                              () -> ContactAtlas.readValidated(validPath,
                                                                                                                wrongExpectation));
@@ -171,6 +172,57 @@ public class ContactAtlasTest {
         } finally {
             Files.deleteIfExists(validPath);
             Files.deleteIfExists(missingPath);
+        }
+    }
+
+    /**
+     * bead inviscid-ckn / inviscid-0nx.21: {@code subBinSteps} (M, the
+     * LGA's sub-bin accumulator steps per contact bin under the 2A
+     * cadence decision -- T2 analysis-73v-spectral-conversion-and-cadence.md
+     * §3.2) is a real generation parameter (the generator's chosen value,
+     * never borrowed from {@code Necronomata.PHASE_RESOLUTION}) and must
+     * be part of the staleness contract like every other header
+     * parameter -- mirrors {@code rejectsAtlasWithMismatchedGeometryResolution},
+     * mechanically, for this specific key.
+     */
+    @Test
+    public void generatedAtlasHeaderCarriesTheChosenSubBinSteps() {
+        assertEquals(ContactAtlasGenerator.SUB_BIN_STEPS,
+                     ATLAS.header().subBinSteps());
+    }
+
+    @Test
+    public void rejectsAtlasWithMismatchedSubBinSteps() throws IOException {
+        Path path = Files.createTempFile("contact-atlas-sub-bin-steps",
+                                          ".tsv");
+        try {
+            ATLAS.write(path);
+
+            ContactAtlas.Header actual = ATLAS.header();
+            ContactAtlas.Header wrongExpectation = new ContactAtlas.Header(actual.atlasVersion(),
+                                                                            actual.generatorClass(),
+                                                                            actual.gitCommit(),
+                                                                            actual.memberRadius(),
+                                                                            actual.geometryResolution(),
+                                                                            actual.cubeEdgeLength(),
+                                                                            actual.phaseResolutionNLga(),
+                                                                            actual.phiCoordinatesCubeSet(),
+                                                                            actual.extent(), actual.seed(),
+                                                                            actual.ticksObserved(),
+                                                                            actual.subBinSteps()
+                                                                            + 1);
+
+            ContactAtlas.HeaderMismatchException mismatched = assertThrows(ContactAtlas.HeaderMismatchException.class,
+                                                                             () -> ContactAtlas.readValidated(path,
+                                                                                                               wrongExpectation));
+            assertTrue("expected the mismatched key named in the failure: "
+                       + mismatched.getMessage(),
+                       mismatched.getMessage().contains("subBinSteps"));
+
+            // Positive control.
+            ContactAtlas.readValidated(path, actual);
+        } finally {
+            Files.deleteIfExists(path);
         }
     }
 
@@ -201,7 +253,8 @@ public class ContactAtlasTest {
                                                                             actual.phaseResolutionNLga(),
                                                                             actual.phiCoordinatesCubeSet(),
                                                                             actual.extent(), actual.seed(),
-                                                                            actual.ticksObserved());
+                                                                            actual.ticksObserved(),
+                                                                            actual.subBinSteps());
 
             ContactAtlas.HeaderMismatchException mismatched = assertThrows(ContactAtlas.HeaderMismatchException.class,
                                                                              () -> ContactAtlas.readValidated(path,

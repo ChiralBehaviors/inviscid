@@ -10,6 +10,7 @@
 # extent=4,4,4
 # seed=42
 # ticksObserved=15000
+# subBinSteps=150
 # columns=direction	cubeA	memberA	cubeB	memberB	phaseBinA	phaseBinB	contact	overlapFraction	minDistance	observedCount
 1	0	3	3	0	11	5	false	0.0044444444444444444	0.22129000438379426	2
 1	0	3	3	0	11	17	false	0.0044444444444444444	0.22128998381043888	6

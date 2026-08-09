@@ -139,6 +139,21 @@ public final class ContactAtlasGenerator {
     public static final int     DEFAULT_TICKS         = 2000;
     /** Matches {@code AuditedRunTest}'s seeded-quanta bound convention. */
     public static final int     QUANTA_BOUND          = 6;
+    /**
+     * M, the LGA's sub-bin phase accumulator steps per contact bin under
+     * the user's 2A cadence decision (bead inviscid-ckn / inviscid-0nx.21,
+     * T2 analysis-73v-spectral-conversion-and-cadence.md §3.2):
+     * {@code P_lga == N_lga * SUB_BIN_STEPS == 24 * 150 == 3600},
+     * matching {@code Necronomata.PHASE_RESOLUTION} NUMERICALLY (one LGA
+     * tick == one hybrid tick) without being SOURCED from it -- this
+     * constant, stamped into every generated atlas's {@code
+     * ContactAtlas.Header#subBinSteps()}, is the single place M is
+     * defined. Do not import {@code Necronomata.PHASE_RESOLUTION} as a
+     * substitute (that constant's own javadoc forbids reaching for it as
+     * an LGA parameter) and do not hardcode 150 a second time anywhere
+     * else -- read {@code ContactTable#header()}{@code .subBinSteps()}.
+     */
+    public static final int     SUB_BIN_STEPS         = 150;
 
     private static final int CUBES_PER_CELL   = 5;
     private static final int MEMBERS_PER_CUBE = 6;
@@ -287,7 +302,8 @@ public final class ContactAtlasGenerator {
                                                               nLga, "Cubes[0]",
                                                               new Point3i(extent),
                                                               seed,
-                                                              ticksObserved);
+                                                              ticksObserved,
+                                                              SUB_BIN_STEPS);
         return new ContactAtlas(header, atlasRows);
     }
 
@@ -532,26 +548,46 @@ public final class ContactAtlasGenerator {
 
             AuditedRun.TickOutcome outcome = run.tick(tick);
 
-            // (bead inviscid-ckn / inviscid-0nx.21) outcome.collisionResult()
-            // is TickReport-typed since the seam widened AuditedRun to any
-            // TickDriver. Atlas generation correlates geometric contacts
-            // against pre-tick angles -- an operation with no meaning for a
-            // table-driven LGA, which CONSUMES the atlas rather than
-            // producing it -- so this narrowing is honest, not a
-            // workaround: a non-hybrid driver here is a caller error.
-            if (!(outcome.collisionResult() instanceof CollisionSweep.TickResult r)) {
-                throw new IllegalStateException("the contact atlas is generated from Phase A geometric contacts; "
-                                                 + "driver reported "
-                                                 + outcome.collisionResult()
-                                                           .getClass()
-                                                           .getName());
-            }
-            for (CollisionSweep.AppliedCollision applied : r.applied()) {
+            for (CollisionSweep.AppliedCollision applied : requireHybridApplied(outcome)) {
                 recordObservedContact(automaton, predicate, nLga,
                                        geometryResolution, preTickAngles,
                                        applied.contact(), rows);
             }
         }
+    }
+
+    /**
+     * Narrows {@code outcome.collisionResult()} to the hybrid-specific
+     * {@link CollisionSweep.TickResult} atlas generation needs (bead
+     * inviscid-ckn / inviscid-0nx.21): {@code outcome.collisionResult()}
+     * is {@link TickReport}-typed since the seam widened {@code
+     * AuditedRun} to any {@link TickDriver}. Atlas generation correlates
+     * geometric contacts against pre-tick angles -- an operation with no
+     * meaning for a table-driven LGA, which CONSUMES the atlas rather
+     * than producing it -- so this narrowing is honest, not a
+     * workaround: a non-hybrid driver reaching {@link
+     * #runDynamicReachability} is a caller error.
+     *
+     * <p>Extracted (not inlined in {@link #runDynamicReachability}, code
+     * review non-blocking suggestion on the inviscid-0nx.21 seam
+     * checkpoint) so the else-throw path is directly unit-testable
+     * without paying for a real generation run -- a test can construct a
+     * minimal fake {@link TickReport} (no {@link CollisionSweep}
+     * involvement at all) and drive this method in isolation. Zero
+     * behaviour change to the production path.
+     *
+     * @throws IllegalStateException if {@code outcome.collisionResult()}
+     *                                is not a {@link CollisionSweep.TickResult}
+     */
+    static List<CollisionSweep.AppliedCollision> requireHybridApplied(AuditedRun.TickOutcome outcome) {
+        if (!(outcome.collisionResult() instanceof CollisionSweep.TickResult r)) {
+            throw new IllegalStateException("the contact atlas is generated from Phase A geometric contacts; "
+                                             + "driver reported "
+                                             + outcome.collisionResult()
+                                                       .getClass()
+                                                       .getName());
+        }
+        return r.applied();
     }
 
     /**

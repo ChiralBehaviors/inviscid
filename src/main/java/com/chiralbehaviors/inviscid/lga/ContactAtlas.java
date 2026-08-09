@@ -134,7 +134,8 @@ public final class ContactAtlas {
                                                               "phaseResolutionNLga",
                                                               "phiCoordinatesCubeSet",
                                                               "extent", "seed",
-                                                              "ticksObserved");
+                                                              "ticksObserved",
+                                                              "subBinSteps");
 
     private static final String COLUMNS = "direction\tcubeA\tmemberA\tcubeB\tmemberB\tphaseBinA\tphaseBinB\tcontact\toverlapFraction\tminDistance\tobservedCount";
 
@@ -145,13 +146,26 @@ public final class ContactAtlas {
      * C) that loads an atlas whose header does not match what it expects
      * would silently transcribe a stale table without this record existing
      * to check against (see {@link #readValidated(Path, Header)}).
+     *
+     * @param subBinSteps M, the LGA's sub-bin phase accumulator steps per
+     *                    contact bin (bead inviscid-ckn / inviscid-0nx.21,
+     *                    T2 analysis-73v-spectral-conversion-and-cadence.md
+     *                    §3.2's 2A cadence decision: {@code P_lga ==
+     *                    phaseResolutionNLga * subBinSteps}). The
+     *                    generator's CHOSEN value -- sourced from exactly
+     *                    one place ({@code
+     *                    ContactAtlasGenerator#SUB_BIN_STEPS}), never
+     *                    imported from {@code Necronomata.PHASE_RESOLUTION}
+     *                    (that constant's own javadoc forbids reaching for
+     *                    it as an LGA parameter) and never hardcoded a
+     *                    second time.
      */
     public record Header(int atlasVersion, String generatorClass,
                           String gitCommit, double memberRadius,
                           int geometryResolution, double cubeEdgeLength,
                           int phaseResolutionNLga,
                           String phiCoordinatesCubeSet, Point3i extent,
-                          long seed, int ticksObserved) {
+                          long seed, int ticksObserved, int subBinSteps) {
 
         public Header {
             extent = new Point3i(extent);
@@ -240,6 +254,8 @@ public final class ContactAtlas {
           .append('\n');
         sb.append("# seed=").append(header.seed()).append('\n');
         sb.append("# ticksObserved=").append(header.ticksObserved())
+          .append('\n');
+        sb.append("# subBinSteps=").append(header.subBinSteps())
           .append('\n');
         sb.append("# columns=").append(COLUMNS).append('\n');
         for (Row row : rows) {
@@ -341,7 +357,8 @@ public final class ContactAtlas {
                                     kv.get("phiCoordinatesCubeSet"),
                                     parseExtent(kv.get("extent")),
                                     Long.parseLong(kv.get("seed")),
-                                    Integer.parseInt(kv.get("ticksObserved")));
+                                    Integer.parseInt(kv.get("ticksObserved")),
+                                    Integer.parseInt(kv.get("subBinSteps")));
         return new ContactAtlas(header, rows);
     }
 
@@ -421,6 +438,8 @@ public final class ContactAtlas {
         checkEquals(mismatches, "seed", expected.seed(), actual.seed());
         checkEquals(mismatches, "ticksObserved", expected.ticksObserved(),
                     actual.ticksObserved());
+        checkEquals(mismatches, "subBinSteps", expected.subBinSteps(),
+                    actual.subBinSteps());
         if (!mismatches.isEmpty()) {
             throw new HeaderMismatchException(String.format(Locale.ROOT,
                                                               "Atlas header mismatch against expected parameters: %s",

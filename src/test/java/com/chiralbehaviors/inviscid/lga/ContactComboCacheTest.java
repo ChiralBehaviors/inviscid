@@ -22,7 +22,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 
 import org.junit.Assume;
@@ -237,8 +236,15 @@ public class ContactComboCacheTest {
      * direction-reversal symmetry (verified directly by {@code
      * ContactAtlasTest.atlasIsSymmetricUnderDirectionReversal}) means every
      * discovered positive-direction combo's A/B-swapped, opposite-direction
-     * mirror is independently discoverable too. Spot-checked here on the
-     * production cache (fast - resource-backed, see the sibling test).
+     * mirror is independently discoverable too.
+     *
+     * <p>EXHAUSTIVE over every positive-direction combo (final-review
+     * Significant C, T2 critique-final-0nx21-automaton-arc.md [21949]):
+     * previously spot-checked a random 50/223 sample. The combo universe
+     * is small (223 canonical combos, cheap boolean/set-membership
+     * compares - not a 360x360 geometric sweep), so there is no cost
+     * reason to sample rather than cover every combo; sampling only left
+     * ~173 combos' mirror-closure unverified for no benefit.
      */
     @Test
     public void discoveredCombosAreClosedUnderDirectionReversalMirroring() {
@@ -252,11 +258,8 @@ public class ContactComboCacheTest {
                                       .toList();
         assertFalse(positive.isEmpty());
 
-        Random random = new Random(42L);
-        int sampleSize = Math.min(50, positive.size());
         int checked = 0;
-        for (int i = 0; i < sampleSize; i++) {
-            Combo combo = positive.get(random.nextInt(positive.size()));
+        for (Combo combo : positive) {
             Combo mirror = new Combo(FccNeighborhood.opposite(combo.direction()),
                                       combo.cubeB(), combo.memberB(),
                                       combo.cubeA(), combo.memberA());
@@ -265,6 +268,8 @@ public class ContactComboCacheTest {
                        comboSet.contains(mirror));
             checked++;
         }
+        assertEquals("expected every positive-direction combo to be checked, not a subset",
+                     positive.size(), checked);
         assertTrue(checked > 0);
     }
 

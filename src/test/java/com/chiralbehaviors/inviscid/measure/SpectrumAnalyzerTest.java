@@ -196,6 +196,41 @@ public class SpectrumAnalyzerTest {
         }
     }
 
+    /**
+     * The new QuantaField-typed, read-only sampler (bead inviscid-ckn /
+     * inviscid-0nx.21, 73v option 1D) must reproduce {@link
+     * SpectrumAnalyzer#recordAngleSeries} exactly when driven by the
+     * SAME per-tick advance callback ({@code automaton::step}) -- proving
+     * the read-only sampler is a strict generalisation, not a behavior
+     * change, and that {@code recordAngleSeries}'s Necronomata-typed
+     * delegation (kept for Phase B byte-identity) still agrees with it.
+     */
+    @Test
+    public void sampleSeriesMatchesRecordAngleSeriesWhenDrivenByTheSameAdvance() {
+        int steps = 32;
+        int globalMemberIndex = 3;
+        Necronomata automatonA = new Necronomata(new Point3i(1, 1, 1));
+        automatonA.process((angle, frequency, deltaA, deltaF) -> frequency[globalMemberIndex] = 5f);
+        Necronomata automatonB = new Necronomata(new Point3i(1, 1, 1));
+        automatonB.process((angle, frequency, deltaA, deltaF) -> frequency[globalMemberIndex] = 5f);
+
+        float[] viaRecordAngleSeries = SpectrumAnalyzer.recordAngleSeries(automatonA,
+                                                                            globalMemberIndex,
+                                                                            steps);
+        SpectrumAnalyzer.PhaseSeries viaSampleSeries = SpectrumAnalyzer.sampleSeries(automatonB,
+                                                                                       globalMemberIndex,
+                                                                                       steps,
+                                                                                       automatonB::step);
+
+        assertEquals(steps, viaSampleSeries.angles().length);
+        for (int t = 0; t < steps; t++) {
+            assertEquals("angle at step " + t, viaRecordAngleSeries[t],
+                         viaSampleSeries.angles()[t], 0.0f);
+        }
+        assertEquals(3600, viaSampleSeries.cadence().phaseResolution());
+        assertEquals(1, viaSampleSeries.cadence().stride());
+    }
+
     private static double dominantFraction(double[] spectrum, int bin) {
         double total = 0;
         for (double v : spectrum) {
