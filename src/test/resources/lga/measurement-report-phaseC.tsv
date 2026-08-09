@@ -1,0 +1,159 @@
+# PhaseCMeasurement report -- C.5 Phase C measurement re-run and isotropy verdict data
+# bead=inviscid-0nx.22
+# generator=com.chiralbehaviors.inviscid.measure.PhaseCMeasurement
+# gitCommit=a5a5c4236972a9938beb7ebfb366cdba07ef4e57-dirty
+# atlasVersion=2
+# nLga=24
+# subBinSteps=150
+# phaseResolution=3600 (both substrates, cadence 2A -- see LatticeGasAutomaton class Javadoc)
+# anisotropyExtent=8,8,8 (IDENTICAL to committed anisotropy-report-phaseA.tsv, for genuine apples-to-apples)
+# anisotropySeeds=42,43,44,45,46,47,48,49
+# anisotropyTicks=128
+# anisotropyPacketQuanta=30
+# spectralExtent=4,4,4
+# spectralSeed=42
+# spectralStride=225 (== BaselineSpectrumHarness.STRIDE, exact-alignment stride for phaseResolution=3600 -- SAME cadence as the K0 golden, see SpectralCadence)
+# spectralFftLength=32 (K0 golden used 256; reduced here purely for wall-time budget -- a sample-COUNT choice at a MATCHED cadence, not a resampling of collected data; see class Javadoc)
+# nyquistQuantaBound=8 (phaseResolution/(2*spectralStride) -- seeded quanta range [-5,5] is within this bound)
+# collisionOpportunitiesPerRevolutionAtLongRunQuantaBound=6.000000000e+02 (P/q for q=longRunQuantaBound=6, the dimensionless per-revolution collision-opportunity count T2 73v §4.2 names -- one collision opportunity per tick on both substrates under cadence 2A, so this is directly comparable, no rescaling)
+# longRunExtent=4,4,4
+# longRunSeed=42
+# longRunQuantaBound=6
+# longRunTicks=2000 (IDENTICAL config to HybridVsLgaConsistencyTest -- numbers cross-check against that test's pinned 26.9/23.9 rate values)
+# longRunWindowSize=500
+# conservationMode=STRICT (every driver, every sub-measurement)
+# conservationTicksAudited=18966
+# conservationViolations=0 (exact -- strict ConservationAudit throws immediately on any violation, so a nonzero value here is structurally impossible unless this campaign itself crashed)
+# precision=%.9e
+
+# === SECTION 1: ANISOTROPY (LGA, both estimators; POOLED_SUMMARY is the significance statistic) ===
+# columns(LGA_DIRECTION)=recordType	seed	estimator	direction	magnitude	sampleSize
+# columns(LGA_SUMMARY)=recordType	estimator	ratio	ciLower	ciUpper	nSeedsUsed	nSeedsDegenerate (DIAGNOSTIC, naive per-seed ratio -- see naivePerSeedRatioCaveat)
+# columns(LGA_POOLED_DIRECTION)=recordType	estimator	direction	mean	ciLower	ciUpper	nSeeds
+# columns(LGA_POOLED_SUMMARY)=recordType	estimator	pooledRatio	pooledRatioCiLower	pooledRatioCiUpper	permutationPValue	permutationNull95	permutationCount
+# columns(LGA_COLLISIONS)=recordType	seed	totalCollisions	effectiveCollisions
+# columns(WINNING_DIRECTION)=recordType	estimator	seed	winningDirection (argmax magnitude across X100/X110/X111; degenerate/tied estimators are noted, not silently tie-broken)
+# columns(WINNING_DIRECTION_STABILITY)=recordType	estimator	modeDirection	modeCount	totalSeeds	stabilityFraction (T3 review-pattern-order-statistic-bias-max-min-ratio-2026-08-08: a STABLE winner across seeds is evidence consistent with a real direction-linked effect; a flipping winner is order-statistic noise)
+# naivePerSeedRatioCaveat=LGA_SUMMARY rows (mean of per-seed max/min ratios) are a DIAGNOSTIC, bounded below by 1.0 by construction, upward-biased by seed noise (order-statistic artifact, T3 critique-pattern-max-min-ratio-order-statistic-bias) -- the significance statistic is LGA_POOLED_SUMMARY's permutationPValue, see ciVsPermutationReconciliation below
+LGA_DIRECTION	42	TRANSPORT	X100	9.693419500e-05	128
+LGA_DIRECTION	42	TRANSPORT	X110	5.640533124e-05	128
+LGA_DIRECTION	42	TRANSPORT	X111	6.394670627e-05	128
+LGA_DIRECTION	42	SPECTRAL	X100	0.000000000e+00	8
+LGA_DIRECTION	42	SPECTRAL	X110	0.000000000e+00	8
+LGA_DIRECTION	42	SPECTRAL	X111	0.000000000e+00	4
+LGA_DIRECTION	43	TRANSPORT	X100	1.001101243e-04	128
+LGA_DIRECTION	43	TRANSPORT	X110	1.003612739e-04	128
+LGA_DIRECTION	43	TRANSPORT	X111	1.421061466e-04	128
+LGA_DIRECTION	43	SPECTRAL	X100	0.000000000e+00	8
+LGA_DIRECTION	43	SPECTRAL	X110	0.000000000e+00	8
+LGA_DIRECTION	43	SPECTRAL	X111	0.000000000e+00	4
+LGA_DIRECTION	44	TRANSPORT	X100	1.287761450e-04	128
+LGA_DIRECTION	44	TRANSPORT	X110	1.103293683e-04	128
+LGA_DIRECTION	44	TRANSPORT	X111	1.226415254e-04	128
+LGA_DIRECTION	44	SPECTRAL	X100	0.000000000e+00	8
+LGA_DIRECTION	44	SPECTRAL	X110	0.000000000e+00	8
+LGA_DIRECTION	44	SPECTRAL	X111	0.000000000e+00	4
+LGA_DIRECTION	45	TRANSPORT	X100	7.929014324e-05	128
+LGA_DIRECTION	45	TRANSPORT	X110	4.237751531e-05	128
+LGA_DIRECTION	45	TRANSPORT	X111	1.084669407e-04	128
+LGA_DIRECTION	45	SPECTRAL	X100	0.000000000e+00	8
+LGA_DIRECTION	45	SPECTRAL	X110	0.000000000e+00	8
+LGA_DIRECTION	45	SPECTRAL	X111	0.000000000e+00	4
+LGA_DIRECTION	46	TRANSPORT	X100	1.624333659e-04	128
+LGA_DIRECTION	46	TRANSPORT	X110	1.215039345e-04	128
+LGA_DIRECTION	46	TRANSPORT	X111	1.348026749e-04	128
+LGA_DIRECTION	46	SPECTRAL	X100	0.000000000e+00	8
+LGA_DIRECTION	46	SPECTRAL	X110	0.000000000e+00	8
+LGA_DIRECTION	46	SPECTRAL	X111	0.000000000e+00	4
+LGA_DIRECTION	47	TRANSPORT	X100	7.388247981e-05	128
+LGA_DIRECTION	47	TRANSPORT	X110	4.730831248e-05	128
+LGA_DIRECTION	47	TRANSPORT	X111	5.178979566e-05	128
+LGA_DIRECTION	47	SPECTRAL	X100	0.000000000e+00	8
+LGA_DIRECTION	47	SPECTRAL	X110	0.000000000e+00	8
+LGA_DIRECTION	47	SPECTRAL	X111	0.000000000e+00	4
+LGA_DIRECTION	48	TRANSPORT	X100	1.989931128e-04	128
+LGA_DIRECTION	48	TRANSPORT	X110	1.439102906e-04	128
+LGA_DIRECTION	48	TRANSPORT	X111	1.529405481e-04	128
+LGA_DIRECTION	48	SPECTRAL	X100	0.000000000e+00	8
+LGA_DIRECTION	48	SPECTRAL	X110	0.000000000e+00	8
+LGA_DIRECTION	48	SPECTRAL	X111	0.000000000e+00	4
+LGA_DIRECTION	49	TRANSPORT	X100	7.117387943e-05	128
+LGA_DIRECTION	49	TRANSPORT	X110	1.313655288e-04	128
+LGA_DIRECTION	49	TRANSPORT	X111	1.037237109e-04	128
+LGA_DIRECTION	49	SPECTRAL	X100	0.000000000e+00	8
+LGA_DIRECTION	49	SPECTRAL	X110	0.000000000e+00	8
+LGA_DIRECTION	49	SPECTRAL	X111	0.000000000e+00	4
+LGA_SUMMARY	TRANSPORT	1.623975114e+00	1.375449816e+00	1.939629408e+00	8	0
+LGA_SUMMARY	SPECTRAL	NaN	NaN	NaN	0	8
+LGA_POOLED_DIRECTION	TRANSPORT	X100	1.139491807e-04	8.620112757e-05	1.451684228e-04	8
+LGA_POOLED_DIRECTION	TRANSPORT	X110	9.419519440e-05	6.725542960e-05	1.188996486e-04	8
+LGA_POOLED_DIRECTION	TRANSPORT	X111	1.100522561e-04	8.611886814e-05	1.323118434e-04	8
+LGA_POOLED_DIRECTION	SPECTRAL	X100	0.000000000e+00	0.000000000e+00	0.000000000e+00	8
+LGA_POOLED_DIRECTION	SPECTRAL	X110	0.000000000e+00	0.000000000e+00	0.000000000e+00	8
+LGA_POOLED_DIRECTION	SPECTRAL	X111	0.000000000e+00	0.000000000e+00	0.000000000e+00	8
+LGA_POOLED_SUMMARY	TRANSPORT	1.209713313e+00	1.052494279e+00	1.513825434e+00	2.248875562e-01	1.303287925e+00	2000
+LGA_POOLED_SUMMARY	SPECTRAL	NaN	NaN	NaN	NaN	NaN	0
+LGA_COLLISIONS	42	3951	14
+LGA_COLLISIONS	43	3835	25
+LGA_COLLISIONS	44	3321	19
+LGA_COLLISIONS	45	3948	11
+LGA_COLLISIONS	46	3202	27
+LGA_COLLISIONS	47	2681	14
+LGA_COLLISIONS	48	3495	55
+LGA_COLLISIONS	49	3323	21
+WINNING_DIRECTION	TRANSPORT	42	X100
+WINNING_DIRECTION	TRANSPORT	43	X111
+WINNING_DIRECTION	TRANSPORT	44	X100
+WINNING_DIRECTION	TRANSPORT	45	X111
+WINNING_DIRECTION	TRANSPORT	46	X100
+WINNING_DIRECTION	TRANSPORT	47	X100
+WINNING_DIRECTION	TRANSPORT	48	X100
+WINNING_DIRECTION	TRANSPORT	49	X110
+WINNING_DIRECTION_STABILITY	TRANSPORT	X100	5	8	6.250000000e-01
+# winningDirectionSpectralNote=omitted for SPECTRAL -- every per-seed SPECTRAL magnitude is EXACTLY 0.0 in all 3 directions (RIDGE ABSENT), so an argmax winner would be a spurious iteration-order artifact (100% "stable"), not a real signal
+# lgaSmallNEarlyTimeFlag=true (mean effective collisions/seed=2.325000000e+01, mean total collisions/seed=3.469500000e+03, threshold=50.0 -- FEW real transfer events per seed, same small-N caveat as the committed Phase A report; the LGA anisotropy CI/p-value below is NOT independently power-verified at this campaign scale
+# ciVsPermutationReconciliation=the pooled TRANSPORT ratio's resample-then-aggregate bootstrap CI (bounded below by 1.0 by construction -- a max/min-of-3 order statistic, upward-biased by seed noise, AnisotropyProbe's own class Javadoc "STACKED-REVIEW CORRECTION") is NOT the significance statistic; permutationPValue IS, per that same locked convention. TWO-CAMPAIGN PATTERN: Phase A pooled TRANSPORT ratio=1.063100262e+00 CI=[1.021857272e+00,1.260916858e+00] (excludes 1.0) permutationP=7.511244378e-01 (NOT significant); Phase C pooled TRANSPORT ratio=1.209713313e+00 CI=[1.052494279e+00,1.513825434e+00] (excludes 1.0) permutationP=2.248875562e-01 (NOT significant) -- in BOTH campaigns the CI-excludes-1.0 signal does NOT correspond to permutation significance, consistent with this CI being anti-conservative at this campaign scale, not evidence of a real per-seed direction effect. A reader must not treat "CI excludes 1.0" as significance evidence here.
+# powerRecommendationForGate=both Phase A (mean 29.25 effective collisions/seed) and Phase C (mean 2.325000000e+01, worse) fall below the informational small-N threshold (50.0). RECOMMENDATION (an input to the .23 gate, NOT a decision made here): a properly-powered follow-up anisotropy campaign, seeds 8->24 and ticks 128->400-500 -- this campaign's full wall time (~177s) leaves ample headroom for that scale-up. This is a DISTINCT decision point from the three isotropy postures in Section 5: the user may reasonably choose to defer any posture commitment until a properly-powered campaign exists, rather than choosing among postures on the current underpowered data.
+# structureFactorRidgeVerdict=RIDGE ABSENT -- every pooled SPECTRAL direction's ridge slope is exactly zero, the same signature AnisotropyProbe's own Javadoc documents as EXPECTED for purely diffusive dynamics (no propagating branch, omega~i*D*k^2), not an instrument malfunction
+
+# === SECTION 2: SPECTRAL BROADENING, three-way K0 -> HYBRID -> LGA ===
+# columns(SPECTRAL_SUMMARY)=recordType	substrate	extent	fftLength	stride	nMembersChecked	meanPeakFraction	minPeakFraction	maxPeakFraction	meanEntropy	meanAbsoluteLinewidthRadPerTick	meanFractionalLinewidth	nMembersFractionalDefined
+# linewidthDefinition=half-power (FWHM) full-width around each member's dominant power-spectrum bin; ABSOLUTE = radians/tick (SpectralCadence#omegaRadPerTick); FRACTIONAL = absolute/|center frequency rad-per-tick| (dimensionless, undefined/excluded for a DC-peak member) -- user decision D3, BOTH reported, neither promoted to sole headline
+SPECTRAL_SUMMARY	K0	2,2,2	256	225	110	9.999992428e-01	9.999987250e-01	9.999995723e-01	1.309923219e-05	2.181661565e-04	5.954545455e-02	110
+SPECTRAL_SUMMARY	HYBRID	4,4,4	32	225	960	5.655693715e-01	1.511160335e-01	1.000000000e+00	1.406023864e+00	2.088031923e-03	1.203545247e+00	773
+SPECTRAL_SUMMARY	LGA	4,4,4	32	225	960	5.473203041e-01	1.214252975e-01	1.000000000e+00	1.469408846e+00	2.114393667e-03	1.243792406e+00	765
+# spectralProgressionVerdict=PROGRESSION PRESENT (K0 meanPeakFraction=9.999992428e-01, HYBRID=5.655693715e-01, LGA=5.473203041e-01, LGA effect size (K0-LGA drop)=4.526789388e-01)
+# spectralMethodologyCaveat=K0 (extent 2,2,2) and HYBRID/LGA (extent 4,4,4) have DIFFERENT member counts/seeding draws -- this is an AGGREGATE distributional comparison (mean/min/max peakFraction, mean entropy across active members), not a per-member matched comparison; cadence (stride=225, phaseResolution=3600) IS matched, which is the load-bearing apples-to-apples property per the inviscid-ckn substantive-critique concern. K0's nMembersChecked excludes members seeded with exactly zero quanta (permanently non-rotating, a trivial DC case -- BaselineSpectrumHarness's own convention); HYBRID/LGA's nMembersChecked does NOT apply that filter (a member seeded at zero quanta can still acquire quanta via collision during the run, so a priori exclusion by initial quanta would not mean the same thing there) -- all active members are included for both collision-bearing substrates
+
+# === SECTION 3: COLLISION-STATISTICS COMPARABILITY + GAP MECHANISM / BOOT-TRANSIENT ===
+# columns(COLLISION_WINDOW)=recordType	windowStart	windowEnd	hybridRatePerTick	hybridEffectiveFraction	lgaRatePerTick	lgaEffectiveFraction
+COLLISION_WINDOW	0	500	1.579000000e+01	3.540215326e-01	1.589000000e+01	3.548143486e-01
+COLLISION_WINDOW	500	1000	3.024600000e+01	1.626661377e-01	2.311800000e+01	2.552989013e-01
+COLLISION_WINDOW	1000	1500	3.096000000e+01	1.301679587e-01	2.765600000e+01	9.943592710e-02
+COLLISION_WINDOW	1500	2000	3.067400000e+01	1.414227033e-01	2.875600000e+01	1.215746279e-01
+# gapMechanismVerdict=relativeRateGapByWindow=[6.333122229e-03,2.356675263e-01,1.067183463e-01,6.252852579e-02], peak at window 1 (2.356675263e-01) -- NON-MONOTONIC: spikes at an INTERIOR window then partially recovers, more consistent with a genuine boot transient than a stable, persistent step-granularity/quantisation-floor effect (which would predict a roughly flat or monotonic series) -- reported as data, not further mechanistically explained
+# columns(ANISOTROPY_WITHIN_WINDOW)=recordType	quartileIndex	tickStart	tickEndExclusive	totalCollisionsAcrossSeeds (TOTAL, not effective-only -- see class Javadoc)
+ANISOTROPY_WITHIN_WINDOW	0	0	31	6777
+ANISOTROPY_WITHIN_WINDOW	1	31	63	7004
+ANISOTROPY_WITHIN_WINDOW	2	63	95	6984
+ANISOTROPY_WITHIN_WINDOW	3	95	127	6991
+# anisotropyWithinWindowHomogeneityVerdict=quartileCounts=[6777, 7004, 6984, 6991], first->last relative change=3.157739413e-02 -- roughly HOMOGENEOUS across the 128-tick anisotropy window (TOTAL-collision proxy; does not itself verify direction-resolved homogeneity, only the pooled rate) -- no strong evidence the OLS transport-rate fit's time-homogeneity assumption is violated at this coarse resolution
+# columns(COLLISION_FIELD)=recordType	field	hybridValue	lgaValue	verifiedComparable	note
+COLLISION_FIELD	totalCollisions	53835	47710	true	verified comparable, bead .21 HybridVsLgaConsistencyTest test 8 (rate gap ~11%)
+COLLISION_FIELD	effectiveCollisions	9439	8893	true	verified comparable, bead .21 HybridVsLgaConsistencyTest test 8 (effective-ratio gap ~0.011)
+COLLISION_FIELD	collisionsPerDirection	{1=4663, 2=10849, 3=13347, 4=13769, 5=3862, 6=7345, -1=0, -2=0, -3=0, -4=0, -5=0, -6=0}	{1=2439, 2=5183, 3=15537, 4=12220, 5=4579, 6=7752, -1=0, -2=0, -3=0, -4=0, -5=0, -6=0}	false	NOT independently verified comparable prior to this bead -- reported as raw data for the first time, not asserted equal
+COLLISION_FIELD	transferMagnitudeHistogram	{0=44396, 1=9439}	{0=38817, 1=8893}	false	NOT independently verified comparable prior to this bead -- QuantaExchangeRule only ever transfers magnitude 0 or 1 on both substrates by construction, so this is expected trivially degenerate, not a genuine cross-substrate distributional check
+COLLISION_FIELD	meanFreePathProxy	0.03715055261447014	0.04191993292810731	false	meanFreePathProxy's own Javadoc: a coarse tick-span/collision-count proxy, not a physical mean free path -- comparable only as a coarse collision-cadence indicator, not a spatial-transport statistic
+
+# === SECTION 4: EQUILIBRIUM QUANTA-DISTRIBUTION CHARACTERIZATION (SDB caveat, user decision 6) ===
+# equilibriumStatisticsAssumeSDB=false (explicit -- CollisionTable's collision rule is an ACCEPTED non-bijection, see class Javadoc)
+QUANTA_HISTOGRAM	before	1920	-1.562500000e-02	1.375288086e+01	-6	6
+QUANTA_HISTOGRAM	after	1920	-1.562500000e-02	9.362255859e+00	-6	6
+# sdbClosedForm=window=10 statesChecked=435 preimageCountByOutputDiff={-18=1, -17=1, -16=1, -15=1, -14=1, -13=1, -12=1, -11=1, -10=1, -9=1, -8=1, -7=1, -6=1, -5=1, -4=1, -3=1, -2=1, -1=2, 0=3, 1=2, 2=1, 3=1, 4=1, 5=1, 6=1, 7=1, 8=1, 9=1, 10=1, 11=1, 12=1, 13=1, 14=1, 15=1, 16=1, 17=1, 18=1} balanced=false (formal parity-floor fact: 3 preimages at diff=0, 2 at |diff|=1, 1 at |diff|>=2 -- odd-difference pairs can never reach exact equality, only oscillate at |diff|=1; even-difference pairs converge to and then permanently self-loop at diff=0)
+# equalityConcentrationEmpiricalTrend=lgaNoOpFractionByWindow=[6.451856514e-01,7.447010987e-01,9.005640729e-01,8.784253721e-01], peak at window 2 (9.005640729e-01) -- OVERALL RISING (first->last: 6.451856514e-01 -> 8.784253721e-01), dynamical corroboration of the SDB closed-form's diff=0 preimage concentration (pairs settling into the permanent equality self-loop), but peaks at an INTERIOR window (2) then dips slightly rather than rising monotonically. NOTE: Section 3's relativeRateGapByWindow peaks at window 1, i.e. exactly ONE WINDOW LATER than this trend's own peak -- the two trends are NOT the same mechanism showing up identically; stated explicitly rather than implying a single coupled cause.
+
+# === SECTION 5: ISOTROPY POSTURES -- DATA ONLY, NO POSTURE SELECTED (escalated to user/orchestrator) ===
+# posture(i)_acceptAndCharacterize_evidence=LGA pooled TRANSPORT ratio=1.209713313e+00 CI=[1.052494279e+00,1.513825434e+00] permutationP=2.248875562e-01; pooled SPECTRAL ratio=NaN -- this posture accepts whatever these numbers say at face value, characterizing rather than correcting for anisotropy
+# posture(ii)_fchcProjection_evidence=NOT constructed in this bead -- the current lattice remains the 12-neighbor FCC arrangement, not a 4D FCHC projection (design memo's own named risk); the measured ratio/CI above is what an FCHC-style projection would need to demonstrably reduce if adopted, but no FCHC variant has been built or measured to compare against
+# posture(iii)_orientationalStateRestoresIsotropy_evidence=the pooled TRANSPORT permutation p-value (2.248875562e-01) is NOT significant at p<0.05, i.e. the measured anisotropy is statistically indistinguishable from an isotropic null at this campaign's power -- CONSISTENT WITH but NOT PROOF OF this hypothesis (small-N caveat above applies: absence of significance here may reflect insufficient statistical power, not genuine isotropy)
+# ESCALATION=this report presents measured anisotropy ratios+CIs from BOTH estimators and evidence for all three postures; NO posture is selected by this bead -- selecting one is out of scope per the locked design and would be exactly the silent-scope-reduction failure the review gates exist to catch. Escalate to the user/orchestrator with these numbers for the posture decision.
