@@ -52,13 +52,29 @@ import javafx.scene.transform.Transform;
 public class NecronomataVisualizationLengthsTest {
 
     private static final double DELTA      = 0.0;
-    private static final int    RESOLUTION = 360;
+    private static final int RESOLUTION = 360;
+
+    /**
+     * DOCUMENTED EXCEPTION to the {@code LgaTestGeometry.BASELINE_RADIUS}
+     * consolidation (bead inviscid-0nx.30, E.3, plan-audit finding 2).
+     * This file's {@code 0.015f} literals are a JavaFX RENDERING stroke
+     * radius, not an LGA collision parameter - {@code MemberGeometry}'s
+     * constructor Javadoc is explicit that the LGA radius merely "happens
+     * to" coincide with what the visualization renders with. Moving the
+     * campaign's radius anchor (design-seeding-radius.md §D-B) must NOT
+     * silently rescale the rendered struts, so these literals are
+     * deliberately independent. This test also lives in {@code
+     * animations/}, outside the headless {@code lga/} + {@code measure/}
+     * constraint that governs {@code LgaTestGeometry}'s consumers, and
+     * must not acquire a dependency on an LGA test fixture.
+     */
+    private static final float RENDER_STROKE_RADIUS = 0.015f;
 
     @Test
     public void lengthsMatchLengthTableAtEveryStep() {
         Necronomata automata = new Necronomata(new Point3i(4, 4, 4));
         NecronomataVisualization visualization = new NecronomataVisualization(RESOLUTION,
-                                                                               0.015f,
+                                                                               RENDER_STROKE_RADIUS,
                                                                                automata,
                                                                                Colors.materials);
         LengthTable table = new LengthTable(RESOLUTION);
@@ -84,7 +100,7 @@ public class NecronomataVisualizationLengthsTest {
     public void previouslyOverriddenStepsAreNoLongerFlattened() {
         Necronomata automata = new Necronomata(new Point3i(4, 4, 4));
         NecronomataVisualization visualization = new NecronomataVisualization(RESOLUTION,
-                                                                               0.015f,
+                                                                               RENDER_STROKE_RADIUS,
                                                                                automata,
                                                                                Colors.materials);
         LengthTable table = new LengthTable(RESOLUTION);

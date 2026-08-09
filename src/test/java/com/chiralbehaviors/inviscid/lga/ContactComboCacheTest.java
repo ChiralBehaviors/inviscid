@@ -283,11 +283,25 @@ public class ContactComboCacheTest {
      * that leaves those two parameters unchanged but silently changes
      * which combos actually contact. This test regenerates the combo
      * universe LIVE at the PRODUCTION resolution (360) via {@link
-     * ContactComboCache#sweepExhaustively} and diffs it against what
-     * {@link ContactComboCache#combosFor} resolves for that exact pair
-     * (the checked-in {@code discovered-combos-cache.tsv} resource, for
-     * every current caller's default geometry) - any disagreement means
-     * the committed cache has silently gone stale.
+     * ContactComboCache#sweepExhaustively} and diffs it against the
+     * checked-in {@code discovered-combos-cache.tsv} resource - any
+     * disagreement means the committed cache has silently gone stale.
+     *
+     * <p><b>Why this reads the RESOURCE and not {@link
+     * ContactComboCache#combosFor}.</b> The subject of this tripwire is
+     * THE FILE. It used to reach the file through {@code combosFor},
+     * which was safe only while the in-JVM memo could be populated from
+     * nowhere else. {@link ContactComboCache#rebuild} now publishes its
+     * SWEEP into that memo (bead inviscid-0nx.30, E.3), so a single
+     * earlier {@code PerRadiusRegeneration.regenerate} at the committed
+     * {@code (360, RADIUS)} pair in the same JVM would have made this
+     * assertion sweep-vs-sweep: unconditionally green, and green precisely
+     * when the committed cache was most likely to be stale. No caller does
+     * that today; E.4/E.5 regenerating a baseline for side-by-side
+     * comparison is exactly the code that would. {@link
+     * ContactComboCache#loadCommittedCache} bypasses the memo, so this
+     * comparison is file-vs-sweep by construction rather than by luck of
+     * what ran first.
      *
      * <p>Gated behind the {@code -Dinviscid.slowTests=true} system
      * property (skipped otherwise via {@link Assume#assumeTrue}, so
@@ -305,8 +319,12 @@ public class ContactComboCacheTest {
 
         int resolution = ContactAtlasGenerator.GEOMETRY_RESOLUTION;
 
-        List<Combo> cached = ContactComboCache.combosFor(newPredicate(resolution),
-                                                           resolution, RADIUS);
+        List<Combo> cached = ContactComboCache.loadCommittedCache(resolution,
+                                                                    RADIUS);
+        assertFalse("the committed discovered-combos-cache.tsv must be present and its header must declare geometryResolution="
+                    + resolution + ", memberRadius=" + RADIUS
+                    + " - a missing or foreign-header resource would make this tripwire compare against nothing",
+                    cached == null);
         List<Combo> live = ContactComboCache.sweepExhaustively(newPredicate(resolution),
                                                                  resolution);
 

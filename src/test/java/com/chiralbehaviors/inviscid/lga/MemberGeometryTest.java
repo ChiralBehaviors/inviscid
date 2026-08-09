@@ -50,7 +50,7 @@ public class MemberGeometryTest {
 
     @Test
     public void geometryIsPureFunctionOfAngle() {
-        MemberGeometry geometry = new MemberGeometry(RESOLUTION, 0.015);
+        MemberGeometry geometry = new MemberGeometry(RESOLUTION, LgaTestGeometry.BASELINE_RADIUS);
 
         for (int cube = 0; cube < 5; cube++) {
             for (int member = 0; member < 6; member++) {
@@ -92,7 +92,7 @@ public class MemberGeometryTest {
 
     @Test
     public void lengthModulationMatchesLengthTable() {
-        MemberGeometry geometry = new MemberGeometry(RESOLUTION, 0.015);
+        MemberGeometry geometry = new MemberGeometry(RESOLUTION, LgaTestGeometry.BASELINE_RADIUS);
         LengthTable table = new LengthTable(RESOLUTION);
         double edgeLength = PhiCoordinates.Cubes[0].getEdgeLength();
         double angularResolution = TWO_PI / RESOLUTION;
@@ -117,7 +117,7 @@ public class MemberGeometryTest {
 
     @Test
     public void oppositeMembersAreAntipodalAtZeroAngle() {
-        MemberGeometry geometry = new MemberGeometry(RESOLUTION, 0.015);
+        MemberGeometry geometry = new MemberGeometry(RESOLUTION, LgaTestGeometry.BASELINE_RADIUS);
         int[][] pairs = { { 0, 1 }, { 2, 3 }, { 4, 5 } };
 
         for (int cube = 0; cube < 5; cube++) {
@@ -177,7 +177,7 @@ public class MemberGeometryTest {
      */
     @Test
     public void memberAxesFormVerifiedStructureAtZero() {
-        MemberGeometry geometry = new MemberGeometry(RESOLUTION, 0.015);
+        MemberGeometry geometry = new MemberGeometry(RESOLUTION, LgaTestGeometry.BASELINE_RADIUS);
 
         for (int cube = 0; cube < 5; cube++) {
             Vector3d t0 = geometry.memberTip(cube, 0, 0f);
@@ -214,8 +214,8 @@ public class MemberGeometryTest {
 
     @Test
     public void memberRadiusIsConstructorProvidedValue() {
-        MemberGeometry geometry = new MemberGeometry(RESOLUTION, 0.015);
-        assertEquals(0.015, geometry.memberRadius(), 0.0);
+        MemberGeometry geometry = new MemberGeometry(RESOLUTION, LgaTestGeometry.BASELINE_RADIUS);
+        assertEquals(LgaTestGeometry.BASELINE_RADIUS, geometry.memberRadius(), 0.0);
 
         MemberGeometry other = new MemberGeometry(RESOLUTION, 0.5);
         assertEquals(0.5, other.memberRadius(), 0.0);
@@ -239,7 +239,7 @@ public class MemberGeometryTest {
      */
     @Test
     public void stepBoundaryAndWrapAreLockedContract() {
-        MemberGeometry geometry = new MemberGeometry(RESOLUTION, 0.015);
+        MemberGeometry geometry = new MemberGeometry(RESOLUTION, LgaTestGeometry.BASELINE_RADIUS);
         LengthTable table = new LengthTable(RESOLUTION);
         double edgeLength = PhiCoordinates.Cubes[0].getEdgeLength();
         double angularResolution = TWO_PI / RESOLUTION;
@@ -295,14 +295,14 @@ public class MemberGeometryTest {
     @Test
     public void rejectsMalformedResolution() {
         try {
-            new MemberGeometry(7, 0.015);
+            new MemberGeometry(7, LgaTestGeometry.BASELINE_RADIUS);
             assertTrue("expected IllegalArgumentException for resolution not divisible by 8",
                       false);
         } catch (IllegalArgumentException expected) {
             // expected
         }
         try {
-            new MemberGeometry(0, 0.015);
+            new MemberGeometry(0, LgaTestGeometry.BASELINE_RADIUS);
             assertTrue("expected IllegalArgumentException for non-positive resolution",
                       false);
         } catch (IllegalArgumentException expected) {

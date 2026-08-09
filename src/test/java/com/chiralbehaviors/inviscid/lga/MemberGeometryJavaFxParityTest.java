@@ -155,7 +155,7 @@ public class MemberGeometryJavaFxParityTest {
         double halfSegmentLength = edgeLength * ROOT_2 / 2.0;
         LengthTable table = new LengthTable(RESOLUTION);
 
-        MemberGeometry geometry = new MemberGeometry(RESOLUTION, 0.015);
+        MemberGeometry geometry = new MemberGeometry(RESOLUTION, LgaTestGeometry.BASELINE_RADIUS);
 
         int compared = 0;
         for (int cube = 0; cube < 5; cube++) {

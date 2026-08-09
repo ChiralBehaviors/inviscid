@@ -50,7 +50,7 @@ import org.junit.Test;
  */
 public class ContactPredicateTest {
 
-    private static final double  RADIUS       = 0.015;
+    private static final double  RADIUS       = LgaTestGeometry.BASELINE_RADIUS;
     private static final int     RESOLUTION   = 360;
 
     // The empirically-found contact-bearing combo (see class Javadoc).

@@ -132,6 +132,36 @@ final class ContactComboCache {
     }
 
     /**
+     * The checked-in {@value #RESOURCE_PATH} resource itself, bypassing
+     * the in-JVM memo {@link #combosFor} consults.
+     *
+     * <p>
+     * WHY THIS EXISTS AS A SEPARATE ENTRY POINT. {@code
+     * ContactComboCacheTest.liveSweepMatchesTheCommittedCacheAtProduction
+     * Resolution} is the project's only detector of the committed cache
+     * having gone stale against a {@link ContactPredicate}/{@link
+     * MemberGeometry}/{@link com.chiralbehaviors.inviscid.PhiCoordinates}
+     * algorithm change, and its subject is THE FILE. Reaching the file via
+     * {@link #combosFor} was safe only for as long as the memo could be
+     * populated from nowhere else; {@link #rebuild} publishing its SWEEP
+     * into that same memo makes {@code combosFor} a file-or-sweep oracle,
+     * so a single earlier {@link PerRadiusRegeneration#regenerate} call at
+     * the committed {@code (360, 0.015)} pair in the same JVM would have
+     * silently turned that tripwire into sweep-vs-sweep - a tautology that
+     * can never go red. Reading the resource directly makes the tripwire
+     * independent of what any earlier caller did to the memo.
+     *
+     * @return the committed combos, or {@code null} if the resource is
+     *         absent or its header does not match {@code
+     *         (geometryResolution, memberRadius)} - the caller decides
+     *         which of those is an error
+     */
+    static List<Combo> loadCommittedCache(int geometryResolution,
+                                           double memberRadius) {
+        return tryLoad(new CacheKey(geometryResolution, memberRadius));
+    }
+
+    /**
      * @return the cached combo list if {@value #RESOURCE_PATH} is present
      *         on the classpath AND its header's {@code geometryResolution}
      *         / {@code memberRadius} match {@code key} exactly (a stale or
@@ -303,18 +333,67 @@ final class ContactComboCache {
                                     : Path.of("src", "main", "resources", "lga",
                                               "discovered-combos-cache.tsv");
 
-        ContactPredicate predicate = new ContactPredicate(new MemberGeometry(geometryResolution,
-                                                                              memberRadius));
         long start = System.nanoTime();
-        List<Combo> combos = sweepExhaustively(predicate, geometryResolution);
+        List<Combo> combos = rebuild(out, geometryResolution, memberRadius);
         long elapsedMs = (System.nanoTime() - start) / 1_000_000;
-
-        write(out, geometryResolution, memberRadius, combos);
         System.out.println("Discovered " + combos.size()
                             + " ever-contacting combos (geometryResolution="
                             + geometryResolution + ", memberRadius="
                             + memberRadius + ") in " + elapsedMs + "ms -> "
                             + out);
+    }
+
+    /**
+     * Runs a real {@link #sweepExhaustively} discovery at {@code
+     * (geometryResolution, memberRadius)} and writes the result to {@code
+     * out} in this class's cache format - the shared body behind both
+     * {@link #main} (which rebuilds the checked-in, on-classpath resource)
+     * and {@link PerRadiusRegeneration} (which writes {@code r}-stamped
+     * caches into {@code target/} for the {@code design-seeding-radius.md}
+     * §D-B radius sweep).
+     *
+     * <p>
+     * Deliberately takes the output path rather than defaulting one: the
+     * ONLY caller allowed to write {@value #RESOURCE_PATH} is {@link
+     * #main}, and it passes that path explicitly. Nothing here can
+     * silently overwrite the committed cache.
+     *
+     * <p>
+     * The sweep result is PUBLISHED into the in-JVM memo {@link #combosFor}
+     * reads, so a caller that rebuilds and then generates in the same JVM
+     * (that is {@link PerRadiusRegeneration#regenerate}) pays the
+     * exhaustive discovery once rather than twice. Note the asymmetry, it
+     * is deliberate: this method seeds the memo but never CONSULTS it, and
+     * never routes through {@link #combosFor}. Consulting would mean that
+     * at the committed {@code (360, 0.015)} pair the classpath cache loads
+     * and {@link #main} writes that loaded file straight back out - a
+     * rebuild that rebuilt nothing. A rebuild always sweeps.
+     *
+     * <p>
+     * WHAT THE SEEDING COSTS, AND WHERE IT WAS PAID. Publishing a sweep
+     * into the memo changes what {@link #combosFor} MEANS: before this,
+     * the memo could only ever be filled from the checked-in file, so any
+     * test comparing {@code combosFor} against a live sweep was
+     * structurally file-vs-sweep. After this it is file-OR-sweep-vs-sweep,
+     * and one earlier {@link PerRadiusRegeneration#regenerate} at {@code
+     * (360, 0.015)} in the same JVM would reduce that comparison to a
+     * tautology. No current caller does that - but E.4/E.5 regenerating a
+     * baseline for side-by-side comparison is exactly the code that would.
+     * The affected tripwire therefore reads the resource directly via
+     * {@link #loadCommittedCache} rather than through the memo; see that
+     * method.
+     *
+     * @return the discovered combos, in the order written
+     */
+    static List<Combo> rebuild(Path out, int geometryResolution,
+                                double memberRadius) throws IOException {
+        ContactPredicate predicate = new ContactPredicate(new MemberGeometry(geometryResolution,
+                                                                              memberRadius));
+        List<Combo> combos = List.copyOf(sweepExhaustively(predicate,
+                                                             geometryResolution));
+        CACHE.put(new CacheKey(geometryResolution, memberRadius), combos);
+        write(out, geometryResolution, memberRadius, combos);
+        return combos;
     }
 
     private static void write(Path out, int geometryResolution, double memberRadius,

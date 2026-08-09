@@ -32,6 +32,7 @@ import com.chiralbehaviors.inviscid.lga.ContactPredicate;
 import com.chiralbehaviors.inviscid.lga.ContactScan;
 import com.chiralbehaviors.inviscid.lga.FccNeighborhood;
 import com.chiralbehaviors.inviscid.lga.HybridAutomaton;
+import com.chiralbehaviors.inviscid.lga.LgaTestGeometry;
 import com.chiralbehaviors.inviscid.lga.MemberGeometry;
 import com.chiralbehaviors.inviscid.lga.QuantaExchangeRule;
 import com.chiralbehaviors.inviscid.lga.TickDriver;
@@ -64,7 +65,7 @@ import com.chiralbehaviors.inviscid.measure.AuditedRun.TickOutcome;
  */
 public class AuditedRunTest {
 
-    private static final double RADIUS           = 0.015;
+    private static final double RADIUS           = LgaTestGeometry.BASELINE_RADIUS;
     private static final int    RESOLUTION       = 360;
     private static final int    MEMBERS_PER_CUBE = 6;
 

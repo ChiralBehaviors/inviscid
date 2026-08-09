@@ -66,7 +66,7 @@ import com.chiralbehaviors.inviscid.measure.ConservationAudit.AuditResult;
  */
 public class HybridAutomatonTest {
 
-    private static final double RADIUS           = 0.015;
+    private static final double RADIUS           = LgaTestGeometry.BASELINE_RADIUS;
     private static final int    RESOLUTION       = 360;
     private static final int    MEMBERS_PER_CUBE = 6;
 

@@ -551,6 +551,13 @@ public class ContactAtlasTest {
      */
     @Test
     public void refusesAV1FormatFileNamingBothVersions() throws IOException {
+        // DOCUMENTED EXCEPTION to the LgaTestGeometry.BASELINE_RADIUS
+        // consolidation (bead inviscid-0nx.30, E.3): the 0.015 below is
+        // TEXT UNDER TEST - a verbatim transcription of a v1 header this
+        // test feeds to the parser - not a geometry parameter. It must
+        // stay fixed when the campaign's radius anchor moves, or this
+        // test would silently start exercising a different fixture than
+        // the format it exists to reject.
         String v1Tsv = "# ContactAtlas - Phase A -> Phase C contact predicate transcription source\n"
                         + "# atlasVersion=1\n"
                         + "# generatorClass=com.chiralbehaviors.inviscid.lga.ContactAtlasGenerator\n"

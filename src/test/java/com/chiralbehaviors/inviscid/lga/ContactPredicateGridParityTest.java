@@ -82,8 +82,8 @@ public class ContactPredicateGridParityTest {
     public void physicalOffsetMatchesCubicGridPositionTransformForAllTwelveDirections() {
         CubicGrid grid = new CubicGrid(Neighborhood.SIX,
                                        PhiCoordinates.Cubes[3], EXTENT);
-        ContactPredicate predicate = new ContactPredicate(new MemberGeometry(360,
-                                                                              0.015));
+        ContactPredicate predicate = new ContactPredicate(new MemberGeometry(LgaTestGeometry.BASELINE_GEOMETRY_RESOLUTION,
+                                                                              LgaTestGeometry.BASELINE_RADIUS));
 
         for (int direction : FccNeighborhood.DIRECTIONS) {
             Point3i offset = FccNeighborhood.offsetOf(direction);
