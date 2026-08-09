@@ -70,7 +70,11 @@ package com.chiralbehaviors.inviscid.lga;
  * ({@code >}, {@code <}, {@code ==}) followed by one of three fixed
  * {@link Delta} constants. It is therefore immune to {@code long}
  * overflow at any input value, including {@link Long#MAX_VALUE} /
- * {@link Long#MIN_VALUE}, by construction.
+ * {@link Long#MIN_VALUE}, by construction. Applying the resulting
+ * {@link Delta} is equally overflow-immune: whichever member holds the
+ * extremal value is, by the comparison that selected the {@link Delta},
+ * necessarily the one that LOSES a quantum - moving it away from its
+ * boundary, never past it.
  *
  * @author halhildebrand
  */
