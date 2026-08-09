@@ -21,7 +21,7 @@ import java.util.List;
 
 import javax.vecmath.Point3i;
 
-import com.chiralbehaviors.inviscid.Necronomata;
+import com.chiralbehaviors.inviscid.QuantaField;
 import com.chiralbehaviors.inviscid.lga.FccNeighborhood;
 
 /**
@@ -103,13 +103,14 @@ import com.chiralbehaviors.inviscid.lga.FccNeighborhood;
  * (the snapshot count) must be a power of two.
  *
  * <h2>What field is transformed</h2>
- * {@link #coarseGrainedField(Necronomata)} coarse-grains
- * {@code Necronomata}'s 30-floats-per-cell frequency array (5 cubes x 6
- * members, see {@code Necronomata}'s class javadoc) down to one scalar
- * per even-parity cell: the sum of that cell's 30 member frequencies,
- * read via the sanctioned read-only {@link Necronomata#process} escape
- * hatch (the same pattern {@code ConservationAudit} uses). This is
- * always real-valued - the public API only ever accepts a real field.
+ * {@link #coarseGrainedField(QuantaField)} coarse-grains a substrate's
+ * 30-slots-per-cell quanta (5 cubes x 6 members, see
+ * {@code Necronomata}'s class javadoc for the layout this seam's
+ * contract pins) down to one scalar per even-parity cell: the sum of
+ * that cell's 30 member quanta, read via {@link QuantaField#quantaAt(int)}
+ * (the same substrate-agnostic seam {@code ConservationAudit} uses).
+ * This is always real-valued - the public API only ever accepts a real
+ * field.
  *
  * @author halhildebrand
  */
@@ -214,36 +215,33 @@ public final class StructureFactor {
     }
 
     /**
-     * Coarse-grains {@code automaton}'s current frequency (quanta) field
-     * to one scalar per even-parity cell: the sum of that cell's 30
-     * member frequencies. Read-only - uses
-     * {@link Necronomata#process(Necronomata.Processor)} strictly to
-     * read {@code frequency}, per that method's contract, exactly like
-     * {@code ConservationAudit} does.
+     * Coarse-grains {@code automaton}'s current quanta field to one
+     * scalar per even-parity cell: the sum of that cell's 30 member
+     * quanta. Read-only - uses {@link QuantaField#quantaAt(int)}
+     * strictly, per that method's contract, exactly like
+     * {@code ConservationAudit} does. Substrate-agnostic (bead
+     * inviscid-ckn / inviscid-0nx.21): identical for every
+     * {@link QuantaField} implementation, not {@code Necronomata}-specific.
      *
      * @return a {@code double[]} of length
      *         {@code extent.x*extent.y*extent.z}, addressed via
      *         {@code (i*extent.y+j)*extent.z+k} (mirroring
-     *         {@link Necronomata#indexOfCell(int, int, int)}'s
-     *         convention, without the {@code *30} member stride). Slots
-     *         at odd-parity indices are left at {@code 0.0} and are
-     *         never read by {@link #spectrum(double[][], Direction)} -
-     *         this is bookkeeping convenience, not the option-(a)
-     *         zero-fill failure mode described in the class javadoc,
-     *         since the transform never sums over them.
+     *         {@link QuantaField#indexOfCell(Point3i)}'s convention,
+     *         without the {@code *30} member stride). Slots at
+     *         odd-parity indices are left at {@code 0.0} and are never
+     *         read by {@link #spectrum(double[][], Direction)} - this is
+     *         bookkeeping convenience, not the option-(a) zero-fill
+     *         failure mode described in the class javadoc, since the
+     *         transform never sums over them.
      */
-    public static double[] coarseGrainedField(Necronomata automaton) {
-        Point3i ext = automaton.getExtent();
+    public static double[] coarseGrainedField(QuantaField automaton) {
+        Point3i ext = automaton.extent();
         double[] field = new double[ext.x * ext.y * ext.z];
-        float[][] box = new float[1][];
-        automaton.process((angle, frequency, deltaA,
-                            deltaF) -> box[0] = frequency);
-        float[] frequency = box[0];
-        automaton.forEach(cell -> {
+        automaton.forEachCell(cell -> {
             int base = automaton.indexOfCell(cell);
             double sum = 0;
             for (int m = 0; m < 30; m++) {
-                sum += frequency[base + m];
+                sum += automaton.quantaAt(base + m);
             }
             int idx = (cell.x * ext.y + cell.y) * ext.z + cell.z;
             field[idx] = sum;
@@ -259,7 +257,7 @@ public final class StructureFactor {
      * and why.
      *
      * @param fieldByTick {@code fieldByTick[t]} is a snapshot in the
-     *                    {@link #coarseGrainedField(Necronomata)}
+     *                    {@link #coarseGrainedField(QuantaField)}
      *                    layout; {@code fieldByTick.length} (T) must be
      *                    a power of two (temporal {@link Fft}
      *                    requirement).
@@ -271,7 +269,7 @@ public final class StructureFactor {
 
     /**
      * Package-private complex-field overload. The physical production
-     * field is always real ({@link #coarseGrainedField(Necronomata)});
+     * field is always real ({@link #coarseGrainedField(QuantaField)});
      * this overload exists solely so tests can inject an exact complex
      * plane-wave oracle ({@code exp(i*(k.x - omega*t))}) without the
      * mirror-image power splitting a real {@code cos}/{@code sin} series

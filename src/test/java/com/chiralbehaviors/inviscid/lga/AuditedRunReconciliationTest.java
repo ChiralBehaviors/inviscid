@@ -43,7 +43,7 @@ import com.chiralbehaviors.inviscid.measure.ConservationAudit.LedgerEntry;
  * class's own Javadoc, "Two independent cross-checks") must each be
  * demonstrated to actually catch its own named failure class when driven
  * through the wiring that invokes {@link
- * CollisionSweep#reconcileWithLedger(CollisionSweep.TickResult, long)} per
+ * CollisionSweep#reconcileWithLedger(TickReport, long)} per
  * tick alongside {@code ConservationAudit.auditTick} -- {@link AuditedRun}.
  * <ul>
  * <li>{@link #deliberatelyMisRecordedTransferIsCaughtByTheWiredReconciliation()}
@@ -180,7 +180,7 @@ public class AuditedRunReconciliationTest {
      *
      * <p>The real, audit-computed ledger delta for this tick (from {@code
      * ConservationAudit.ledger()}, not a hand-picked literal) is then fed
-     * into {@link CollisionSweep#reconcileWithLedger(TickResult, long)}
+     * into {@link CollisionSweep#reconcileWithLedger(TickReport, long)}
      * directly -- the resolved tick's zero {@code signedTransferTotal}
      * against the corrupted lattice's genuinely nonzero observed delta --
      * and asserted to throw. Sanity assertions along the way (zero signed

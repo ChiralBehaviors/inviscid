@@ -20,13 +20,21 @@ import java.util.List;
 
 import com.chiralbehaviors.inviscid.lga.CollisionSweep;
 import com.chiralbehaviors.inviscid.lga.HybridAutomaton;
+import com.chiralbehaviors.inviscid.lga.TickDriver;
+import com.chiralbehaviors.inviscid.lga.TickReport;
 
 /**
- * The audited hybrid-automaton driver (bead inviscid-0nx.15's pre-close
- * requirement, registered on that bead's NOTES from the .14 review): wires
+ * The audited tick driver (bead inviscid-0nx.15's pre-close requirement,
+ * registered on that bead's NOTES from the .14 review; genericized over
+ * {@link TickDriver} by bead inviscid-ckn / inviscid-0nx.21 -- see
+ * {@link TickOutcome}'s Javadoc): wires
  * {@link ConservationAudit#auditTick(int)} and {@link
- * CollisionSweep#reconcileWithLedger(CollisionSweep.TickResult, long)}
- * together, invoked once per tick, alongside {@link HybridAutomaton#tick(int)}.
+ * CollisionSweep#reconcileWithLedger(TickReport, long)}
+ * together, invoked once per tick, alongside {@link TickDriver#tick(int)}.
+ * Per the locked design of record, this is THE way to run an audited
+ * simulation -- any {@link TickDriver}, including a future formal LGA's,
+ * MUST be driven through this class, not through a second reconciliation
+ * path.
  *
  * <h2>Why this class exists (the audit seam, chosen over the alternatives)</h2>
  * {@code CollisionSweep} deliberately does not depend on {@code
@@ -54,7 +62,7 @@ import com.chiralbehaviors.inviscid.lga.HybridAutomaton;
  * <li>{@link ConservationAudit#auditTick(int)} -- audit the resulting
  * lattice-wide total against the running baseline, appending this tick's
  * {@link ConservationAudit.LedgerEntry} to the audit's ledger.</li>
- * <li>{@link CollisionSweep#reconcileWithLedger(CollisionSweep.TickResult, long)}
+ * <li>{@link CollisionSweep#reconcileWithLedger(TickReport, long)}
  * -- cross-check the tick's provably-zero {@code signedTransferTotal}
  * against that SAME ledger entry's {@code totalAfter - totalBefore}, per
  * that method's own caller contract ("once per tick... with that same
@@ -71,32 +79,46 @@ public class AuditedRun {
     /**
      * One tick's combined outcome: the resolved-contact result and the
      * conservation-audit result for the same tick.
+     *
+     * <p><b>Naming debt (bead inviscid-ckn / inviscid-0nx.21, T2
+     * design-ckn-lattice-seam.md §3.3).</b> {@code collisionResult}'s
+     * TYPE was widened from {@code CollisionSweep.TickResult} to
+     * {@link TickReport} so any {@link TickDriver} (not just the Phase A
+     * hybrid) can drive an {@code AuditedRun}; the component NAME was
+     * deliberately kept -- a {@link TickReport} need not describe
+     * collisions, so the name now reads slightly wider than its type.
+     * The single production reader ({@code ContactAtlasGenerator}, which
+     * is intrinsically Phase-A-specific) narrows back to
+     * {@code CollisionSweep.TickResult} via {@code instanceof}.
      */
-    public record TickOutcome(CollisionSweep.TickResult collisionResult,
+    public record TickOutcome(TickReport collisionResult,
                                ConservationAudit.AuditResult auditResult) {
     }
 
-    private final HybridAutomaton   automaton;
+    private final TickDriver        automaton;
     private final ConservationAudit audit;
 
     /**
-     * @param automaton the hybrid automaton to advance each tick
+     * @param automaton the tick driver to advance each tick -- any
+     *                  {@link TickDriver} (today: {@link HybridAutomaton};
+     *                  the formal LGA once it lands)
      * @param audit     the conservation audit tracking {@code automaton}'s
      *                  lattice; MUST have been constructed against the
-     *                  same {@code Necronomata} instance {@code automaton}
-     *                  drives (this class does not itself verify that --
-     *                  a mismatched pair would silently audit a different
-     *                  lattice than the one being advanced)
+     *                  same {@link com.chiralbehaviors.inviscid.QuantaField}
+     *                  {@code automaton} drives (this class does not
+     *                  itself verify that -- a mismatched pair would
+     *                  silently audit a different lattice than the one
+     *                  being advanced)
      */
-    public AuditedRun(HybridAutomaton automaton, ConservationAudit audit) {
+    public AuditedRun(TickDriver automaton, ConservationAudit audit) {
         this.automaton = automaton;
         this.audit = audit;
     }
 
     /**
-     * @return the hybrid automaton this run advances.
+     * @return the tick driver this run advances.
      */
-    public HybridAutomaton automaton() {
+    public TickDriver automaton() {
         return automaton;
     }
 
@@ -130,7 +152,7 @@ public class AuditedRun {
      *                                                           is detected
      */
     public TickOutcome tick(int tickNumber) {
-        CollisionSweep.TickResult collisionResult = automaton.tick(tickNumber);
+        TickReport collisionResult = automaton.tick(tickNumber);
         ConservationAudit.AuditResult auditResult = audit.auditTick(tickNumber);
 
         List<ConservationAudit.LedgerEntry> ledger = audit.ledger();

@@ -909,6 +909,57 @@ public final class AnisotropyProbe {
      */
     public static SeedResult runOneSeed(Point3i extent, long seed, int ticks,
                                          int packetQuanta, Point3i originCell) {
+        return runOneSeed(extent, seed, ticks, packetQuanta, originCell,
+                           AnisotropyProbe::phaseAHybridSubstrate);
+    }
+
+    /**
+     * Substrate-injectable overload (bead inviscid-ckn / inviscid-0nx.21,
+     * T2 design-ckn-lattice-seam.md §4): identical to the 5-arg {@link
+     * #runOneSeed(Point3i, long, int, int, Point3i)} except the substrate
+     * is built by {@code factory} instead of being hardwired to the
+     * Phase A hybrid.
+     */
+    public static SeedResult runOneSeed(Point3i extent, long seed, int ticks,
+                                         int packetQuanta, Point3i originCell,
+                                         SubstrateFactory factory) {
+        SubstrateFactory.Substrate substrate = factory.create(extent, seed,
+                                                                packetQuanta,
+                                                                originCell);
+
+        double[][] fieldByTick = new double[ticks][];
+        fieldByTick[0] = StructureFactor.coarseGrainedField(substrate.field());
+        for (int tick = 1; tick < ticks; tick++) {
+            substrate.run().tick(tick - 1);
+            fieldByTick[tick] = StructureFactor.coarseGrainedField(substrate.field());
+        }
+
+        StructureFactor sf = new StructureFactor(extent);
+        EstimatorResult transport = transportEstimate(fieldByTick, extent,
+                                                        originCell);
+        EstimatorResult spectral = spectralEstimate(sf, fieldByTick);
+        return new SeedResult(seed, transport, spectral,
+                               substrate.statistics().totalCollisions(),
+                               substrate.statistics().effectiveCollisions());
+    }
+
+    /**
+     * The Phase A default {@link SubstrateFactory}: holds the prior
+     * lines 875-889 VERBATIM, same order (bead inviscid-ckn /
+     * inviscid-0nx.21, T2 design-ckn-lattice-seam.md §4) -- so Phase A
+     * reproducibility is preserved by construction, not by
+     * re-measurement. <b>RNG draw order is part of the contract:</b>
+     * {@link #seedRandomAngles} then {@link #seedPacket}, exactly as
+     * before -- a factory that reorders those draws changes every
+     * seeded trajectory even at the same seed (pinned by {@code
+     * SeamGoldenCompatTest#runOneSeedThroughTheSeamMatchesPinnedPhaseANumerics}
+     * and {@code
+     * SubstrateFactorySeamTest#fiveArgRunOneSeedDelegatesToPhaseAHybridSubstrateFactoryUnchanged}).
+     */
+    public static SubstrateFactory.Substrate phaseAHybridSubstrate(Point3i extent,
+                                                                     long seed,
+                                                                     int packetQuanta,
+                                                                     Point3i originCell) {
         Necronomata automaton = new Necronomata(extent);
         seedRandomAngles(automaton, extent, seed);
         seedPacket(automaton, originCell, packetQuanta);
@@ -925,20 +976,7 @@ public final class AnisotropyProbe {
         ConservationAudit audit = new ConservationAudit(automaton);
         AuditedRun run = new AuditedRun(hybrid, audit);
 
-        double[][] fieldByTick = new double[ticks][];
-        fieldByTick[0] = StructureFactor.coarseGrainedField(automaton);
-        for (int tick = 1; tick < ticks; tick++) {
-            run.tick(tick - 1);
-            fieldByTick[tick] = StructureFactor.coarseGrainedField(automaton);
-        }
-
-        StructureFactor sf = new StructureFactor(extent);
-        EstimatorResult transport = transportEstimate(fieldByTick, extent,
-                                                        originCell);
-        EstimatorResult spectral = spectralEstimate(sf, fieldByTick);
-        return new SeedResult(seed, transport, spectral,
-                               statistics.totalCollisions(),
-                               statistics.effectiveCollisions());
+        return new SubstrateFactory.Substrate(automaton, run, statistics);
     }
 
     /**
@@ -951,6 +989,21 @@ public final class AnisotropyProbe {
      */
     public static Report runCampaign(Point3i extent, long[] seeds, int ticks,
                                       int packetQuanta) {
+        return runCampaign(extent, seeds, ticks, packetQuanta,
+                            AnisotropyProbe::phaseAHybridSubstrate);
+    }
+
+    /**
+     * Substrate-injectable overload (bead inviscid-ckn / inviscid-0nx.21,
+     * T2 design-ckn-lattice-seam.md §4) -- same overload pattern as
+     * {@link #runOneSeed(Point3i, long, int, int, Point3i, SubstrateFactory)}.
+     * {@code nearestEvenParityCenter(extent)} origin selection stays
+     * outside the factory (campaign geometry, not substrate
+     * construction, per the design memo).
+     */
+    public static Report runCampaign(Point3i extent, long[] seeds, int ticks,
+                                      int packetQuanta,
+                                      SubstrateFactory factory) {
         Point3i origin = nearestEvenParityCenter(extent);
         List<SeedResult> perSeed = new ArrayList<>(seeds.length);
         List<Double> transportRatios = new ArrayList<>();
@@ -959,7 +1012,7 @@ public final class AnisotropyProbe {
         List<Map<StructureFactor.Direction, Double>> spectralMagnitudes = new ArrayList<>();
         for (long seed : seeds) {
             SeedResult result = runOneSeed(extent, seed, ticks, packetQuanta,
-                                            origin);
+                                            origin, factory);
             perSeed.add(result);
             result.transport().ratio().ifPresent(transportRatios::add);
             result.spectral().ratio().ifPresent(spectralRatios::add);

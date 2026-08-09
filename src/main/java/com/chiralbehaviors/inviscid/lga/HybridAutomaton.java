@@ -17,6 +17,7 @@
 package com.chiralbehaviors.inviscid.lga;
 
 import com.chiralbehaviors.inviscid.Necronomata;
+import com.chiralbehaviors.inviscid.QuantaField;
 
 /**
  * The hybrid automaton tick (bead inviscid-0nx.15, Phase A.4): continuous
@@ -88,7 +89,7 @@ import com.chiralbehaviors.inviscid.Necronomata;
  *
  * @author halhildebrand
  */
-public class HybridAutomaton {
+public class HybridAutomaton implements TickDriver {
 
     private final Necronomata   automaton;
     private final CollisionSweep sweep;
@@ -123,6 +124,17 @@ public class HybridAutomaton {
      */
     public CollisionSweep sweep() {
         return sweep;
+    }
+
+    /**
+     * {@link TickDriver} adoption (bead inviscid-ckn / inviscid-0nx.21):
+     * the {@link QuantaField} instruments read is this driver's own
+     * {@link #automaton()} -- {@code Necronomata} implements
+     * {@link QuantaField} directly, so no wrapping is needed.
+     */
+    @Override
+    public QuantaField field() {
+        return automaton;
     }
 
     /**

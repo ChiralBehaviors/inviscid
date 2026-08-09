@@ -27,7 +27,7 @@ import javax.vecmath.Point3i;
  * @author halhildebrand
  *
  */
-public class Necronomata implements Iterable<Point3i> {
+public class Necronomata implements Iterable<Point3i>, QuantaField {
 
     @FunctionalInterface
     public interface Processor {
@@ -339,5 +339,45 @@ public class Necronomata implements Iterable<Point3i> {
      */
     public void process(Processor action) {
         action.process(angle, frequency, deltaA, deltaF);
+    }
+
+    // --- QuantaField (bead inviscid-ckn / inviscid-0nx.21 seam) ---
+    // 6 one-liners, zero behaviour change (T2 design-ckn-lattice-seam.md
+    // §2 "Adoption cost on Necronomata"). indexOfCell(Point3i) above
+    // already satisfies the interface as-is.
+
+    @Override
+    public Point3i extent() {
+        return getExtent();
+    }
+
+    @Override
+    public int slotCount() {
+        return frequency.length;
+    }
+
+    @Override
+    public long quantaAt(int slot) {
+        return Math.round((double) frequency[slot]);
+    }
+
+    @Override
+    public boolean isExactAt(int slot) {
+        return Math.rint(frequency[slot]) == frequency[slot];
+    }
+
+    @Override
+    public float phaseAt(int slot) {
+        return angle[slot];
+    }
+
+    @Override
+    public int phaseResolution() {
+        return PHASE_RESOLUTION;
+    }
+
+    @Override
+    public void forEachCell(Consumer<? super Point3i> action) {
+        forEach(action);
     }
 }

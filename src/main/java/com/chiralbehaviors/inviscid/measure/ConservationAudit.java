@@ -22,7 +22,7 @@ import java.util.List;
 
 import javax.vecmath.Point3i;
 
-import com.chiralbehaviors.inviscid.Necronomata;
+import com.chiralbehaviors.inviscid.QuantaField;
 
 /**
  * The acceptance instrument for the collision rules (bead inviscid-0nx.14 /
@@ -72,18 +72,27 @@ import com.chiralbehaviors.inviscid.Necronomata;
  * wrong number of times.
  *
  * <p><b>Frequency-array re-fetch contract (bead inviscid-36g).</b> This
- * audit does not hold a cached reference to Necronomata's backing
- * {@code frequency} array across calls. Every reader ({@link
- * #auditTick(int)}, {@link #currentTotalQuanta()}, and the internal
- * snapshot machinery they share) re-fetches the array fresh via the
- * private {@code currentFrequency()} helper at the start of the call --
- * it audits whatever array {@link Necronomata#process(Necronomata.Processor)}
- * exposes AT CALL TIME, so it stays attached even if a future tick
- * implementation swaps Necronomata's internal frequency reference between
- * buffers. Only the constructor performs a one-time fetch, to establish
- * {@link #baselineTotal}; see {@code currentFrequency()}'s Javadoc for the
- * honest caveat that no real swap can be exercised by a test until
- * {@code Necronomata.frequency} stops being {@code final}.
+ * audit does not hold a cached copy of the lattice's quanta across
+ * calls. Every reader ({@link #auditTick(int)}, {@link
+ * #currentTotalQuanta()}, and the internal snapshot machinery they
+ * share) re-reads {@link QuantaField#quantaAt(int)} /
+ * {@link QuantaField#isExactAt(int)} fresh, per slot, at the start of
+ * the call -- it audits whatever {@code automaton} reports AT CALL
+ * TIME, so it stays attached even if a future tick implementation
+ * swaps the substrate's internal storage between buffers. Only the
+ * constructor performs a one-time read, to establish
+ * {@link #baselineTotal}.
+ *
+ * <p><b>Substrate-agnostic read seam (bead inviscid-ckn / inviscid-0nx.21).</b>
+ * This class is constructed against a {@link QuantaField}, not a
+ * concrete {@code Necronomata} -- any substrate that implements the
+ * seam (today: {@code Necronomata}; the formal LGA once it lands) is
+ * auditable unchanged. {@link QuantaField#isExactAt(int)} is constant
+ * {@code true} for an integer-backed substrate; such a substrate's
+ * {@link Violation.Kind#REPRESENTATION_CORRUPTION} check is
+ * structurally impossible to trip, not merely one that happens to
+ * pass -- a caller reporting the result should say so, not present the
+ * tautology as evidence.
  *
  * @author halhildebrand
  */
@@ -207,7 +216,7 @@ public class ConservationAudit {
     /** 30 floats per cell: 5 cubes x 6 members (see Necronomata javadoc). */
     private static final int MEMBERS_PER_CUBE = 6;
 
-    private final Necronomata automaton;
+    private final QuantaField automaton;
     private final Point3i     extent;
 
     private final long           baselineTotal;
@@ -216,46 +225,21 @@ public class ConservationAudit {
 
     private boolean strict;
 
-    public ConservationAudit(Necronomata automaton) {
+    public ConservationAudit(QuantaField automaton) {
         this(automaton, false);
     }
 
-    public ConservationAudit(Necronomata automaton, boolean strict) {
+    public ConservationAudit(QuantaField automaton, boolean strict) {
         this.automaton = automaton;
-        this.extent = automaton.getExtent();
+        this.extent = automaton.extent();
         this.strict = strict;
 
-        // Constructor-time fetch, ONLY to establish the baseline snapshot
-        // (bead inviscid-36g). Every subsequent reader re-fetches its own
-        // fresh copy via currentFrequency() -- see that method's Javadoc
-        // and the class Javadoc's "Frequency-array re-fetch contract"
-        // section.
+        // Constructor-time read, ONLY to establish the baseline snapshot
+        // (bead inviscid-36g). Every subsequent reader re-reads its own
+        // fresh copy via QuantaField#quantaAt / #isExactAt -- see the
+        // class Javadoc's "Frequency-array re-fetch contract" section.
         this.previousSnapshot = snapshotExact(new ArrayList<>(), 0);
         this.baselineTotal = sum(previousSnapshot);
-    }
-
-    /**
-     * Re-fetches the automaton's current backing {@code frequency} array
-     * via the raw-array escape hatch, fresh on every call (bead
-     * inviscid-36g) -- never cached across calls. This is what lets the
-     * audit track whatever array
-     * {@link Necronomata#process(Necronomata.Processor)} exposes at call
-     * time rather than a reference frozen at construction.
-     *
-     * <p>HONESTY NOTE: {@code Necronomata.frequency} is a {@code final}
-     * field today, so no consumer can actually swap it out from under a
-     * live {@code Necronomata} instance yet -- there is currently no way
-     * to exercise a real buffer-swap regression test against this method.
-     * If a future double-buffered tick (bead inviscid-0nx.15) makes the
-     * field swappable, a regression test that performs a real swap and
-     * asserts this audit still tracks the live array MUST land with that
-     * bead; until then this method's robustness to swapping is
-     * structural, not test-verified.
-     */
-    private float[] currentFrequency() {
-        float[][] captured = new float[1][];
-        automaton.process((angle, freq, deltaA, deltaF) -> captured[0] = freq);
-        return captured[0];
     }
 
     public boolean isStrict() {
@@ -276,8 +260,9 @@ public class ConservationAudit {
      */
     public long currentTotalQuanta() {
         long total = 0L;
-        for (float v : currentFrequency()) {
-            total += Math.round((double) v);
+        int n = automaton.slotCount();
+        for (int i = 0; i < n; i++) {
+            total += automaton.quantaAt(i);
         }
         return total;
     }
@@ -362,13 +347,12 @@ public class ConservationAudit {
      * silently absorbed.
      */
     private long[] snapshotExact(List<Violation> corruptionSink, int tick) {
-        float[] frequency = currentFrequency();
-        long[] snapshot = new long[frequency.length];
-        for (int i = 0; i < frequency.length; i++) {
-            float v = frequency[i];
-            long rounded = Math.round((double) v);
+        int n = automaton.slotCount();
+        long[] snapshot = new long[n];
+        for (int i = 0; i < n; i++) {
+            long rounded = automaton.quantaAt(i);
             snapshot[i] = rounded;
-            if (Math.rint(v) != v) {
+            if (!automaton.isExactAt(i)) {
                 corruptionSink.add(violationAt(i, tick, 0L, rounded,
                                                 Violation.Kind.REPRESENTATION_CORRUPTION));
             }

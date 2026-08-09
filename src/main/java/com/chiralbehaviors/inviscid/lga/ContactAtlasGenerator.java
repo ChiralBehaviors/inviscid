@@ -532,8 +532,21 @@ public final class ContactAtlasGenerator {
 
             AuditedRun.TickOutcome outcome = run.tick(tick);
 
-            for (CollisionSweep.AppliedCollision applied : outcome.collisionResult()
-                                                                    .applied()) {
+            // (bead inviscid-ckn / inviscid-0nx.21) outcome.collisionResult()
+            // is TickReport-typed since the seam widened AuditedRun to any
+            // TickDriver. Atlas generation correlates geometric contacts
+            // against pre-tick angles -- an operation with no meaning for a
+            // table-driven LGA, which CONSUMES the atlas rather than
+            // producing it -- so this narrowing is honest, not a
+            // workaround: a non-hybrid driver here is a caller error.
+            if (!(outcome.collisionResult() instanceof CollisionSweep.TickResult r)) {
+                throw new IllegalStateException("the contact atlas is generated from Phase A geometric contacts; "
+                                                 + "driver reported "
+                                                 + outcome.collisionResult()
+                                                           .getClass()
+                                                           .getName());
+            }
+            for (CollisionSweep.AppliedCollision applied : r.applied()) {
                 recordObservedContact(automaton, predicate, nLga,
                                        geometryResolution, preTickAngles,
                                        applied.contact(), rows);

@@ -120,7 +120,7 @@ import com.chiralbehaviors.inviscid.measure.CollisionStatistics;
  * TickResult#signedTransferTotal()} is the sum, over every resolved
  * contact, of {@code delta.deltaA() + delta.deltaB()} - always exactly
  * zero, since {@link CollisionRule.Delta} itself enforces zero-sum at
- * construction. {@link #reconcileWithLedger(TickResult, long)} compares
+ * construction. {@link #reconcileWithLedger(TickReport, long)} compares
  * this value against the tick's ACTUAL observed lattice-wide delta and
  * throws if they disagree - see that method's own Javadoc for the
  * caller contract and the specific failure mode this guards against.</li>
@@ -128,7 +128,7 @@ import com.chiralbehaviors.inviscid.measure.CollisionStatistics;
  * This class intentionally does not depend on {@code ConservationAudit} -
  * the caller drives {@code scan -> tick() -> Necronomata.step() ->
  * ConservationAudit.auditTick()} in that order and passes the resulting
- * ledger delta back into {@link #reconcileWithLedger(TickResult, long)};
+ * ledger delta back into {@link #reconcileWithLedger(TickReport, long)};
  * keeping the dependency one-directional (this class takes a primitive
  * {@code long}, not a {@code ConservationAudit} reference) avoids growing
  * the {@code lga}<->{@code measure} package coupling beyond the {@code
@@ -265,7 +265,8 @@ public class CollisionSweep {
     public record TickResult(int tick, List<AppliedCollision> applied,
                               long appliedMagnitudeTotal,
                               long recordedMagnitudeTotal,
-                              long signedTransferTotal) {
+                              long signedTransferTotal)
+        implements TickReport {
 
         public TickResult {
             applied = List.copyOf(applied);
@@ -276,7 +277,7 @@ public class CollisionSweep {
      * Thrown by {@link #tick(int)} when the independently-computed
      * applied-magnitude total disagrees with what was actually recorded
      * via {@link CollisionStatistics#recordCollision}, or by {@link
-     * #reconcileWithLedger(TickResult, long)} when a tick's provably-zero
+     * #reconcileWithLedger(TickReport, long)} when a tick's provably-zero
      * signed transfer total disagrees with the ledger's observed delta.
      */
     public static class ReconciliationException extends RuntimeException {
@@ -519,9 +520,18 @@ public class CollisionSweep {
      * that same tick's ledger delta - not batched, not skipped, not
      * called against a stale or mismatched tick's ledger entry.
      *
+     * <p><b>Substrate-agnostic (bead inviscid-ckn / inviscid-0nx.21).</b>
+     * Widened from {@link TickResult} to {@link TickReport} -- this
+     * method only ever reads {@link TickReport#tick()} and
+     * {@link TickReport#signedTransferTotal()} (the two accessors
+     * {@code TickResult} already declared under those exact names), so
+     * any {@link TickDriver} implementation's result -- not just the
+     * Phase A hybrid's -- can be reconciled through {@code AuditedRun}
+     * unchanged.
+     *
      * @throws ReconciliationException if the two disagree
      */
-    public static void reconcileWithLedger(TickResult tickResult,
+    public static void reconcileWithLedger(TickReport tickResult,
                                             long ledgerDelta) {
         if (tickResult.signedTransferTotal() != ledgerDelta) {
             throw new ReconciliationException("Tick " + tickResult.tick()

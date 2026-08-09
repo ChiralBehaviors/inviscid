@@ -260,7 +260,7 @@ public class HybridAutomatonTest {
      * {@code hybrid.tick(); audit.auditTick();}</b> (FIX 1,
      * 2026-08-08 substantive-critic round, Significant): the manual
      * two-call pattern never invokes {@link
-     * CollisionSweep#reconcileWithLedger(CollisionSweep.TickResult, long)},
+     * CollisionSweep#reconcileWithLedger(TickReport, long)},
      * silently dropping the reconciliation guarantee -- exactly the
      * bypass future B.4/B.5 long-run harnesses would otherwise copy from
      * this test. Routing through {@code AuditedRun} exercises the FULL
