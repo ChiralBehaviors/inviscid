@@ -99,6 +99,7 @@ public class CollisionStatistics {
     private static final int MEMBERS_PER_CUBE = 6;
 
     private final Map<Integer, Long> perDirection;
+    private final Map<Integer, Long> effectivePerDirection;
     private final Map<Integer, Long> perTick = new TreeMap<>();
     private final Map<Long, Long> magnitudeHistogram = new TreeMap<>();
     private final Map<Long, Long> perMemberPair = new TreeMap<>();
@@ -110,10 +111,13 @@ public class CollisionStatistics {
 
     public CollisionStatistics() {
         Map<Integer, Long> directions = new LinkedHashMap<>();
+        Map<Integer, Long> effectiveDirections = new LinkedHashMap<>();
         for (int direction : FccNeighborhood.DIRECTIONS) {
             directions.put(direction, 0L);
+            effectiveDirections.put(direction, 0L);
         }
         this.perDirection = directions;
+        this.effectivePerDirection = effectiveDirections;
     }
 
     /**
@@ -154,6 +158,25 @@ public class CollisionStatistics {
      */
     public Map<Integer, Long> collisionsPerDirection() {
         return Collections.unmodifiableMap(perDirection);
+    }
+
+    /**
+     * Fix-round item 2c (bead inviscid-0nx.23, round 3): the narrower,
+     * EFFECTIVE-transfer-only counterpart to {@link
+     * #collisionsPerDirection()} -- one entry for each of the 12 {@link
+     * FccNeighborhood#DIRECTIONS} (present with a zero count even if never
+     * observed), counting only recorded collisions with {@code
+     * transferMagnitude > 0} (same narrowing {@link #effectiveCollisions()}
+     * applies to {@link #totalCollisions()}, see class Javadoc "What counts
+     * as a collision"). Additive instrumentation only: accumulated
+     * alongside {@link #perDirection} in {@link #recordCollision}, changes
+     * nothing about what is recorded or how.
+     *
+     * @return the per-direction EFFECTIVE collision count, in {@link
+     *         FccNeighborhood#DIRECTIONS} order
+     */
+    public Map<Integer, Long> effectiveCollisionsPerDirection() {
+        return Collections.unmodifiableMap(effectivePerDirection);
     }
 
     public long collisionsInDirection(int direction) {
@@ -283,6 +306,7 @@ public class CollisionStatistics {
         totalCollisions++;
         if (transferMagnitude > 0) {
             effectiveCollisions++;
+            effectivePerDirection.merge(direction, 1L, Long::sum);
         }
         perDirection.merge(direction, 1L, Long::sum);
         perTick.merge(tick, 1L, Long::sum);

@@ -282,6 +282,17 @@ public class HybridVsLgaConsistencyTest {
      * (was 0.51, ~46x tighter). No tolerance was widened to reach this;
      * {@link #TOLERANCE} (0.15) is unchanged from the original, pre-fix
      * design.
+     *
+     * <p><b>Fix-round S1 correction (bead inviscid-0nx.23).</b> The
+     * .23-gate critic found that {@code PhaseCMeasurement}'s
+     * {@code COLLISION_FIELD totalCollisions} row cited THIS test for a
+     * claim it did not actually assert -- the prose above documents the
+     * ~11% rate gap, but until this fix-round the only executable
+     * assertion below was on the EFFECTIVE-RATIO gap, not the totals
+     * themselves. The assertion on {@code relativeRateGap} directly below
+     * closes that gap: an LGA regression that doubled the collision rate
+     * at a constant effective ratio would have passed this test before
+     * the fix, and now does not.
      */
     @Test
     public void aggregateStatisticsAgreeBeyondDivergence() {
@@ -315,5 +326,22 @@ public class HybridVsLgaConsistencyTest {
                    + " ticks]) -- same PHYSICS, not the same trajectory "
                    + "(test 7 already shows trajectories diverge)",
                    Math.abs(hybridRatio - lgaRatio) < TOLERANCE);
+
+        // Fix-round S1: the total-collision RATE gap itself, not merely
+        // the effective/total ratio -- the claim PhaseCMeasurement's
+        // COLLISION_FIELD row actually needs verified. ticks is the same
+        // for both substrates, so the rate ratio is exactly proportional
+        // to the totals ratio.
+        double hybridRate = (double) hybridStats.totalCollisions() / ticks;
+        double lgaRate = (double) lgaStats.totalCollisions() / ticks;
+        double relativeRateGap = Math.abs(hybridRate - lgaRate) / hybridRate;
+        assertTrue("expected total-collision RATE gap to agree within " + TOLERANCE
+                   + " (hybridRate=" + hybridRate + " [" + hybridStats.totalCollisions()
+                   + " total/" + ticks + " ticks], lgaRate=" + lgaRate + " ["
+                   + lgaStats.totalCollisions() + " total/" + ticks
+                   + " ticks], relativeRateGap=" + relativeRateGap
+                   + ") -- this is the assertion PhaseCMeasurement's COLLISION_FIELD "
+                   + "totalCollisions row cites (fix-round S1)",
+                   relativeRateGap < TOLERANCE);
     }
 }

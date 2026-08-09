@@ -1,7 +1,7 @@
 # PhaseCMeasurement report -- C.5 Phase C measurement re-run and isotropy verdict data
 # bead=inviscid-0nx.22
 # generator=com.chiralbehaviors.inviscid.measure.PhaseCMeasurement
-# gitCommit=a5a5c4236972a9938beb7ebfb366cdba07ef4e57-dirty
+# gitCommit=cba46044c278aabc6135c64ea444af9098b559a0-dirty
 # atlasVersion=2
 # nLga=24
 # subBinSteps=150
@@ -22,7 +22,7 @@
 # longRunTicks=2000 (IDENTICAL config to HybridVsLgaConsistencyTest -- numbers cross-check against that test's pinned 26.9/23.9 rate values)
 # longRunWindowSize=500
 # conservationMode=STRICT (every driver, every sub-measurement)
-# conservationTicksAudited=18966
+# conservationTicksAudited=76341
 # conservationViolations=0 (exact -- strict ConservationAudit throws immediately on any violation, so a nonzero value here is structurally impossible unless this campaign itself crashed)
 # precision=%.9e
 
@@ -113,8 +113,42 @@ WINNING_DIRECTION_STABILITY	TRANSPORT	X100	5	8	6.250000000e-01
 # winningDirectionSpectralNote=omitted for SPECTRAL -- every per-seed SPECTRAL magnitude is EXACTLY 0.0 in all 3 directions (RIDGE ABSENT), so an argmax winner would be a spurious iteration-order artifact (100% "stable"), not a real signal
 # lgaSmallNEarlyTimeFlag=true (mean effective collisions/seed=2.325000000e+01, mean total collisions/seed=3.469500000e+03, threshold=50.0 -- FEW real transfer events per seed, same small-N caveat as the committed Phase A report; the LGA anisotropy CI/p-value below is NOT independently power-verified at this campaign scale
 # ciVsPermutationReconciliation=the pooled TRANSPORT ratio's resample-then-aggregate bootstrap CI (bounded below by 1.0 by construction -- a max/min-of-3 order statistic, upward-biased by seed noise, AnisotropyProbe's own class Javadoc "STACKED-REVIEW CORRECTION") is NOT the significance statistic; permutationPValue IS, per that same locked convention. TWO-CAMPAIGN PATTERN: Phase A pooled TRANSPORT ratio=1.063100262e+00 CI=[1.021857272e+00,1.260916858e+00] (excludes 1.0) permutationP=7.511244378e-01 (NOT significant); Phase C pooled TRANSPORT ratio=1.209713313e+00 CI=[1.052494279e+00,1.513825434e+00] (excludes 1.0) permutationP=2.248875562e-01 (NOT significant) -- in BOTH campaigns the CI-excludes-1.0 signal does NOT correspond to permutation significance, consistent with this CI being anti-conservative at this campaign scale, not evidence of a real per-seed direction effect. A reader must not treat "CI excludes 1.0" as significance evidence here.
-# powerRecommendationForGate=both Phase A (mean 29.25 effective collisions/seed) and Phase C (mean 2.325000000e+01, worse) fall below the informational small-N threshold (50.0). RECOMMENDATION (an input to the .23 gate, NOT a decision made here): a properly-powered follow-up anisotropy campaign, seeds 8->24 and ticks 128->400-500 -- this campaign's full wall time (~177s) leaves ample headroom for that scale-up. This is a DISTINCT decision point from the three isotropy postures in Section 5: the user may reasonably choose to defer any posture commitment until a properly-powered campaign exists, rather than choosing among postures on the current underpowered data.
-# structureFactorRidgeVerdict=RIDGE ABSENT -- every pooled SPECTRAL direction's ridge slope is exactly zero, the same signature AnisotropyProbe's own Javadoc documents as EXPECTED for purely diffusive dynamics (no propagating branch, omega~i*D*k^2), not an instrument malfunction
+# powerRecommendationForGate=Phase A (mean 2.925000000e+01 effective collisions/seed) and Phase C (mean 2.325000000e+01) BOTH fall below the informational small-N threshold (50.0). SEEDS/TICKS POWER ARITHMETIC (an input to the .23 gate, NOT a decision made here): a properly-powered follow-up anisotropy campaign, seeds 8->24 and ticks 128->400-500. SEEDING CAVEAT (fix-round Critical 1, GOVERNS the arithmetic above: the seeds/ticks scaling is valid only once this seeding contamination is removed, not optional context): this campaign's own background is seeded all-zero-quanta, an ABSORBING initial condition under the accepted diff=0 self-loop (see this report's ANISOTROPY CAMPAIGN EQUALITY characterization) -- seed/tick scaling alone CANNOT remove this contamination: scaling seeds/ticks multiplies the SAME frozen-contact regime, it does NOT power up a differently-behaved one. A non-absorbing background seeding (e.g. random nonzero quanta, as the long run already uses) is the remediation this report can identify but not decide -- that choice, and whether to combine it with the seeds/ticks scaling above, is a USER DESIGN DECISION for the .23 gate, not a selection made here. This whole recommendation is a DISTINCT decision point from the three isotropy postures in Section 5: the user may reasonably choose to defer any posture commitment until a properly-powered, non-absorbing-seeding campaign exists, rather than choosing among postures on the current underpowered, contaminated data.
+# structureFactorRidgeVerdict=RIDGE ABSENT -- every pooled SPECTRAL direction's ridge slope is exactly zero -- MEASURED ONLY: this observable alone does NOT distinguish EITHER purely diffusive dynamics (no propagating branch, omega~i*D*k^2, AnisotropyProbe's own documented signature) OR an estimator with insufficient signal to fit (this campaign's own lgaSmallNEarlyTimeFlag above is set, and the campaign's excited-member/no-op characterization elsewhere in this report documents a near-static contact graph, the same signature AnisotropyProbe's own Javadoc names for the K=0 collision-free baseline "by construction") -- no dynamics claim is made from this line alone
+
+# === SECTION 1B: FCC CONTACT-DIRECTION CENSUS (evidence rows only, no posture -- see contactDirectionCensusNote) ===
+# columns(LGA_CONTACT_DIRECTION_SEED)=recordType	seed	d1	d2	d3	d4	d5	d6	total (raw per-CONTACT-direction collision counts, FccNeighborhood's positive directions 1..6 -- DISTINCT from LGA_DIRECTION's X100/X110/X111 k-space probe directions, an unrelated direction space)
+# columns(LGA_CONTACT_DIRECTION_POOLED)=recordType	d1	d2	d3	d4	d5	d6	total	chiSquare	df	pValue (pooled across all 8 anisotropy-campaign seeds; standard Pearson chi-squared goodness-of-fit against a UNIFORM null over the 6 directions, computed live -- see chiSquareCaveat)
+LGA_CONTACT_DIRECTION_SEED	42	254	765	893	1017	254	768	3951
+LGA_CONTACT_DIRECTION_SEED	43	384	388	1275	764	261	763	3835
+LGA_CONTACT_DIRECTION_SEED	44	127	514	1150	892	127	511	3321
+LGA_CONTACT_DIRECTION_SEED	45	254	763	1149	889	383	510	3948
+LGA_CONTACT_DIRECTION_SEED	46	254	1278	517	892	254	7	3202
+LGA_CONTACT_DIRECTION_SEED	47	255	514	257	254	508	893	2681
+LGA_CONTACT_DIRECTION_SEED	48	142	792	1402	258	261	640	3495
+LGA_CONTACT_DIRECTION_SEED	49	0	1153	892	639	384	255	3323
+LGA_CONTACT_DIRECTION_POOLED	1670	6167	7535	5605	2432	4347	27756	5.496069174e+03	5	0.000000000e+00
+# uniformNullPremise=the chi-squared above tests the pooled counts against a UNIFORM expected count per direction; this is physically motivated, not arbitrary, because all six canonical FCC contact directions (FccNeighborhood's positive directions 1..6) are <110>-type / O_h-equivalent offsets (each a two-nonzero-coordinate unit vector related to the others by cubic point-group symmetry), and every even-parity member queries all six exactly once per tick (LatticeGasAutomaton's per-cell contact loop, direction=1..6) -- equal symmetry class and equal per-tick exposure are what make a uniform expected count the correct null under isotropy, rather than a default chosen for convenience
+# pValueUnderflowNote=the pValue column above (0.000000000e+00) is a DOUBLE UNDERFLOW, not a computed exact zero -- a chi-squared this large (chi2=5.496069174e+03, df=5) drives the upper-incomplete-gamma evaluation below double's representable range, so the true value is p < 1.0e-300; reported here so the printed 0.0 is not misread as an exact computed zero
+# chiSquareCaveat=this chi-squared tests uniformity of the RAW RECORDED-COLLISION EVENT counts, NOT independence-adjusted -- per this report's ANISOTROPY CAMPAIGN EQUALITY characterization, the anisotropy campaign's contact graph is near-static (same handful of frozen contacts fire every tick), so these 27756 recorded events are NOT independent draws; read this p-value alongside that characterization, not in isolation -- no independence-adjustment (e.g. an effective-sample-size deflation) is attempted here, since choosing one would itself be a judgment call this instrument does not make
+# columns(LGA_CONTACT_DIRECTION_EFFECTIVE_SEED)=recordType	seed	d1	d2	d3	d4	d5	d6	total (fix-round item 2c: per-seed EFFECTIVE-transfer-only counts, transferMagnitude>0 -- the narrower population that actually moves quanta and drives the hopping-tensor/D_hat estimate, additive-only from the same CollisionStatistics sinks as LGA_CONTACT_DIRECTION_SEED above)
+# columns(LGA_CONTACT_DIRECTION_EFFECTIVE_POOLED)=recordType	d1	d2	d3	d4	d5	d6	total (pooled across all 8 anisotropy-campaign seeds; this total must equal ANISOTROPY_CAMPAIGN_EQUALITY_POOLED's effectiveCollisions column -- same underlying per-seed CollisionStatistics#effectiveCollisions(), just broken out by direction here)
+LGA_CONTACT_DIRECTION_EFFECTIVE_SEED	42	0	3	4	1	0	6	14
+LGA_CONTACT_DIRECTION_EFFECTIVE_SEED	43	3	7	5	2	7	1	25
+LGA_CONTACT_DIRECTION_EFFECTIVE_SEED	44	0	6	7	3	0	3	19
+LGA_CONTACT_DIRECTION_EFFECTIVE_SEED	45	0	1	6	0	2	2	11
+LGA_CONTACT_DIRECTION_EFFECTIVE_SEED	46	0	8	9	3	0	7	27
+LGA_CONTACT_DIRECTION_EFFECTIVE_SEED	47	1	6	3	0	0	4	14
+LGA_CONTACT_DIRECTION_EFFECTIVE_SEED	48	4	30	5	4	7	5	55
+LGA_CONTACT_DIRECTION_EFFECTIVE_SEED	49	0	10	3	4	3	1	21
+LGA_CONTACT_DIRECTION_EFFECTIVE_POOLED	8	71	42	17	19	29	186
+# columns(LONG_RUN_CONTACT_DIRECTION)=recordType	substrate	d1	d2	d3	d4	d5	d6	total (the SEPARATE Section 3/4 long run's own per-CONTACT-direction census, both substrates)
+# columns(HOPPING_TENSOR)=recordType	substrate	Dxx	Dyy	Dzz	Dxz	Dyz	Dxy (derived from LONG_RUN_CONTACT_DIRECTION via D = sum_d w_d * outer(e_d,e_d), e_d = FccNeighborhood's unit offset for positive direction d)
+LONG_RUN_CONTACT_DIRECTION	HYBRID	4663	10849	13347	13769	3862	7345	53835
+LONG_RUN_CONTACT_DIRECTION	LGA	2439	5183	15537	12220	4579	7752	47710
+HOPPING_TENSOR	HYBRID	1.956200000e+04	1.791250000e+04	1.636050000e+04	4.342000000e+03	-3.493500000e+03	3.212000000e+03
+HOPPING_TENSOR	LGA	1.897400000e+04	1.486700000e+04	1.386900000e+04	6.549000000e+03	-3.020000000e+02	2.234000000e+03
+# contactDirectionCensusNote=this is a FIRST-ORDER directional-structure observable (which of the six FCC contact directions collisions actually occur in), MECHANISM-DISTINCT from the rank-4/FCHC risk the design memo names (a lattice can be exact-cubic-symmetric at 4th order and still show first-order structure here, or vice versa) -- EVIDENCE ONLY, no posture is selected or advocated from this census; interpretation is left to Section 5. The anisotropy campaign in this bead runs the LGA substrate ONLY (see lgaSubstrateFactory) -- no hybrid anisotropy run exists in this bead to compare the LGA_CONTACT_DIRECTION rows against; the LONG_RUN_CONTACT_DIRECTION rows above are the only both-substrate comparison this report can make, and are a DIFFERENT campaign (Section 3/4's shared long run, not the anisotropy packet campaign).
 
 # === SECTION 2: SPECTRAL BROADENING, three-way K0 -> HYBRID -> LGA ===
 # columns(SPECTRAL_SUMMARY)=recordType	substrate	extent	fftLength	stride	nMembersChecked	meanPeakFraction	minPeakFraction	maxPeakFraction	meanEntropy	meanAbsoluteLinewidthRadPerTick	meanFractionalLinewidth	nMembersFractionalDefined
@@ -139,7 +173,7 @@ ANISOTROPY_WITHIN_WINDOW	2	63	95	6984
 ANISOTROPY_WITHIN_WINDOW	3	95	127	6991
 # anisotropyWithinWindowHomogeneityVerdict=quartileCounts=[6777, 7004, 6984, 6991], first->last relative change=3.157739413e-02 -- roughly HOMOGENEOUS across the 128-tick anisotropy window (TOTAL-collision proxy; does not itself verify direction-resolved homogeneity, only the pooled rate) -- no strong evidence the OLS transport-rate fit's time-homogeneity assumption is violated at this coarse resolution
 # columns(COLLISION_FIELD)=recordType	field	hybridValue	lgaValue	verifiedComparable	note
-COLLISION_FIELD	totalCollisions	53835	47710	true	verified comparable, bead .21 HybridVsLgaConsistencyTest test 8 (rate gap ~11%)
+COLLISION_FIELD	totalCollisions	53835	47710	true	verified comparable: HybridVsLgaConsistencyTest#aggregateStatisticsAgreeBeyondDivergence (test 8) asserts the total-collision RATE gap directly (fix-round S1 correction -- the prior note cited test 8 for a claim it did not actually assert; test 8 asserted only totalCollisions()>0 and the effective-ratio gap), tolerance 0.15, same TOLERANCE constant as the effective-ratio assertion below
 COLLISION_FIELD	effectiveCollisions	9439	8893	true	verified comparable, bead .21 HybridVsLgaConsistencyTest test 8 (effective-ratio gap ~0.011)
 COLLISION_FIELD	collisionsPerDirection	{1=4663, 2=10849, 3=13347, 4=13769, 5=3862, 6=7345, -1=0, -2=0, -3=0, -4=0, -5=0, -6=0}	{1=2439, 2=5183, 3=15537, 4=12220, 5=4579, 6=7752, -1=0, -2=0, -3=0, -4=0, -5=0, -6=0}	false	NOT independently verified comparable prior to this bead -- reported as raw data for the first time, not asserted equal
 COLLISION_FIELD	transferMagnitudeHistogram	{0=44396, 1=9439}	{0=38817, 1=8893}	false	NOT independently verified comparable prior to this bead -- QuantaExchangeRule only ever transfers magnitude 0 or 1 on both substrates by construction, so this is expected trivially degenerate, not a genuine cross-substrate distributional check
@@ -147,13 +181,56 @@ COLLISION_FIELD	meanFreePathProxy	0.03715055261447014	0.04191993292810731	false	
 
 # === SECTION 4: EQUILIBRIUM QUANTA-DISTRIBUTION CHARACTERIZATION (SDB caveat, user decision 6) ===
 # equilibriumStatisticsAssumeSDB=false (explicit -- CollisionTable's collision rule is an ACCEPTED non-bijection, see class Javadoc)
+# columns(QUANTA_HISTOGRAM)=recordType	label	n	mean	variance	min	max (distributional SUMMARY only -- fix-round S5: this row does NOT itself carry the histogram despite its name; see QUANTA_HISTOGRAM_BIN for the actual per-value population counts)
+# columns(QUANTA_HISTOGRAM_BIN)=recordType	label	value	count (exact per-value population count, one row per integer value in [min,max] inclusive, zero-filled for unobserved values -- localizes WHERE QUANTA_HISTOGRAM's variance drop concentrates, e.g. at value 0 for the SDB diff=0 self-loop, rather than leaving that inferred from variance alone)
 QUANTA_HISTOGRAM	before	1920	-1.562500000e-02	1.375288086e+01	-6	6
+QUANTA_HISTOGRAM_BIN	before	-6	138
+QUANTA_HISTOGRAM_BIN	before	-5	148
+QUANTA_HISTOGRAM_BIN	before	-4	169
+QUANTA_HISTOGRAM_BIN	before	-3	137
+QUANTA_HISTOGRAM_BIN	before	-2	149
+QUANTA_HISTOGRAM_BIN	before	-1	139
+QUANTA_HISTOGRAM_BIN	before	0	147
+QUANTA_HISTOGRAM_BIN	before	1	151
+QUANTA_HISTOGRAM_BIN	before	2	165
+QUANTA_HISTOGRAM_BIN	before	3	146
+QUANTA_HISTOGRAM_BIN	before	4	149
+QUANTA_HISTOGRAM_BIN	before	5	145
+QUANTA_HISTOGRAM_BIN	before	6	137
 QUANTA_HISTOGRAM	after	1920	-1.562500000e-02	9.362255859e+00	-6	6
+QUANTA_HISTOGRAM_BIN	after	-6	77
+QUANTA_HISTOGRAM_BIN	after	-5	96
+QUANTA_HISTOGRAM_BIN	after	-4	125
+QUANTA_HISTOGRAM_BIN	after	-3	121
+QUANTA_HISTOGRAM_BIN	after	-2	179
+QUANTA_HISTOGRAM_BIN	after	-1	226
+QUANTA_HISTOGRAM_BIN	after	0	233
+QUANTA_HISTOGRAM_BIN	after	1	269
+QUANTA_HISTOGRAM_BIN	after	2	193
+QUANTA_HISTOGRAM_BIN	after	3	134
+QUANTA_HISTOGRAM_BIN	after	4	107
+QUANTA_HISTOGRAM_BIN	after	5	86
+QUANTA_HISTOGRAM_BIN	after	6	74
 # sdbClosedForm=window=10 statesChecked=435 preimageCountByOutputDiff={-18=1, -17=1, -16=1, -15=1, -14=1, -13=1, -12=1, -11=1, -10=1, -9=1, -8=1, -7=1, -6=1, -5=1, -4=1, -3=1, -2=1, -1=2, 0=3, 1=2, 2=1, 3=1, 4=1, 5=1, 6=1, 7=1, 8=1, 9=1, 10=1, 11=1, 12=1, 13=1, 14=1, 15=1, 16=1, 17=1, 18=1} balanced=false (formal parity-floor fact: 3 preimages at diff=0, 2 at |diff|=1, 1 at |diff|>=2 -- odd-difference pairs can never reach exact equality, only oscillate at |diff|=1; even-difference pairs converge to and then permanently self-loop at diff=0)
-# equalityConcentrationEmpiricalTrend=lgaNoOpFractionByWindow=[6.451856514e-01,7.447010987e-01,9.005640729e-01,8.784253721e-01], peak at window 2 (9.005640729e-01) -- OVERALL RISING (first->last: 6.451856514e-01 -> 8.784253721e-01), dynamical corroboration of the SDB closed-form's diff=0 preimage concentration (pairs settling into the permanent equality self-loop), but peaks at an INTERIOR window (2) then dips slightly rather than rising monotonically. NOTE: Section 3's relativeRateGapByWindow peaks at window 1, i.e. exactly ONE WINDOW LATER than this trend's own peak -- the two trends are NOT the same mechanism showing up identically; stated explicitly rather than implying a single coupled cause.
+# equalityConcentrationEmpiricalTrend=lgaNoOpFractionByWindow=[6.451856514e-01,7.447010987e-01,9.005640729e-01,8.784253721e-01], peak at window 2 (9.005640729e-01) -- OVERALL RISING (first->last: 6.451856514e-01 -> 8.784253721e-01), dynamical corroboration of the SDB closed-form's diff=0 preimage concentration (pairs settling into the permanent equality self-loop), but peaks at an INTERIOR window (2) rather than at the trend's own endpoint. NOTE: this trend's own peak (window 2) occurs exactly ONE WINDOW LATER than Section 3's relativeRateGapByWindow peak (window 1) -- the two trends are NOT the same mechanism showing up identically; stated explicitly rather than implying a single coupled cause.
+
+# === SECTION 4B: ANISOTROPY CAMPAIGN EQUALITY CHARACTERIZATION (fix-round Critical 1 -- the SDB gate item, ON THE CAMPAIGN THE ISOTROPY STATISTIC ACTUALLY COMES FROM) ===
+# columns(ANISOTROPY_CAMPAIGN_EQUALITY_SEED)=recordType	seed	totalCollisions	effectiveCollisions	noOpFraction	excitedMembersInitial	cellsTouchedInitial	excitedMembersFinal	cellsTouchedFinal	collisionsAtFirstTick	collisionsAtLastTick
+# columns(ANISOTROPY_CAMPAIGN_EQUALITY_POOLED)=recordType	totalCollisions	effectiveCollisions	noOpFraction	activeMemberSlotsTotal	evenParityCellsTotal	excitedMembersInitialTotal	excitedMembersFinalTotal
+ANISOTROPY_CAMPAIGN_EQUALITY_SEED	42	3951	14	9.964565933e-01	30	1	37	7	31	32
+ANISOTROPY_CAMPAIGN_EQUALITY_SEED	43	3835	25	9.934810952e-01	30	1	42	10	30	30
+ANISOTROPY_CAMPAIGN_EQUALITY_SEED	44	3321	19	9.942788317e-01	30	1	39	8	26	26
+ANISOTROPY_CAMPAIGN_EQUALITY_SEED	45	3948	11	9.972137791e-01	30	1	36	6	31	31
+ANISOTROPY_CAMPAIGN_EQUALITY_SEED	46	3202	27	9.915677701e-01	30	1	43	5	25	25
+ANISOTROPY_CAMPAIGN_EQUALITY_SEED	47	2681	14	9.947780679e-01	30	1	37	6	23	21
+ANISOTROPY_CAMPAIGN_EQUALITY_SEED	48	3495	55	9.842632332e-01	30	1	47	13	27	28
+ANISOTROPY_CAMPAIGN_EQUALITY_SEED	49	3323	21	9.936804093e-01	30	1	41	9	27	27
+ANISOTROPY_CAMPAIGN_EQUALITY_POOLED	27756	186	9.932987462e-01	61440	256	240	322
+# anisotropyCampaignEqualityCharacterization=pooled no-op fraction=9.932987462e-01 (27570/27756), excited members 240/61440 at t=0 -> 322/61440 after the campaign's full 127-tick run, collisionsPerTick is NOT EXACTLY FLAT per seed (max |first-tick - last-tick| delta across seeds = 2) (first-tick vs last-tick counts in ANISOTROPY_CAMPAIGN_EQUALITY_SEED above) -- EQUALITY IS THIS CAMPAIGN'S OWN INITIAL CONDITION AND IS ABSORBING under the accepted diff=0 self-loop (CollisionTable's non-bijective rule, Section 4's sdbClosedForm above): every background member is seeded quanta=0, and phase[i]=floorMod(phase[i]+quanta[i],P) means a zero-quanta member NEVER rotates, so a (0,0) contact is a PERMANENT no-op, not a transient equilibrium approach -- this is a DIFFERENT and MORE SEVERE characterization than Section 4's long-run trend (variance contraction from a WIDE random background), and it is THIS campaign's data the isotropy statistic in Section 1/5 is computed from, not the long run's.
 
 # === SECTION 5: ISOTROPY POSTURES -- DATA ONLY, NO POSTURE SELECTED (escalated to user/orchestrator) ===
 # posture(i)_acceptAndCharacterize_evidence=LGA pooled TRANSPORT ratio=1.209713313e+00 CI=[1.052494279e+00,1.513825434e+00] permutationP=2.248875562e-01; pooled SPECTRAL ratio=NaN -- this posture accepts whatever these numbers say at face value, characterizing rather than correcting for anisotropy
 # posture(ii)_fchcProjection_evidence=NOT constructed in this bead -- the current lattice remains the 12-neighbor FCC arrangement, not a 4D FCHC projection (design memo's own named risk); the measured ratio/CI above is what an FCHC-style projection would need to demonstrably reduce if adopted, but no FCHC variant has been built or measured to compare against
-# posture(iii)_orientationalStateRestoresIsotropy_evidence=the pooled TRANSPORT permutation p-value (2.248875562e-01) is NOT significant at p<0.05, i.e. the measured anisotropy is statistically indistinguishable from an isotropic null at this campaign's power -- CONSISTENT WITH but NOT PROOF OF this hypothesis (small-N caveat above applies: absence of significance here may reflect insufficient statistical power, not genuine isotropy)
+# posture(iii)_orientationalStateRestoresIsotropy_evidence=the pooled TRANSPORT permutation p-value (2.248875562e-01) is NOT significant at p<0.05, i.e. the measured anisotropy is statistically indistinguishable from an isotropic null at this campaign's power -- CONSISTENT WITH but NOT PROOF OF this hypothesis (small-N caveat above applies: absence of significance here may reflect insufficient statistical power, not genuine isotropy) -- CONTAMINATION CAVEAT (fix-round Critical 1): this evidence carries its own contamination, not merely the small-N caveat above -- see this report's ANISOTROPY CAMPAIGN EQUALITY characterization (the campaign's all-zero-quanta background is an ABSORBING initial condition under the accepted diff=0 self-loop, ~99% no-op fraction, <1% of members ever excited), which the permutation null is calibrated FROM, not independently of -- a null calibrated on a contaminated realization cannot itself certify power, so "NOT significant" here should be read alongside that characterization, not in isolation
+# section1BCrossReference=see Section 1B rows LGA_CONTACT_DIRECTION_*/HOPPING_TENSOR and their premise note (uniformNullPremise/contactDirectionCensusNote) for a first-order FCC contact-direction observable, MECHANISM-DISTINCT from the postures above -- evidence only, no posture is selected or advocated by this pointer
 # ESCALATION=this report presents measured anisotropy ratios+CIs from BOTH estimators and evidence for all three postures; NO posture is selected by this bead -- selecting one is out of scope per the locked design and would be exactly the silent-scope-reduction failure the review gates exist to catch. Escalate to the user/orchestrator with these numbers for the posture decision.

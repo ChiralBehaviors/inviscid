@@ -108,10 +108,17 @@ public record SpectralCadence(int phaseResolution, int stride) {
 
     /**
      * The expected FFT bin (0..n-1, wrapped) for a member advancing
-     * {@code quanta} phase-steps per sample (== {@code quanta} raw
-     * conserved quanta when {@code stride == 1}; the caller pre-folds
-     * {@code stride} into {@code quanta} for a coarser sampling cadence,
-     * matching {@code BaselineSpectrumHarness}'s existing convention).
+     * {@code quanta} phase-steps per TICK (the class Javadoc's raw,
+     * conserved {@code q} -- see the "Derivation" section above). This
+     * method itself multiplies by {@link #stride} internally to convert
+     * to phase-steps-per-SAMPLE before mapping to a bin; the caller does
+     * NOT pre-fold {@code stride} into {@code quanta} (only {@code
+     * stride == 1} callers exist today, which is why this pre-fix
+     * contradiction between this Javadoc and the method body -- which has
+     * always multiplied by {@code stride} -- went unnoticed: any caller
+     * following the old, wrong Javadoc at a coarser stride would have
+     * silently double-applied it and been off by a factor of {@code
+     * stride}).
      */
     public int binFor(double quanta, int n) {
         if (n <= 0) {

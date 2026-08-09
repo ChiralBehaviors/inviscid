@@ -135,6 +135,14 @@ public final class PhaseCMeasurement {
     // Sub-measurement 2/4: spectral broadening cadence -- SAME stride /
     // phaseResolution as the committed K=0 golden (BaselineSpectrumHarness),
     // fftLength reduced purely for wall-time (stated in the report).
+    // Post-.23-gate fix (Important #4): the single named source of truth
+    // for "both substrates share phaseResolution=3600 under cadence 2A" --
+    // replaces the bare literal 3600 previously scattered across seeding
+    // helpers below (a future atlas-header change to the LGA side would
+    // otherwise desynchronise silently; newHybrid/newLga now assert
+    // against this constant instead).
+    public static final int     PHASE_RESOLUTION      = Necronomata.PHASE_RESOLUTION;
+
     public static final Point3i SPECTRAL_EXTENT      = new Point3i(4, 4, 4);
     public static final long    SPECTRAL_SEED         = 42L;
     public static final int     SPECTRAL_MIN_QUANTA   = -5;
@@ -221,9 +229,40 @@ public final class PhaseCMeasurement {
                                    String note) {
     }
 
-    /** Quanta-value population summary (distribution-shape data point). */
+    /**
+     * Quanta-value population summary (distribution-shape data point).
+     * {@code bins} (fix-round item 5, S5) is the ACTUAL per-value
+     * histogram -- exact population count for every integer value in
+     * {@code [min,max]} inclusive, zero-filled for unobserved values --
+     * so this record finally carries the histogram its name claims; the
+     * scalar {@code mean}/{@code variance} fields remain the distributional
+     * SUMMARY, not a replacement for the bins; {@code
+     * PhaseCMeasurementTest} reconciles the bins against this summary row
+     * (n, mean, variance, and cross-run total-quanta conservation).
+     *
+     * <p>Round-3 correction (critic S-NEW-3): an earlier version of this
+     * Javadoc claimed {@link QuantaExchangeRule}'s pairwise single-unit
+     * transfer composes into a discrete maximum principle over the WHOLE
+     * system -- that claim is FALSE and has been removed. {@link
+     * LatticeGasAutomaton#tick} accumulates every contact's delta into a
+     * per-member buffer across an entire tick and applies it once at the
+     * end, with each contact's lookup reading the STALE pre-tick quanta --
+     * so a member touched by several contacts in one tick can net-move by
+     * more than the pairwise +/-1 step (measured: up to 4 contacts on one
+     * member in a single tick, net change up to 3). The REAL bound on this
+     * path is {@code LatticeGasAutomaton}'s own {@code
+     * checkExactnessCeiling} guard ({@code LatticeGasAutomaton.java:
+     * 481-488}), which throws rather than let a member's quanta
+     * random-walk past {@code CollisionSweep.QUANTA_EXACTNESS_SAFETY_MARGIN}
+     * -- that guard, not a maximum principle, is why {@code histogramOf}'s
+     * {@code [min,max]} zero-fill loop stays small in practice.
+     */
     public record QuantaHistogramSummary(String label, long n, double mean,
-                                          double variance, long min, long max) {
+                                          double variance, long min, long max,
+                                          java.util.SortedMap<Long, Long> bins) {
+        public QuantaHistogramSummary {
+            bins = java.util.Collections.unmodifiableSortedMap(new java.util.TreeMap<>(bins));
+        }
     }
 
     /**
@@ -243,6 +282,70 @@ public final class PhaseCMeasurement {
                                             long totalCollisionsAcrossSeeds) {
     }
 
+    /**
+     * Fix-round Critical 1: one anisotropy-campaign seed's excitation/
+     * no-op census, characterizing whether the SDB closed form's diff=0
+     * preimage concentration is merely an equilibrium TREND (as Section
+     * 4's long-run characterization shows) or, on THIS campaign, the
+     * absorbing INITIAL CONDITION -- every background member is seeded
+     * quanta=0, and {@code phase[i] = floorMod(phase[i]+quanta[i], P)}
+     * (bead's own accepted rule) means a zero-quanta member never rotates,
+     * so a {@code (0,0)} contact is a PERMANENT no-op, not a transient
+     * one. {@code excitedMembersInitial}/{@code cellsTouchedInitial} are
+     * measured (not assumed) from the SAME seeded state {@link
+     * #lgaSubstrateFactory}'s additive census sink captures at
+     * construction, before any tick runs; {@code *Final} are measured
+     * from the SAME {@link LatticeGasAutomaton} instance after
+     * {@link AnisotropyProbe} has driven every tick (a live reference,
+     * not a re-simulation). {@code collisionsAtFirstTick}/{@code
+     * collisionsAtLastTick} read {@link CollisionStatistics#collisionsPerTick()}
+     * at tick indices 0 and {@code ticks-2} (the last {@code tick()} call
+     * argument -- see {@code computeAnisotropyWithinWindowHomogeneity}'s
+     * {@code actualTickCount} convention) -- a flat pair is the dynamical
+     * signature of a static contact graph.
+     */
+    public record AnisotropyCampaignEquality(long seed, long totalCollisions,
+                                              long effectiveCollisions,
+                                              long excitedMembersInitial,
+                                              int cellsTouchedInitial,
+                                              long excitedMembersFinal,
+                                              int cellsTouchedFinal,
+                                              long collisionsAtFirstTick,
+                                              long collisionsAtLastTick) {
+        public double noOpFraction() {
+            return totalCollisions == 0L ? Double.NaN
+                                          : (double) (totalCollisions
+                                                       - effectiveCollisions)
+                                            / totalCollisions;
+        }
+    }
+
+    /**
+     * Fix-round Critical 2: one scope's (a seed, or a pooled/long-run
+     * substrate) raw per-CONTACT-direction collision census -- {@link
+     * FccNeighborhood}'s positive directions {@code 1..6} (the six
+     * canonical FCC {@code <110>}-type offsets; {@link
+     * CollisionStatistics}'s own Javadoc: negative directions are never
+     * populated by a real caller). DISTINCT from {@code LGA_DIRECTION}'s
+     * {@link StructureFactor.Direction} ({@code X100}/{@code X110}/
+     * {@code X111}) k-space probe directions -- two unrelated direction
+     * spaces sharing the word "direction", never to be confused.
+     */
+    public record ContactDirectionCensus(String scope,
+                                           java.util.Map<Integer, Long> perDirection) {
+        public ContactDirectionCensus {
+            perDirection = java.util.Map.copyOf(perDirection);
+        }
+
+        public long total() {
+            long sum = 0L;
+            for (long v : perDirection.values()) {
+                sum += v;
+            }
+            return sum;
+        }
+    }
+
     public record Report(AnisotropyProbe.Report lgaAnisotropy,
                           SpectralSummary k0Spectral,
                           SpectralSummary hybridSpectral,
@@ -255,7 +358,12 @@ public final class PhaseCMeasurement {
                           SemiDetailedBalanceReport sdb,
                           long conservationTicksAudited,
                           long conservationViolations,
-                          ContactAtlas.Header atlasHeader) {
+                          ContactAtlas.Header atlasHeader,
+                          List<AnisotropyCampaignEquality> anisotropyCampaignEquality,
+                          List<ContactDirectionCensus> anisotropyContactDirectionPerSeed,
+                          List<ContactDirectionCensus> anisotropyEffectiveContactDirectionPerSeed,
+                          ContactDirectionCensus longRunHybridContactDirection,
+                          ContactDirectionCensus longRunLgaContactDirection) {
     }
 
     // ------------------------------------------------------------------
@@ -288,10 +396,47 @@ public final class PhaseCMeasurement {
      *                         a reference to state {@link AnisotropyProbe}
      *                         already builds and mutates internally but
      *                         does not itself expose per-tick.
+     * @param perSeedAuditSink OPTIONAL (nullable) side-channel, same
+     *                         additive-instrumentation pattern as {@code
+     *                         perSeedStatsSink}: if non-null, every {@link
+     *                         ConservationAudit} this factory constructs
+     *                         is ALSO stashed here keyed by seed, purely
+     *                         so a caller can sum {@link
+     *                         ConservationAudit#ledger()} sizes AFTER the
+     *                         campaign for an exact {@code
+     *                         conservationTicksAudited} total (C2 fix:
+     *                         read from the audit's own ledger, never
+     *                         hand-derived from an assumption about this
+     *                         factory's or {@code AnisotropyProbe}'s loop
+     *                         shape).
+     * @param perSeedInitialCensusSink OPTIONAL (nullable), fix-round
+     *                         Critical 1: if non-null, every seed's
+     *                         excited-member/cells-touched census (see
+     *                         {@link #activeMemberCensus}) is captured
+     *                         HERE -- synchronously, immediately after
+     *                         {@code seedPacket}, before the {@link
+     *                         SubstrateFactory.Substrate} is returned and
+     *                         before any tick runs -- so a caller can read
+     *                         the campaign's OWN t=0 state without
+     *                         re-simulating it. Purely observational: a
+     *                         {@code forEachCell}/{@code quantaAt} read,
+     *                         no RNG draw, no mutation.
+     * @param perSeedLgaSink   OPTIONAL (nullable), same pattern: if
+     *                         non-null, the constructed {@link
+     *                         LatticeGasAutomaton} instance itself is
+     *                         stashed here keyed by seed -- {@link
+     *                         AnisotropyProbe} drives this SAME instance's
+     *                         ticks externally, so a caller reading it
+     *                         back AFTER the campaign completes sees the
+     *                         campaign's own final state, not a
+     *                         re-simulation.
      */
     private static SubstrateFactory lgaSubstrateFactory(ContactAtlas atlas,
                                                           CollisionTable collisions,
-                                                          java.util.Map<Long, CollisionStatistics> perSeedStatsSink) {
+                                                          java.util.Map<Long, CollisionStatistics> perSeedStatsSink,
+                                                          java.util.Map<Long, ConservationAudit> perSeedAuditSink,
+                                                          java.util.Map<Long, ActiveCensus> perSeedInitialCensusSink,
+                                                          java.util.Map<Long, LatticeGasAutomaton> perSeedLgaSink) {
         return (extent, seed, packetQuanta, originCell) -> {
             CollisionStatistics statistics = new CollisionStatistics();
             if (perSeedStatsSink != null) {
@@ -302,19 +447,77 @@ public final class PhaseCMeasurement {
                                                                 statistics);
             seedRandomPhases(lga, extent, seed);
             seedPacket(lga, originCell, packetQuanta);
+            if (perSeedInitialCensusSink != null) {
+                perSeedInitialCensusSink.put(seed, activeMemberCensus(lga));
+            }
+            if (perSeedLgaSink != null) {
+                perSeedLgaSink.put(seed, lga);
+            }
             ConservationAudit audit = new ConservationAudit(lga, true);
+            if (perSeedAuditSink != null) {
+                perSeedAuditSink.put(seed, audit);
+            }
             AuditedRun run = new AuditedRun(lga, audit);
             return new SubstrateFactory.Substrate(lga, run, lga.statistics());
         };
+    }
+
+    /**
+     * Fix-round Critical 1: one snapshot's excited-member/cells-touched
+     * census over EVERY active (even-parity-cell) member slot -- purely
+     * observational ({@link QuantaField#forEachCell}/{@link
+     * QuantaField#quantaAt}, no mutation, no RNG draw), reused for both
+     * the t=0 and post-campaign final census (see {@link
+     * #lgaSubstrateFactory}'s Javadoc).
+     */
+    record ActiveCensus(long excitedMembers, int cellsTouched) {
+    }
+
+    static ActiveCensus activeMemberCensus(QuantaField field) {
+        long[] excited = { 0L };
+        int[] cells = { 0 };
+        field.forEachCell(cell -> {
+            int base = field.indexOfCell(cell);
+            boolean touched = false;
+            for (int local = 0; local < 30; local++) {
+                if (field.quantaAt(base + local) != 0L) {
+                    excited[0]++;
+                    touched = true;
+                }
+            }
+            if (touched) {
+                cells[0]++;
+            }
+        });
+        return new ActiveCensus(excited[0], cells[0]);
+    }
+
+    /**
+     * The even-parity sublattice's cell count for {@code extent} --
+     * {@code x*y*z/2}, exact whenever every axis is even ({@link
+     * FccNeighborhood}'s own precondition): for each fixed {@code (i,j)},
+     * exactly half of the {@code z} values give an even {@code i+j+k}
+     * (an even {@code z} alternates parity {@code z/2} times each way).
+     * Computed, never hardcoded, so a future extent change follows
+     * automatically.
+     */
+    static long evenParityCellCount(Point3i extent) {
+        return ((long) extent.x * extent.y * extent.z) / 2L;
     }
 
     private static void seedRandomPhases(LatticeGasAutomaton lga, Point3i extent,
                                           long seed) {
         Random random = new Random(seed);
         int length = 30 * extent.x * extent.y * extent.z;
+        // Reads the ALREADY-CONSTRUCTED lga's own phaseResolution() rather
+        // than a bare literal (Important #4) -- if a future atlas header
+        // ever desynchronises the LGA's computed phaseResolution from the
+        // shared cadence-2A value, this seeding draw range follows it
+        // automatically instead of silently going stale.
+        int phaseResolution = lga.phaseResolution();
         int[] phases = new int[length];
         for (int i = 0; i < length; i++) {
-            phases[i] = random.nextInt(3600);
+            phases[i] = random.nextInt(phaseResolution);
         }
         lga.process((phase, quanta) -> System.arraycopy(phases, 0, phase, 0,
                                                           length));
@@ -347,7 +550,10 @@ public final class PhaseCMeasurement {
         int[] phase = new int[length];
         long[] quanta = new long[length];
         for (int i = 0; i < length; i++) {
-            phase[i] = random.nextInt(3600);
+            // PHASE_RESOLUTION (Important #4), not a bare 3600 -- this
+            // condition is shared by BOTH substrates (newHybrid/newLga
+            // below assert their own phaseResolution() matches it).
+            phase[i] = random.nextInt(PHASE_RESOLUTION);
             quanta[i] = random.nextInt(range) + minQuanta;
         }
         return new SharedInitialCondition(phase, quanta);
@@ -358,10 +564,17 @@ public final class PhaseCMeasurement {
                                               CollisionStatistics statistics,
                                               Point3i extent) {
         Necronomata automaton = new Necronomata(extent);
+        if (automaton.phaseResolution() != PHASE_RESOLUTION) {
+            throw new IllegalStateException("hybrid substrate phaseResolution="
+                                             + automaton.phaseResolution()
+                                             + " does not match the shared cadence-2A PHASE_RESOLUTION="
+                                             + PHASE_RESOLUTION
+                                             + " the shared initial condition was seeded against (Important #4)");
+        }
         int length = ic.phase().length;
         automaton.process((angle, frequency, deltaA, deltaF) -> {
             for (int i = 0; i < length; i++) {
-                angle[i] = (float) (2.0 * Math.PI * ic.phase()[i] / 3600.0);
+                angle[i] = (float) (2.0 * Math.PI * ic.phase()[i] / PHASE_RESOLUTION);
                 frequency[i] = ic.quanta()[i];
             }
         });
@@ -385,6 +598,13 @@ public final class PhaseCMeasurement {
         LatticeGasAutomaton lga = new LatticeGasAutomaton(extent, atlas,
                                                             collisions,
                                                             statistics);
+        if (lga.phaseResolution() != PHASE_RESOLUTION) {
+            throw new IllegalStateException("LGA substrate phaseResolution="
+                                             + lga.phaseResolution()
+                                             + " does not match the shared cadence-2A PHASE_RESOLUTION="
+                                             + PHASE_RESOLUTION
+                                             + " the shared initial condition was seeded against (Important #4)");
+        }
         lga.process((phase, quanta) -> {
             System.arraycopy(ic.phase(), 0, phase, 0, ic.phase().length);
             System.arraycopy(ic.quanta(), 0, quanta, 0, ic.quanta().length);
@@ -541,7 +761,17 @@ public final class PhaseCMeasurement {
                                       nFractionalDefined, counted);
     }
 
-    private static SpectralSummary summarizeK0() {
+    /**
+     * {@link #summarizeK0()}'s result plus the exact number of ticks its
+     * OWN strict {@link ConservationAudit} audited -- read from {@link
+     * ConservationAudit#ledger()}'s size (post-C2-fix: never hand-derived
+     * from an assumption about this method's own loop shape, let alone
+     * another driver's).
+     */
+    private record K0Result(SpectralSummary summary, long conservationTicksAudited) {
+    }
+
+    private static K0Result summarizeK0() {
         BaselineSpectrumHarness.Result officialResult = BaselineSpectrumHarness.run();
 
         // Recompute the SAME deterministic K0 recipe locally (extent,
@@ -573,6 +803,9 @@ public final class PhaseCMeasurement {
             audit.auditTick(k0TickCounter[0]++);
         }, automaton, memberIndices, BaselineSpectrumHarness.FFT_LENGTH,
                                                        BaselineSpectrumHarness.STRIDE);
+        // C2 fix: read the audit's OWN ledger size, never hand-derive it
+        // from an assumption about this loop's shape.
+        long k0TicksAudited = audit.ledger().size();
 
         // Filter to nonzero-seeded quanta only, matching
         // BaselineSpectrumHarness's own row-count-reconciliation convention
@@ -618,7 +851,7 @@ public final class PhaseCMeasurement {
                                              + " localMeanFraction=" + (agg.sumFraction() / agg.n()));
         }
 
-        return new SpectralSummary("K0", extent, BaselineSpectrumHarness.FFT_LENGTH,
+        SpectralSummary summary = new SpectralSummary("K0", extent, BaselineSpectrumHarness.FFT_LENGTH,
                                     BaselineSpectrumHarness.STRIDE, agg.n(),
                                     agg.sumFraction() / agg.n(), agg.minFraction(),
                                     agg.maxFraction(), agg.sumEntropy() / agg.n(),
@@ -627,6 +860,7 @@ public final class PhaseCMeasurement {
                                                                    : agg.sumFractionalLinewidth()
                                                                      / agg.nFractionalDefined(),
                                     agg.nFractionalDefined());
+        return new K0Result(summary, k0TicksAudited);
     }
 
     private static SpectralSummary summarizeCollisionBearing(String label,
@@ -659,7 +893,15 @@ public final class PhaseCMeasurement {
     // mechanism, boot-transient, equilibrium characterization.
     // ------------------------------------------------------------------
 
-    private static QuantaHistogramSummary histogramOf(String label, long[] quanta) {
+    /**
+     * Fix-round S5: package-private (was {@code private}) for direct unit
+     * testing, exactly like this file's other narrative/data pure helpers.
+     * {@code bins} is the EXACT per-value population count over
+     * {@code [min,max]} inclusive -- see {@link QuantaHistogramSummary}'s
+     * Javadoc for why this range is always small (a discrete maximum
+     * principle, not an assumption).
+     */
+    static QuantaHistogramSummary histogramOf(String label, long[] quanta) {
         long n = quanta.length;
         double mean = 0;
         long min = Long.MAX_VALUE;
@@ -676,7 +918,15 @@ public final class PhaseCMeasurement {
             variance += d * d;
         }
         variance /= n;
-        return new QuantaHistogramSummary(label, n, mean, variance, min, max);
+        java.util.SortedMap<Long, Long> bins = new java.util.TreeMap<>();
+        for (long v = min; v <= max; v++) {
+            bins.put(v, 0L);
+        }
+        for (long q : quanta) {
+            bins.merge(q, 1L, Long::sum);
+        }
+        return new QuantaHistogramSummary(label, n, mean, variance, min, max,
+                                           bins);
     }
 
     private static long[] snapshotQuanta(LatticeGasAutomaton lga) {
@@ -745,23 +995,70 @@ public final class PhaseCMeasurement {
         // without AnisotropyProbe exposing it itself and without any
         // change to AnisotropyProbe.java.
         java.util.Map<Long, CollisionStatistics> perSeedStatsSink = new java.util.LinkedHashMap<>();
+        java.util.Map<Long, ConservationAudit> perSeedAuditSink = new java.util.LinkedHashMap<>();
+        // Fix-round Critical 1/2 additive sinks -- see lgaSubstrateFactory's
+        // Javadoc for exactly what each captures and when.
+        java.util.Map<Long, ActiveCensus> perSeedInitialCensusSink = new java.util.LinkedHashMap<>();
+        java.util.Map<Long, LatticeGasAutomaton> perSeedLgaSink = new java.util.LinkedHashMap<>();
         AnisotropyProbe.Report lgaAnisotropy = AnisotropyProbe.runCampaign(AnisotropyProbe.DEFAULT_EXTENT,
                                                                              AnisotropyProbe.DEFAULT_SEEDS,
                                                                              AnisotropyProbe.DEFAULT_TICKS,
                                                                              AnisotropyProbe.DEFAULT_PACKET_QUANTA,
                                                                              lgaSubstrateFactory(atlas,
                                                                                                   collisions,
-                                                                                                  perSeedStatsSink));
-        // AnisotropyProbe.runOneSeed calls tick() exactly (ticks-1) times
-        // per seed (tick 0 is the pre-run snapshot, no tick() call) -- see
-        // that method's loop, "for (int tick = 1; tick < ticks; tick++)".
-        conservationTicks += (long) AnisotropyProbe.DEFAULT_SEEDS.length
-                              * (AnisotropyProbe.DEFAULT_TICKS - 1);
+                                                                                                  perSeedStatsSink,
+                                                                                                  perSeedAuditSink,
+                                                                                                  perSeedInitialCensusSink,
+                                                                                                  perSeedLgaSink));
+        // C2 fix: sum every per-seed audit's OWN ledger size -- never a
+        // hand-derived assumption about AnisotropyProbe.runOneSeed's loop
+        // shape (the STRICT header claim ("every driver, every
+        // sub-measurement") is only true if this reads the audits
+        // themselves).
+        long anisotropyTicksAudited = 0L;
+        for (ConservationAudit audit : perSeedAuditSink.values()) {
+            anisotropyTicksAudited += audit.ledger().size();
+        }
+        conservationTicks += anisotropyTicksAudited;
         List<TickQuartileHomogeneity> anisotropyHomogeneity = computeAnisotropyWithinWindowHomogeneity(perSeedStatsSink,
                                                                                                           AnisotropyProbe.DEFAULT_TICKS);
 
+        // Fix-round Critical 1/2: the anisotropy campaign's own
+        // excitation/no-op census and raw per-CONTACT-direction census,
+        // built ENTIRELY from the additive sinks above -- the campaign
+        // itself (AnisotropyProbe) is untouched.
+        int anisotropyActualTickCount = AnisotropyProbe.DEFAULT_TICKS - 1;
+        List<AnisotropyCampaignEquality> anisotropyCampaignEquality = new ArrayList<>();
+        List<ContactDirectionCensus> anisotropyContactDirectionPerSeed = new ArrayList<>();
+        List<ContactDirectionCensus> anisotropyEffectiveContactDirectionPerSeed = new ArrayList<>();
+        for (SeedResult sr : lgaAnisotropy.perSeed()) {
+            long seed = sr.seed();
+            ActiveCensus initial = perSeedInitialCensusSink.get(seed);
+            ActiveCensus finalCensus = activeMemberCensus(perSeedLgaSink.get(seed));
+            CollisionStatistics stats = perSeedStatsSink.get(seed);
+            long firstTick = stats.collisionsPerTick().getOrDefault(0, 0L);
+            long lastTick = stats.collisionsPerTick()
+                                  .getOrDefault(anisotropyActualTickCount - 1,
+                                                0L);
+            anisotropyCampaignEquality.add(new AnisotropyCampaignEquality(seed,
+                                                                             sr.totalCollisions(),
+                                                                             sr.effectiveCollisions(),
+                                                                             initial.excitedMembers(),
+                                                                             initial.cellsTouched(),
+                                                                             finalCensus.excitedMembers(),
+                                                                             finalCensus.cellsTouched(),
+                                                                             firstTick,
+                                                                             lastTick));
+            anisotropyContactDirectionPerSeed.add(new ContactDirectionCensus(Long.toString(seed),
+                                                                                positiveDirectionCounts(stats)));
+            anisotropyEffectiveContactDirectionPerSeed.add(new ContactDirectionCensus(Long.toString(seed),
+                                                                                          positiveEffectiveDirectionCounts(stats)));
+        }
+
         // --- Sub-measurement 2/4: spectral broadening, three-way ---
-        SpectralSummary k0 = summarizeK0();
+        K0Result k0Result = summarizeK0();
+        SpectralSummary k0 = k0Result.summary();
+        conservationTicks += k0Result.conservationTicksAudited();
 
         SharedInitialCondition spectralIc = sharedInitialCondition(SPECTRAL_EXTENT,
                                                                      SPECTRAL_SEED,
@@ -780,7 +1077,9 @@ public final class PhaseCMeasurement {
                                                                      hybridSpectral.field(),
                                                                      SPECTRAL_EXTENT,
                                                                      hybridTickCounter);
-        conservationTicks += hybridTickCounter[0];
+        // C2 fix: the audit's OWN ledger size, not the tick counter (which
+        // happens to agree today but is not itself an audit read).
+        conservationTicks += hybridSpectralRun.audit().ledger().size();
 
         CollisionStatistics lgaSpectralStats = new CollisionStatistics();
         LatticeGasAutomaton lgaSpectral = newLga(atlas, collisions, spectralIc,
@@ -795,7 +1094,8 @@ public final class PhaseCMeasurement {
                                                                   lgaSpectral,
                                                                   SPECTRAL_EXTENT,
                                                                   lgaTickCounter);
-        conservationTicks += lgaTickCounter[0];
+        // C2 fix: the audit's OWN ledger size (see hybrid counterpart above).
+        conservationTicks += lgaSpectralRun.audit().ledger().size();
 
         // --- Sub-measurement 5: collision-statistics / gap / equilibrium ---
         SharedInitialCondition longIc = sharedInitialCondition(LONG_RUN_EXTENT,
@@ -844,7 +1144,10 @@ public final class PhaseCMeasurement {
             prevLgaTotal = lgaTotal;
             prevLgaEffective = lgaEffective;
         }
-        conservationTicks += 2L * LONG_RUN_TICKS;
+        // C2 fix: sum both long-run audits' OWN ledger sizes -- never a
+        // hand-derived "2 substrates x LONG_RUN_TICKS" assumption.
+        conservationTicks += hybridLongRun.audit().ledger().size()
+                              + lgaLongRun.audit().ledger().size();
 
         long[] quantaAfter = snapshotQuanta(lgaLong);
 
@@ -853,7 +1156,11 @@ public final class PhaseCMeasurement {
                                                    Long.toString(hybridLongStats.totalCollisions()),
                                                    Long.toString(lgaLongStats.totalCollisions()),
                                                    true,
-                                                   "verified comparable, bead .21 HybridVsLgaConsistencyTest test 8 (rate gap ~11%)"));
+                                                   "verified comparable: HybridVsLgaConsistencyTest#aggregateStatisticsAgreeBeyondDivergence "
+                                                   + "(test 8) asserts the total-collision RATE gap directly (fix-round S1 correction -- "
+                                                   + "the prior note cited test 8 for a claim it did not actually assert; test 8 asserted "
+                                                   + "only totalCollisions()>0 and the effective-ratio gap), tolerance 0.15, same TOLERANCE "
+                                                   + "constant as the effective-ratio assertion below"));
         fieldComparisons.add(new FieldComparison("effectiveCollisions",
                                                    Long.toString(hybridLongStats.effectiveCollisions()),
                                                    Long.toString(lgaLongStats.effectiveCollisions()),
@@ -881,6 +1188,16 @@ public final class PhaseCMeasurement {
 
         SemiDetailedBalanceReport sdb = collisions.checkSemiDetailedBalance(SDB_WINDOW);
 
+        // Fix-round Critical 2: the long run's own per-CONTACT-direction
+        // census for both substrates, as first-class DATA rows (previously
+        // only a stringified, "NOT independently verified" note on
+        // collisionsPerDirection above -- the raw counts are unchanged,
+        // only how they are reported).
+        ContactDirectionCensus longRunHybridContactDirection = new ContactDirectionCensus("HYBRID",
+                                                                                             positiveDirectionCounts(hybridLongStats));
+        ContactDirectionCensus longRunLgaContactDirection = new ContactDirectionCensus("LGA",
+                                                                                          positiveDirectionCounts(lgaLongStats));
+
         // conservationViolations stays exactly 0: every driver above is
         // wrapped in a STRICT ConservationAudit, which throws immediately
         // on any violation -- reaching this line is itself the proof.
@@ -889,7 +1206,48 @@ public final class PhaseCMeasurement {
                            histogramOf("before", quantaBefore),
                            histogramOf("after", quantaAfter), sdb,
                            conservationTicks, conservationViolations,
-                           atlas.header());
+                           atlas.header(), anisotropyCampaignEquality,
+                           anisotropyContactDirectionPerSeed,
+                           anisotropyEffectiveContactDirectionPerSeed,
+                           longRunHybridContactDirection,
+                           longRunLgaContactDirection);
+    }
+
+    /**
+     * The six canonical FCC contact directions {@code 1..6} only -- {@link
+     * CollisionStatistics}'s own class Javadoc: a real caller ({@code
+     * CollisionSweep}) only ever supplies {@code Contact.direction()},
+     * which never carries a negative direction, so the negative half of
+     * {@link CollisionStatistics#collisionsPerDirection()}'s 12-entry map
+     * is always exactly zero -- filtered out here rather than carried as
+     * dead always-zero columns through every census row.
+     */
+    static java.util.Map<Integer, Long> positiveDirectionCounts(CollisionStatistics stats) {
+        java.util.Map<Integer, Long> positive = new java.util.TreeMap<>();
+        for (var e : stats.collisionsPerDirection().entrySet()) {
+            if (e.getKey() > 0) {
+                positive.put(e.getKey(), e.getValue());
+            }
+        }
+        return positive;
+    }
+
+    /**
+     * Fix-round item 2c (round 3): the same positive-direction filter as
+     * {@link #positiveDirectionCounts}, but over {@link
+     * CollisionStatistics#effectiveCollisionsPerDirection()} -- the
+     * EFFECTIVE-transfer-only counts (the population that actually moves
+     * quanta and drives the hopping-tensor/{@code D_hat} estimate) rather
+     * than the raw recorded-contact counts.
+     */
+    static java.util.Map<Integer, Long> positiveEffectiveDirectionCounts(CollisionStatistics stats) {
+        java.util.Map<Integer, Long> positive = new java.util.TreeMap<>();
+        for (var e : stats.effectiveCollisionsPerDirection().entrySet()) {
+            if (e.getKey() > 0) {
+                positive.put(e.getKey(), e.getValue());
+            }
+        }
+        return positive;
     }
 
     // ------------------------------------------------------------------
@@ -935,7 +1293,8 @@ public final class PhaseCMeasurement {
           .append('\n');
         sb.append("# subBinSteps=").append(report.atlasHeader().subBinSteps())
           .append('\n');
-        sb.append("# phaseResolution=3600 (both substrates, cadence 2A -- see LatticeGasAutomaton class Javadoc)\n");
+        sb.append("# phaseResolution=").append(PHASE_RESOLUTION)
+          .append(" (both substrates, cadence 2A -- see LatticeGasAutomaton class Javadoc)\n");
         sb.append("# anisotropyExtent=").append(AnisotropyProbe.DEFAULT_EXTENT.x)
           .append(',').append(AnisotropyProbe.DEFAULT_EXTENT.y).append(',')
           .append(AnisotropyProbe.DEFAULT_EXTENT.z)
@@ -966,7 +1325,10 @@ public final class PhaseCMeasurement {
         // nyquistQuantaBound and collisionOpportunitiesPerRevolution close
         // the list. Both substrates share phaseResolution=3600 under
         // cadence 2A (pinned), so these are substrate-independent.
-        int nyquistQuantaBound = 3600 / (2 * SPECTRAL_STRIDE);
+        // Reads SpectralCadence#nyquistQuantaBound rather than
+        // re-deriving the same arithmetic inline a second time.
+        int nyquistQuantaBound = new SpectralCadence(PHASE_RESOLUTION,
+                                                       SPECTRAL_STRIDE).nyquistQuantaBound();
         sb.append("# nyquistQuantaBound=").append(nyquistQuantaBound)
           .append(" (phaseResolution/(2*spectralStride) -- seeded quanta range [")
           .append(SPECTRAL_MIN_QUANTA).append(',').append(SPECTRAL_MAX_QUANTA)
@@ -993,9 +1355,11 @@ public final class PhaseCMeasurement {
         sb.append('\n');
 
         appendAnisotropySection(sb, report.lgaAnisotropy());
+        appendContactDirectionCensusSection(sb, report);
         appendSpectralSection(sb, report);
         appendCollisionSection(sb, report);
         appendEquilibriumSection(sb, report);
+        appendAnisotropyCampaignEqualitySection(sb, report);
         appendPostureSection(sb, report);
 
         return sb.toString();
@@ -1051,17 +1415,81 @@ public final class PhaseCMeasurement {
         appendPowerRecommendation(sb, meanEffective);
         sb.append("# structureFactorRidgeVerdict=");
         boolean anyNonzeroRidge = false;
+        boolean anyNaNRidge = false;
         for (var e : lga.pooledSpectral().perDirection().entrySet()) {
-            if (Math.abs(e.getValue().mean()) > 1e-12) {
+            double mean = e.getValue().mean();
+            if (Double.isNaN(mean)) {
+                anyNaNRidge = true;
+                continue;
+            }
+            if (Math.abs(mean) > 1e-12) {
                 anyNonzeroRidge = true;
-                break;
             }
         }
-        sb.append(anyNonzeroRidge
-                  ? "RIDGE PRESENT -- at least one pooled SPECTRAL direction has a nonzero ridge slope"
-                  : "RIDGE ABSENT -- every pooled SPECTRAL direction's ridge slope is exactly zero, the same signature AnisotropyProbe's own Javadoc documents as EXPECTED for purely diffusive dynamics (no propagating branch, omega~i*D*k^2), not an instrument malfunction")
-          .append('\n');
+        sb.append(ridgeVerdictText(anyNaNRidge, anyNonzeroRidge, smallN)).append('\n');
         sb.append('\n');
+    }
+
+    /**
+     * Important #7 pure helper (NaN pooled-SPECTRAL fallthrough fix): a
+     * NaN pooled-SPECTRAL mean is an INSTRUMENT ANOMALY, not silently
+     * treated as "every direction's ridge slope is exactly zero" (the
+     * pre-fix bug -- {@code Math.abs(NaN) > 1e-12} is {@code false}, so
+     * the old unconditional two-way branch fell through to RIDGE ABSENT
+     * even when the data was undefined). Package-private for direct unit
+     * testing of all three branches with synthetic booleans.
+     *
+     * <p>Fix-round S3: the RIDGE ABSENT branch no longer asserts "purely
+     * diffusive dynamics" as the sole explanation for an all-exact-0.0
+     * result -- {@code AnisotropyProbe}'s own non-fabrication contract
+     * documents that the SAME all-zero signature is produced by the K=0
+     * (collision-free, no-signal) baseline BY CONSTRUCTION, so "ridge
+     * absent" (measured) and "purely diffusive" (a dynamics CLAIM the
+     * measurement alone cannot support) are kept distinct. {@code
+     * transportSmallNUsedAsSpectralProxy} branches the wording: when
+     * true, both explanations are stated side by side and no dynamics
+     * claim is made; when false, the diffusive-signature reading is
+     * offered as the more likely account without foreclosing the
+     * alternative.
+     *
+     * <p>Naming honesty (critic MINOR-4, round 3): despite this verdict
+     * being about the SPECTRAL ridge, the flag passed in is {@code
+     * lgaSmallNEarlyTimeFlag} -- a TRANSPORT-estimator effective-collision
+     * statistic, not a spectral-side signal-sufficiency measure (spectral
+     * sample sizes are per-direction and independently 8/8/4, per {@code
+     * LGA_DIRECTION}). No dedicated spectral low-signal metric exists to
+     * substitute cheaply without inventing a new threshold, which would be
+     * scope creep for this round -- the parameter is named for what it
+     * ACTUALLY is (the transport flag reused as a proxy) rather than what
+     * it is used for, so a reader of this signature is not misled into
+     * thinking a spectral-specific signal check backs this branch.
+     */
+    static String ridgeVerdictText(boolean anyNaNRidge, boolean anyNonzeroRidge,
+                                    boolean transportSmallNUsedAsSpectralProxy) {
+        if (anyNaNRidge) {
+            return "INSTRUMENT ANOMALY -- at least one pooled SPECTRAL direction's mean ridge slope is NaN, "
+                   + "which is neither a valid RIDGE PRESENT nor RIDGE ABSENT determination; reported as an "
+                   + "anomaly rather than silently defaulting to RIDGE ABSENT";
+        }
+        if (anyNonzeroRidge) {
+            return "RIDGE PRESENT -- at least one pooled SPECTRAL direction has a nonzero ridge slope";
+        }
+        String measured = "RIDGE ABSENT -- every pooled SPECTRAL direction's ridge slope is exactly zero";
+        if (transportSmallNUsedAsSpectralProxy) {
+            return measured
+                   + " -- MEASURED ONLY: this observable alone does NOT distinguish EITHER purely diffusive "
+                   + "dynamics (no propagating branch, omega~i*D*k^2, AnisotropyProbe's own documented "
+                   + "signature) OR an estimator with insufficient signal to fit (this campaign's own "
+                   + "lgaSmallNEarlyTimeFlag above is set, and the campaign's excited-member/no-op "
+                   + "characterization elsewhere in this report documents a near-static contact graph, the "
+                   + "same signature AnisotropyProbe's own Javadoc names for the K=0 collision-free baseline "
+                   + "\"by construction\") -- no dynamics claim is made from this line alone";
+        }
+        return measured
+               + " -- consistent with the purely-diffusive-dynamics signature AnisotropyProbe's own Javadoc "
+               + "documents (no propagating branch, omega~i*D*k^2); this campaign is comfortably above the "
+               + "small-N threshold, so an insufficient-signal instrument state is a less likely alternative "
+               + "reading here, though this line alone still does not itself rule it out";
     }
 
     private static void appendDirectionRows(StringBuilder sb, long seed,
@@ -1146,29 +1574,164 @@ public final class PhaseCMeasurement {
                                                                 AnisotropyProbe.Report lga) {
         double[] phaseA = readPhaseATransportPooledSummary();
         var pcTransport = lga.pooledTransport();
+        double phaseARatio = phaseA[0];
+        double phaseALower = phaseA[1];
+        double phaseAUpper = phaseA[2];
+        double phaseAP = phaseA[3];
+        double pcLower = pcTransport.pooledRatioCiLower();
+        double pcUpper = pcTransport.pooledRatioCiUpper();
+        double pcP = pcTransport.permutationPValue();
+        boolean phaseAExcludes = ciExcludesOne(phaseALower, phaseAUpper);
+        boolean phaseASignificant = isSignificant(phaseAP);
+        boolean phaseCExcludes = ciExcludesOne(pcLower, pcUpper);
+        boolean phaseCSignificant = isSignificant(pcP);
         sb.append("# ciVsPermutationReconciliation=the pooled TRANSPORT ratio's resample-then-aggregate bootstrap CI (bounded below by 1.0 by construction -- a max/min-of-3 order statistic, upward-biased by seed noise, AnisotropyProbe's own class Javadoc \"STACKED-REVIEW CORRECTION\") is NOT the significance statistic; permutationPValue IS, per that same locked convention. TWO-CAMPAIGN PATTERN: Phase A pooled TRANSPORT ratio=")
-          .append(formatPrecise(phaseA[0])).append(" CI=[").append(formatPrecise(phaseA[1]))
-          .append(',').append(formatPrecise(phaseA[2])).append("] (excludes 1.0) permutationP=")
-          .append(formatPrecise(phaseA[3]))
-          .append(" (NOT significant); Phase C pooled TRANSPORT ratio=")
+          .append(formatPrecise(phaseARatio)).append(" CI=[").append(formatPrecise(phaseALower))
+          .append(',').append(formatPrecise(phaseAUpper)).append("] ")
+          .append(ciExclusionClause(phaseAExcludes)).append(" permutationP=")
+          .append(formatPrecise(phaseAP)).append(' ')
+          .append(significanceClause(phaseASignificant))
+          .append("; Phase C pooled TRANSPORT ratio=")
           .append(formatPrecise(pcTransport.pooledRatio().orElse(Double.NaN)))
-          .append(" CI=[").append(formatPrecise(pcTransport.pooledRatioCiLower()))
-          .append(',').append(formatPrecise(pcTransport.pooledRatioCiUpper()))
-          .append("] (excludes 1.0) permutationP=").append(formatPrecise(pcTransport.permutationPValue()))
-          .append(" (NOT significant) -- in BOTH campaigns the CI-excludes-1.0 signal does NOT correspond to permutation significance, consistent with this CI being anti-conservative at this campaign scale, not evidence of a real per-seed direction effect. A reader must not treat \"CI excludes 1.0\" as significance evidence here.\n");
+          .append(" CI=[").append(formatPrecise(pcLower))
+          .append(',').append(formatPrecise(pcUpper)).append("] ")
+          .append(ciExclusionClause(phaseCExcludes)).append(" permutationP=")
+          .append(formatPrecise(pcP)).append(' ')
+          .append(significanceClause(phaseCSignificant))
+          .append(" -- ")
+          .append(ciVsPermutationConclusion(phaseAExcludes, phaseASignificant,
+                                             phaseCExcludes, phaseCSignificant))
+          .append('\n');
+    }
+
+    /**
+     * C3 pure helper: whether a pooled ratio's CI excludes 1.0 (the
+     * no-anisotropy null value) -- DERIVED from the actual CI bounds,
+     * never assumed.
+     */
+    static boolean ciExcludesOne(double ciLower, double ciUpper) {
+        return ciLower > 1.0 || ciUpper < 1.0;
+    }
+
+    /** C3 pure helper: the locked significance threshold, p&lt;=0.05, matching posture(iii)'s own convention. */
+    static boolean isSignificant(double permutationP) {
+        return permutationP <= 0.05;
+    }
+
+    /** C3 pure helper: label text for {@link #ciExcludesOne}, both branches. */
+    static String ciExclusionClause(boolean excludesOne) {
+        return excludesOne ? "(excludes 1.0)" : "(includes 1.0)";
+    }
+
+    /** C3 pure helper: label text for {@link #isSignificant}, both branches. */
+    static String significanceClause(boolean significant) {
+        return significant ? "(significant)" : "(NOT significant)";
+    }
+
+    /**
+     * C3 pure helper (Critical fix): the two-campaign concluding sentence,
+     * DERIVED from all four booleans rather than a hardcoded "in BOTH
+     * campaigns ..." literal that would silently go stale (and, per the
+     * report's own {@code powerRecommendationForGate}, the recommended
+     * follow-up campaign is precisely the kind of re-run that could flip
+     * this). Package-private for direct unit testing of every branch
+     * combination with synthetic booleans.
+     */
+    static String ciVsPermutationConclusion(boolean phaseAExcludes, boolean phaseASignificant,
+                                              boolean phaseCExcludes, boolean phaseCSignificant) {
+        boolean phaseAAntiConservative = phaseAExcludes && !phaseASignificant;
+        boolean phaseCAntiConservative = phaseCExcludes && !phaseCSignificant;
+        if (phaseAAntiConservative && phaseCAntiConservative) {
+            return "in BOTH campaigns the CI-excludes-1.0 signal does NOT correspond to permutation significance, "
+                   + "consistent with this CI being anti-conservative at this campaign scale, not evidence of a "
+                   + "real per-seed direction effect. A reader must not treat \"CI excludes 1.0\" as significance "
+                   + "evidence here.";
+        }
+        if (phaseAAntiConservative != phaseCAntiConservative) {
+            return "the two campaigns DISAGREE on the CI-excludes-1.0-without-permutation-significance pattern ("
+                   + (phaseAAntiConservative ? "Phase A shows it, Phase C does not"
+                                              : "Phase C shows it, Phase A does not")
+                   + ") -- this reconciliation must be re-examined against the current numbers, not assumed to "
+                   + "still hold uniformly.";
+        }
+        return "NEITHER campaign shows the CI-excludes-1.0-without-permutation-significance pattern this note "
+               + "originally described -- re-examine whether this reconciliation is still applicable rather than "
+               + "assuming it.";
     }
 
     /**
      * Critic relay item 4: a concrete, non-decisional recommendation for
      * .23 -- framed as an input to the gate, not a posture choice.
+     *
+     * <p>Fix-round Critical 1 correction: seed/tick scaling alone CANNOT
+     * remove the absorbing-IC contamination this report's ANISOTROPY
+     * CAMPAIGN EQUALITY characterization documents -- every background
+     * member is seeded quanta=0 (a permanent no-op preimage under the
+     * accepted diff=0 self-loop), so scaling seeds/ticks multiplies MORE
+     * copies of the SAME frozen-contact regime, not a differently-powered
+     * one. The seeds/ticks arithmetic below is kept (it is still the
+     * correct power calculation for the CURRENT seeding), but is
+     * explicitly SUBORDINATED to a seeding-design caveat: the
+     * remediation this report can identify but not decide is a
+     * non-absorbing background seeding (e.g. the long run's own random
+     * nonzero quanta, which DO rotate) -- framed here as a USER design
+     * decision for the .23 gate, not a selection this class makes.
+     *
+     * <p>Round-3 wording correction (reviewer R2-4): the seeding caveat
+     * previously labelled itself "SUBORDINATE to the arithmetic above",
+     * which inverts the finding -- the caveat GOVERNS the arithmetic (the
+     * seeds/ticks scaling is valid only once the seeding contamination is
+     * removed), not the reverse.
      */
     private static void appendPowerRecommendation(StringBuilder sb,
                                                      double meanEffectivePerSeed) {
-        sb.append("# powerRecommendationForGate=both Phase A (mean 29.25 effective collisions/seed) and Phase C (mean ")
+        double phaseAMean = readPhaseAMeanEffectiveCollisionsPerSeed();
+        double threshold = AnisotropyProbe.SMALL_N_EFFECTIVE_COLLISIONS_THRESHOLD;
+        boolean phaseABelow = phaseAMean < threshold;
+        boolean phaseCBelow = meanEffectivePerSeed < threshold;
+        sb.append("# powerRecommendationForGate=Phase A (mean ")
+          .append(formatPrecise(phaseAMean))
+          .append(" effective collisions/seed) and Phase C (mean ")
           .append(formatPrecise(meanEffectivePerSeed))
-          .append(", worse) fall below the informational small-N threshold (")
-          .append(AnisotropyProbe.SMALL_N_EFFECTIVE_COLLISIONS_THRESHOLD)
-          .append("). RECOMMENDATION (an input to the .23 gate, NOT a decision made here): a properly-powered follow-up anisotropy campaign, seeds 8->24 and ticks 128->400-500 -- this campaign's full wall time (~177s) leaves ample headroom for that scale-up. This is a DISTINCT decision point from the three isotropy postures in Section 5: the user may reasonably choose to defer any posture commitment until a properly-powered campaign exists, rather than choosing among postures on the current underpowered data.\n");
+          .append(") ").append(belowThresholdClause(phaseABelow, phaseCBelow))
+          .append(" the informational small-N threshold (")
+          .append(threshold)
+          .append("). SEEDS/TICKS POWER ARITHMETIC (an input to the .23 gate, NOT a decision made here): "
+                  + "a properly-powered follow-up anisotropy campaign, seeds 8->24 and ticks 128->400-500. "
+                  + "SEEDING CAVEAT (fix-round Critical 1, GOVERNS the arithmetic above: the seeds/ticks "
+                  + "scaling is valid only once this seeding contamination is removed, not optional "
+                  + "context): this campaign's own background is seeded all-zero-quanta, an "
+                  + "ABSORBING initial condition under the accepted diff=0 self-loop (see this report's "
+                  + "ANISOTROPY CAMPAIGN EQUALITY characterization) -- seed/tick scaling alone CANNOT remove "
+                  + "this contamination: scaling seeds/ticks multiplies the SAME frozen-contact regime, it "
+                  + "does NOT power up a differently-behaved one. A "
+                  + "non-absorbing background seeding (e.g. random nonzero quanta, as the long run already "
+                  + "uses) is the remediation this report can identify but not decide -- that choice, and "
+                  + "whether to combine it with the seeds/ticks scaling above, is a USER DESIGN DECISION for "
+                  + "the .23 gate, not a selection made here. This whole recommendation is a DISTINCT "
+                  + "decision point from the three isotropy postures in Section 5: the user may reasonably "
+                  + "choose to defer any posture commitment until a properly-powered, non-absorbing-seeding "
+                  + "campaign exists, rather than choosing among postures on the current underpowered, "
+                  + "contaminated data.\n");
+    }
+
+    /**
+     * C3 pure helper: which campaign(s) actually fall below the small-N
+     * threshold, DERIVED from the two booleans rather than a hardcoded
+     * "both ... fall below" literal. Package-private for direct unit
+     * testing of all four combinations with synthetic booleans.
+     */
+    static String belowThresholdClause(boolean phaseABelow, boolean phaseCBelow) {
+        if (phaseABelow && phaseCBelow) {
+            return "BOTH fall below";
+        }
+        if (phaseABelow) {
+            return "Phase A falls below (but Phase C does NOT fall below)";
+        }
+        if (phaseCBelow) {
+            return "Phase C falls below (but Phase A does NOT fall below)";
+        }
+        return "NEITHER falls below";
     }
 
     /**
@@ -1198,6 +1761,36 @@ public final class PhaseCMeasurement {
         }
     }
 
+    /**
+     * C2/C3 fix: reads the committed Phase A artifact's OWN {@code
+     * smallNEarlyTimeFlag} header line live (never hardcoded, replacing
+     * the pre-fix literal {@code 29.25}) -- that header's prose carries
+     * {@code mean effective collisions/seed=<value>} in scientific
+     * notation, parsed here rather than re-measured.
+     */
+    private static double readPhaseAMeanEffectiveCollisionsPerSeed() {
+        try {
+            List<String> lines = Files.readAllLines(Paths.get(PHASE_A_RELATIVE_PATH));
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("mean effective collisions/seed=([0-9.eE+-]+)");
+            for (String line : lines) {
+                if (line.startsWith("# smallNEarlyTimeFlag=")) {
+                    java.util.regex.Matcher matcher = pattern.matcher(line);
+                    if (matcher.find()) {
+                        return Double.parseDouble(matcher.group(1));
+                    }
+                }
+            }
+            throw new IllegalStateException("Phase A artifact at " + PHASE_A_RELATIVE_PATH
+                                             + " has no smallNEarlyTimeFlag header with a "
+                                             + "\"mean effective collisions/seed=\" value");
+        } catch (IOException e) {
+            throw new IllegalStateException("failed to read Phase A artifact at "
+                                             + PHASE_A_RELATIVE_PATH
+                                             + " for the power recommendation",
+                                             e);
+        }
+    }
+
     private static void appendPooledDirectionRows(StringBuilder sb,
                                                      String estimator,
                                                      PooledResult pooled) {
@@ -1221,6 +1814,149 @@ public final class PhaseCMeasurement {
           .append('\t').append(formatPrecise(pooled.permutationPValue()))
           .append('\t').append(formatPrecise(pooled.permutationNull95()))
           .append('\t').append(pooled.permutationCount()).append('\n');
+    }
+
+    /**
+     * Fix-round Critical 2: the raw per-CONTACT-direction collision
+     * census -- previously collected (via {@link #lgaSubstrateFactory}'s
+     * {@code perSeedStatsSink}) but only ever consumed for tick-quartile
+     * TOTALS, never surfaced per-direction. Emits per-seed and pooled
+     * census rows for the anisotropy campaign, a chi-squared-against-
+     * uniform test on the pooled counts, and the long run's own
+     * per-direction census for BOTH substrates plus the derived
+     * hopping-rate tensor. EVIDENCE ROWS ONLY -- see {@code
+     * contactDirectionCensusNote} below for the hard framing constraint.
+     *
+     * <p>Round-3 additions (critic S-NEW-2): the chi-squared's UNIFORM-null
+     * premise (all six directions {@code <110>}-type / O_h-equivalent with
+     * identical per-tick exposure) is now stated in-artifact rather than
+     * left implicit in code Javadoc only; a double-underflow pooled
+     * p-value is annotated rather than left as a bare, misreadable {@code
+     * 0.000000000e+00}; and EFFECTIVE-transfer-only per-direction counts
+     * (the population that actually moves quanta) are emitted alongside
+     * the raw recorded-contact census.
+     */
+    private static void appendContactDirectionCensusSection(StringBuilder sb,
+                                                                Report report) {
+        sb.append("# === SECTION 1B: FCC CONTACT-DIRECTION CENSUS (evidence rows only, no posture -- see contactDirectionCensusNote) ===\n");
+        sb.append("# columns(LGA_CONTACT_DIRECTION_SEED)=recordType\tseed\td1\td2\td3\td4\td5\td6\ttotal (raw per-CONTACT-direction collision counts, FccNeighborhood's positive directions 1..6 -- DISTINCT from LGA_DIRECTION's X100/X110/X111 k-space probe directions, an unrelated direction space)\n");
+        sb.append("# columns(LGA_CONTACT_DIRECTION_POOLED)=recordType\td1\td2\td3\td4\td5\td6\ttotal\tchiSquare\tdf\tpValue (pooled across all 8 anisotropy-campaign seeds; standard Pearson chi-squared goodness-of-fit against a UNIFORM null over the 6 directions, computed live -- see chiSquareCaveat)\n");
+        for (ContactDirectionCensus c : report.anisotropyContactDirectionPerSeed()) {
+            appendContactDirectionRow(sb, "LGA_CONTACT_DIRECTION_SEED", c.scope(),
+                                       c.perDirection());
+        }
+        java.util.Map<Integer, Long> pooled = pooledDirectionCounts(report.anisotropyContactDirectionPerSeed());
+        long[] pooledArray = new long[6];
+        for (int d = 1; d <= 6; d++) {
+            pooledArray[d - 1] = pooled.get(d);
+        }
+        double chiSquare = chiSquareStatistic(pooledArray);
+        int df = pooledArray.length - 1;
+        double pValue = chiSquarePValue(chiSquare, df);
+        sb.append("LGA_CONTACT_DIRECTION_POOLED");
+        for (int d = 1; d <= 6; d++) {
+            sb.append('\t').append(pooled.get(d));
+        }
+        long pooledTotal = 0;
+        for (long v : pooledArray) {
+            pooledTotal += v;
+        }
+        sb.append('\t').append(pooledTotal).append('\t')
+          .append(formatPrecise(chiSquare)).append('\t').append(df).append('\t')
+          .append(formatPrecise(pValue)).append('\n');
+        sb.append("# uniformNullPremise=the chi-squared above tests the pooled counts against a UNIFORM "
+                  + "expected count per direction; this is physically motivated, not arbitrary, because all six "
+                  + "canonical FCC contact directions (FccNeighborhood's positive directions 1..6) are "
+                  + "<110>-type / O_h-equivalent offsets (each a two-nonzero-coordinate unit vector related to "
+                  + "the others by cubic point-group symmetry), and every even-parity member queries all six "
+                  + "exactly once per tick (LatticeGasAutomaton's per-cell contact loop, direction=1..6) -- equal "
+                  + "symmetry class and equal per-tick exposure are what make a uniform expected count the "
+                  + "correct null under isotropy, rather than a default chosen for convenience\n");
+        if (pValue == 0.0) {
+            sb.append("# pValueUnderflowNote=the pValue column above (")
+              .append(formatPrecise(pValue))
+              .append(") is a DOUBLE UNDERFLOW, not a computed exact zero -- a chi-squared this large (chi2=")
+              .append(formatPrecise(chiSquare)).append(", df=").append(df)
+              .append(") drives the upper-incomplete-gamma evaluation below double's representable range, so "
+                      + "the true value is p < 1.0e-300; reported here so the printed 0.0 is not misread as an "
+                      + "exact computed zero\n");
+        }
+        sb.append("# chiSquareCaveat=this chi-squared tests uniformity of the RAW RECORDED-COLLISION EVENT counts, "
+                  + "NOT independence-adjusted -- per this report's ANISOTROPY CAMPAIGN EQUALITY characterization, "
+                  + "the anisotropy campaign's contact graph is near-static (same handful of frozen contacts fire "
+                  + "every tick), so these ")
+          .append(pooledTotal)
+          .append(" recorded events are NOT independent draws; read this p-value alongside that characterization, "
+                  + "not in isolation -- no independence-adjustment (e.g. an effective-sample-size deflation) is "
+                  + "attempted here, since choosing one would itself be a judgment call this instrument does not make\n");
+
+        sb.append("# columns(LGA_CONTACT_DIRECTION_EFFECTIVE_SEED)=recordType\tseed\td1\td2\td3\td4\td5\td6\ttotal "
+                  + "(fix-round item 2c: per-seed EFFECTIVE-transfer-only counts, transferMagnitude>0 -- the narrower "
+                  + "population that actually moves quanta and drives the hopping-tensor/D_hat estimate, additive-only "
+                  + "from the same CollisionStatistics sinks as LGA_CONTACT_DIRECTION_SEED above)\n");
+        sb.append("# columns(LGA_CONTACT_DIRECTION_EFFECTIVE_POOLED)=recordType\td1\td2\td3\td4\td5\td6\ttotal "
+                  + "(pooled across all 8 anisotropy-campaign seeds; this total must equal ANISOTROPY_CAMPAIGN_EQUALITY_POOLED's "
+                  + "effectiveCollisions column -- same underlying per-seed CollisionStatistics#effectiveCollisions(), just "
+                  + "broken out by direction here)\n");
+        for (ContactDirectionCensus c : report.anisotropyEffectiveContactDirectionPerSeed()) {
+            appendContactDirectionRow(sb, "LGA_CONTACT_DIRECTION_EFFECTIVE_SEED", c.scope(),
+                                       c.perDirection());
+        }
+        java.util.Map<Integer, Long> pooledEffective = pooledDirectionCounts(report.anisotropyEffectiveContactDirectionPerSeed());
+        sb.append("LGA_CONTACT_DIRECTION_EFFECTIVE_POOLED");
+        long pooledEffectiveTotal = 0;
+        for (int d = 1; d <= 6; d++) {
+            long v = pooledEffective.getOrDefault(d, 0L);
+            sb.append('\t').append(v);
+            pooledEffectiveTotal += v;
+        }
+        sb.append('\t').append(pooledEffectiveTotal).append('\n');
+
+        sb.append("# columns(LONG_RUN_CONTACT_DIRECTION)=recordType\tsubstrate\td1\td2\td3\td4\td5\td6\ttotal (the SEPARATE Section 3/4 long run's own per-CONTACT-direction census, both substrates)\n");
+        sb.append("# columns(HOPPING_TENSOR)=recordType\tsubstrate\tDxx\tDyy\tDzz\tDxz\tDyz\tDxy (derived from LONG_RUN_CONTACT_DIRECTION via D = sum_d w_d * outer(e_d,e_d), e_d = FccNeighborhood's unit offset for positive direction d)\n");
+        appendContactDirectionRow(sb, "LONG_RUN_CONTACT_DIRECTION",
+                                   report.longRunHybridContactDirection().scope(),
+                                   report.longRunHybridContactDirection().perDirection());
+        appendContactDirectionRow(sb, "LONG_RUN_CONTACT_DIRECTION",
+                                   report.longRunLgaContactDirection().scope(),
+                                   report.longRunLgaContactDirection().perDirection());
+        appendHoppingTensorRow(sb, report.longRunHybridContactDirection());
+        appendHoppingTensorRow(sb, report.longRunLgaContactDirection());
+
+        sb.append("# contactDirectionCensusNote=this is a FIRST-ORDER directional-structure observable (which of "
+                  + "the six FCC contact directions collisions actually occur in), MECHANISM-DISTINCT from the "
+                  + "rank-4/FCHC risk the design memo names (a lattice can be exact-cubic-symmetric at 4th order "
+                  + "and still show first-order structure here, or vice versa) -- EVIDENCE ONLY, no posture is "
+                  + "selected or advocated from this census; interpretation is left to Section 5. The anisotropy "
+                  + "campaign in this bead runs the LGA substrate ONLY (see lgaSubstrateFactory) -- no hybrid "
+                  + "anisotropy run exists in this bead to compare the LGA_CONTACT_DIRECTION rows against; the "
+                  + "LONG_RUN_CONTACT_DIRECTION rows above are the only both-substrate comparison this report can "
+                  + "make, and are a DIFFERENT campaign (Section 3/4's shared long run, not the anisotropy packet "
+                  + "campaign).\n");
+        sb.append('\n');
+    }
+
+    private static void appendContactDirectionRow(StringBuilder sb, String recordType,
+                                                     String scope,
+                                                     java.util.Map<Integer, Long> perDirection) {
+        sb.append(recordType).append('\t').append(scope);
+        long total = 0;
+        for (int d = 1; d <= 6; d++) {
+            long v = perDirection.getOrDefault(d, 0L);
+            sb.append('\t').append(v);
+            total += v;
+        }
+        sb.append('\t').append(total).append('\n');
+    }
+
+    private static void appendHoppingTensorRow(StringBuilder sb,
+                                                  ContactDirectionCensus census) {
+        double[] tensor = hoppingTensor(census.perDirection());
+        sb.append("HOPPING_TENSOR\t").append(census.scope());
+        for (double component : tensor) {
+            sb.append('\t').append(formatPrecise(component));
+        }
+        sb.append('\n');
     }
 
     private static void appendSpectralSection(StringBuilder sb, Report report) {
@@ -1359,9 +2095,186 @@ public final class PhaseCMeasurement {
         return s.append(']').toString();
     }
 
+    // ------------------------------------------------------------------
+    // Fix-round Critical 2: pooled per-CONTACT-direction census + a
+    // standard Pearson chi-squared goodness-of-fit test against a uniform
+    // null over the six directions. FRAMING (hard constraint, relay item
+    // 2): these are EVIDENCE rows/facts, not a posture -- the pooled
+    // counts are RAW recorded-collision events, not independent draws
+    // (see ANISOTROPY_CAMPAIGN_EQUALITY above: the same handful of frozen
+    // contacts fire every tick), so this chi-squared answers "are the raw
+    // recorded EVENTS uniform across direction", not "is the underlying
+    // physical process isotropic" -- the two questions are NOT the same
+    // when observations repeat a near-static contact graph, and this
+    // instrument does not conflate them.
+    // ------------------------------------------------------------------
+
+    /** Pure helper: sums a list of per-seed censuses into one pooled census, directions 1..6 only. */
+    static java.util.Map<Integer, Long> pooledDirectionCounts(List<ContactDirectionCensus> perSeed) {
+        java.util.Map<Integer, Long> pooled = new java.util.TreeMap<>();
+        for (int d = 1; d <= 6; d++) {
+            pooled.put(d, 0L);
+        }
+        for (ContactDirectionCensus c : perSeed) {
+            for (var e : c.perDirection().entrySet()) {
+                pooled.merge(e.getKey(), e.getValue(), Long::sum);
+            }
+        }
+        return pooled;
+    }
+
+    /**
+     * Pearson chi-squared statistic against a UNIFORM null: {@code
+     * sum((observed-expected)^2/expected)}, {@code expected = total/n}.
+     * Pure, deterministic; {@code observed} must be non-empty with a
+     * positive total (both true by construction for a 6-direction
+     * pooled census with any recorded collisions).
+     */
+    static double chiSquareStatistic(long[] observed) {
+        double total = 0;
+        for (long o : observed) {
+            total += o;
+        }
+        double expected = total / observed.length;
+        double stat = 0;
+        for (long o : observed) {
+            double diff = o - expected;
+            stat += diff * diff / expected;
+        }
+        return stat;
+    }
+
+    /**
+     * Upper-tail p-value of a chi-squared statistic with {@code df}
+     * degrees of freedom -- {@code Q(df/2, chiSquare/2)}, the regularized
+     * upper incomplete gamma function (standard chi-squared survival
+     * function). Implemented locally (Numerical-Recipes-style series +
+     * continued-fraction evaluation of the incomplete gamma function)
+     * rather than pulling in a statistics dependency for one function --
+     * see class Javadoc "Spartan Design" convention. Deterministic, no
+     * RNG. Verified against textbook chi-squared critical values in
+     * {@code PhaseCMeasurementTest} (df=1 at x=3.841459 -> p~0.05, df=5
+     * at x=11.0705 -> p~0.05).
+     */
+    static double chiSquarePValue(double chiSquare, int df) {
+        if (chiSquare < 0) {
+            throw new IllegalArgumentException("chiSquare must be non-negative, was: "
+                                                + chiSquare);
+        }
+        if (df <= 0) {
+            throw new IllegalArgumentException("df must be positive, was: " + df);
+        }
+        if (chiSquare == 0) {
+            return 1.0;
+        }
+        return regularizedUpperIncompleteGamma(df / 2.0, chiSquare / 2.0);
+    }
+
+    /** {@code Q(a,x) = 1 - P(a,x)}, via series ({@code x < a+1}) or continued fraction ({@code x >= a+1}). */
+    private static double regularizedUpperIncompleteGamma(double a, double x) {
+        if (x < a + 1.0) {
+            return 1.0 - lowerIncompleteGammaSeries(a, x);
+        }
+        return upperIncompleteGammaContinuedFraction(a, x);
+    }
+
+    private static double lowerIncompleteGammaSeries(double a, double x) {
+        double ap = a;
+        double sum = 1.0 / a;
+        double del = sum;
+        for (int n = 1; n <= 200; n++) {
+            ap += 1.0;
+            del *= x / ap;
+            sum += del;
+            if (Math.abs(del) < Math.abs(sum) * 1e-15) {
+                break;
+            }
+        }
+        return sum * Math.exp(-x + a * Math.log(x) - logGamma(a));
+    }
+
+    private static double upperIncompleteGammaContinuedFraction(double a, double x) {
+        double tiny = 1e-300;
+        double b = x + 1.0 - a;
+        double c = 1.0 / tiny;
+        double d = 1.0 / b;
+        double h = d;
+        for (int i = 1; i <= 200; i++) {
+            double an = -i * (i - a);
+            b += 2.0;
+            d = an * d + b;
+            if (Math.abs(d) < tiny) {
+                d = tiny;
+            }
+            c = b + an / c;
+            if (Math.abs(c) < tiny) {
+                c = tiny;
+            }
+            d = 1.0 / d;
+            double del = d * c;
+            h *= del;
+            if (Math.abs(del - 1.0) < 1e-15) {
+                break;
+            }
+        }
+        return Math.exp(-x + a * Math.log(x) - logGamma(a)) * h;
+    }
+
+    private static final double[] LANCZOS_COEFFICIENTS = { 76.18009172947146,
+                                                             -86.50532032941677,
+                                                             24.01409824083091,
+                                                             -1.231739572450155,
+                                                             0.1208650973866179e-2,
+                                                             -0.5395239384953e-5 };
+
+    /** Lanczos-approximation log-gamma, standard textbook coefficients. */
+    private static double logGamma(double x) {
+        double y = x;
+        double tmp = x + 5.5;
+        tmp -= (x + 0.5) * Math.log(tmp);
+        double ser = 1.000000000190015;
+        for (double c : LANCZOS_COEFFICIENTS) {
+            y += 1.0;
+            ser += c / y;
+        }
+        return -tmp + Math.log(2.5066282746310005 * ser / x);
+    }
+
+    /**
+     * The hopping-rate tensor {@code D = sum_d w_d * outer(e_d,e_d)} over
+     * the six positive FCC contact directions, {@code e_d} = {@link
+     * FccNeighborhood#offsetOf}'s unit vector, {@code w_d} = that
+     * direction's collision-census weight. Returns {@code [Dxx, Dyy, Dzz,
+     * Dxz, Dyz, Dxy]}. A first-order directional-structure observable --
+     * see the artifact's own {@code contactDirectionCensusNote} for the
+     * framing constraint (evidence, not a posture).
+     */
+    static double[] hoppingTensor(java.util.Map<Integer, Long> perDirection) {
+        double dxx = 0, dyy = 0, dzz = 0, dxz = 0, dyz = 0, dxy = 0;
+        for (int direction = 1; direction <= 6; direction++) {
+            Point3i offset = FccNeighborhood.offsetOf(direction);
+            double norm = Math.sqrt((double) offset.x * offset.x
+                                     + (double) offset.y * offset.y
+                                     + (double) offset.z * offset.z);
+            double ex = offset.x / norm;
+            double ey = offset.y / norm;
+            double ez = offset.z / norm;
+            long w = perDirection.getOrDefault(direction, 0L);
+            dxx += w * ex * ex;
+            dyy += w * ey * ey;
+            dzz += w * ez * ez;
+            dxz += w * ex * ez;
+            dyz += w * ey * ez;
+            dxy += w * ex * ey;
+        }
+        return new double[] { dxx, dyy, dzz, dxz, dyz, dxy };
+    }
+
     private static void appendEquilibriumSection(StringBuilder sb, Report report) {
         sb.append("# === SECTION 4: EQUILIBRIUM QUANTA-DISTRIBUTION CHARACTERIZATION (SDB caveat, user decision 6) ===\n");
         sb.append("# equilibriumStatisticsAssumeSDB=false (explicit -- CollisionTable's collision rule is an ACCEPTED non-bijection, see class Javadoc)\n");
+        sb.append("# columns(QUANTA_HISTOGRAM)=recordType\tlabel\tn\tmean\tvariance\tmin\tmax (distributional SUMMARY only -- fix-round S5: this row does NOT itself carry the histogram despite its name; see QUANTA_HISTOGRAM_BIN for the actual per-value population counts)\n");
+        sb.append("# columns(QUANTA_HISTOGRAM_BIN)=recordType\tlabel\tvalue\tcount (exact per-value population count, one row per integer value in [min,max] inclusive, zero-filled for unobserved values -- localizes WHERE QUANTA_HISTOGRAM's variance drop concentrates, e.g. at value 0 for the SDB diff=0 self-loop, rather than leaving that inferred from variance alone)\n");
         appendHistogramRow(sb, report.quantaBefore());
         appendHistogramRow(sb, report.quantaAfter());
         sb.append("# sdbClosedForm=window=").append(report.sdb().window())
@@ -1385,22 +2298,78 @@ public final class PhaseCMeasurement {
                               / w.hybridRatePerTick());
         }
         int gapPeakWindow = argmax(relativeGaps);
+        double noOpFirst = noOpFractions.get(0);
+        double noOpLast = noOpFractions.get(noOpFractions.size() - 1);
+        boolean noOpPeakIsInterior = noOpPeakWindow != 0
+                                      && noOpPeakWindow != noOpFractions.size() - 1;
         sb.append("# equalityConcentrationEmpiricalTrend=lgaNoOpFractionByWindow=")
           .append(formatSeries(noOpFractions))
           .append(", peak at window ").append(noOpPeakWindow).append(" (")
           .append(formatPrecise(noOpFractions.get(noOpPeakWindow)))
           .append(")")
-          .append(" -- OVERALL RISING (first->last: ").append(formatPrecise(noOpFractions.get(0)))
-          .append(" -> ").append(formatPrecise(noOpFractions.get(noOpFractions.size() - 1)))
-          .append("), dynamical corroboration of the SDB closed-form's diff=0 preimage concentration (pairs settling into the permanent equality self-loop), but peaks at an INTERIOR window (")
-          .append(noOpPeakWindow)
-          .append(") then dips slightly rather than rising monotonically. NOTE: Section 3's relativeRateGapByWindow peaks at window ")
-          .append(gapPeakWindow).append(", i.e. ")
-          .append(noOpPeakWindow == gapPeakWindow + 1
-                  ? "exactly ONE WINDOW LATER than this trend's own peak"
-                  : "at a different window than this trend's own peak (window " + noOpPeakWindow + ")")
+          .append(" -- ").append(trendShapeStatement(noOpFirst, noOpLast))
+          .append(" (first->last: ").append(formatPrecise(noOpFirst))
+          .append(" -> ").append(formatPrecise(noOpLast))
+          .append(")").append(sdbCorroborationClause(noOpFirst, noOpLast))
+          .append(noOpPeakIsInterior
+                  ? ", but peaks at an INTERIOR window (" + noOpPeakWindow
+                    + ") rather than at the trend's own endpoint"
+                  : ", consistent with a monotonic trend across the full window series")
+          .append(". NOTE: ")
+          .append(lagNote(noOpPeakWindow, gapPeakWindow))
           .append(" -- the two trends are NOT the same mechanism showing up identically; stated explicitly rather than implying a single coupled cause.\n");
         sb.append('\n');
+    }
+
+    /**
+     * Post-C1-fix pure helper (Critical): states whether {@code
+     * noOpPeakWindow} (the no-op-fraction trend's OWN peak -- the
+     * grammatical SUBJECT) occurs ONE WINDOW LATER than {@code
+     * gapPeakWindow} (Section 3's relativeRateGapByWindow peak), matching
+     * the guard's exact semantics ({@code noOpPeakWindow ==
+     * gapPeakWindow + 1} means the NO-OP trend peaks LATER). The pre-fix
+     * bug made the GAP series the subject instead and inverted the
+     * reported direction. Package-private (not {@code private}) so it can
+     * be unit-tested directly with synthetic window indices covering both
+     * branches -- exactly the coverage gap (Important #2) that hid the
+     * original inversion from every existing test.
+     */
+    static String lagNote(int noOpPeakWindow, int gapPeakWindow) {
+        return "this trend's own peak (window " + noOpPeakWindow + ") occurs "
+               + (noOpPeakWindow == gapPeakWindow + 1
+                  ? "exactly ONE WINDOW LATER than"
+                  : "at a different window than")
+               + " Section 3's relativeRateGapByWindow peak (window " + gapPeakWindow + ")";
+    }
+
+    /**
+     * The SDB-corroboration clause must track the same first-vs-last
+     * comparison as {@link #trendShapeStatement}: the closed form
+     * predicts a RISING no-op fraction, so only a rising trend
+     * corroborates it -- a falling or flat trend must say so instead
+     * of silently claiming corroboration.
+     */
+    static String sdbCorroborationClause(double first, double last) {
+        if (last > first) {
+            return ", dynamical corroboration of the SDB closed-form's diff=0 preimage concentration (pairs settling into the permanent equality self-loop)";
+        }
+        return ", NOT corroborating the SDB closed-form's diff=0 preimage-concentration prediction (the closed form predicts a RISING no-op fraction; this series is not rising first->last)";
+    }
+
+    /**
+     * C3 pure helper: the trend-shape headline for a first-vs-last
+     * comparison, DERIVED from the data rather than the unconditional
+     * "OVERALL RISING" literal the pre-fix code always emitted regardless
+     * of the actual series.
+     */
+    static String trendShapeStatement(double first, double last) {
+        if (last > first) {
+            return "OVERALL RISING";
+        } else if (last < first) {
+            return "OVERALL FALLING";
+        } else {
+            return "OVERALL FLAT (first == last)";
+        }
     }
 
     private static void appendHistogramRow(StringBuilder sb,
@@ -1409,6 +2378,136 @@ public final class PhaseCMeasurement {
           .append(h.n()).append('\t').append(formatPrecise(h.mean())).append('\t')
           .append(formatPrecise(h.variance())).append('\t').append(h.min())
           .append('\t').append(h.max()).append('\n');
+        for (var e : h.bins().entrySet()) {
+            sb.append("QUANTA_HISTOGRAM_BIN\t").append(h.label()).append('\t')
+              .append(e.getKey()).append('\t').append(e.getValue()).append('\n');
+        }
+    }
+
+    /**
+     * Fix-round Critical 1: characterizes the SDB equality-concentration
+     * ON THE ANISOTROPY CAMPAIGN ITSELF (extent 8,8,8 / 8 seeds / 127
+     * ticks / packet-in-vacuum IC) -- Section 4 above characterizes it
+     * only on the SEPARATE long run (extent 4,4,4 / random background),
+     * where the effect is mild; this campaign's all-zero-quanta
+     * background makes it the campaign's own INITIAL CONDITION and, under
+     * the accepted diff=0 self-loop, ABSORBING -- a zero-quanta member's
+     * phase never advances, so a {@code (0,0)} contact is a PERMANENT,
+     * not merely likely, no-op. Every field here is measured from the
+     * additive census sinks {@link #lgaSubstrateFactory} populates (see
+     * {@link AnisotropyCampaignEquality}'s Javadoc) -- nothing here is
+     * assumed or re-derived from the long run's different campaign.
+     *
+     * <p>Round-3 corrections: (R2-1) {@code activeMemberSlotsTotal} is now
+     * scoped to the WHOLE pooled campaign ({@code
+     * AnisotropyProbe.DEFAULT_SEEDS.length} lattices' worth of even-parity
+     * member slots), not one lattice, matching the pooled {@code
+     * excitedMembers*Total} numerator it is divided against in the
+     * narrative below -- the prior single-lattice denominator understated
+     * the campaign's contamination 8x. (R2-2) the collisionsPerTick
+     * flatness claim is now derived from the measured per-seed
+     * first-vs-last delta ({@link #tickFlatnessStatement}) rather than an
+     * unconditional "FLAT" literal (seed 47 goes 23-&gt;21, which the old
+     * literal did not reflect).
+     */
+    private static void appendAnisotropyCampaignEqualitySection(StringBuilder sb,
+                                                                    Report report) {
+        sb.append("# === SECTION 4B: ANISOTROPY CAMPAIGN EQUALITY CHARACTERIZATION (fix-round Critical 1 -- the SDB gate item, ON THE CAMPAIGN THE ISOTROPY STATISTIC ACTUALLY COMES FROM) ===\n");
+        sb.append("# columns(ANISOTROPY_CAMPAIGN_EQUALITY_SEED)=recordType\tseed\ttotalCollisions\teffectiveCollisions\tnoOpFraction\texcitedMembersInitial\tcellsTouchedInitial\texcitedMembersFinal\tcellsTouchedFinal\tcollisionsAtFirstTick\tcollisionsAtLastTick\n");
+        sb.append("# columns(ANISOTROPY_CAMPAIGN_EQUALITY_POOLED)=recordType\ttotalCollisions\teffectiveCollisions\tnoOpFraction\tactiveMemberSlotsTotal\tevenParityCellsTotal\texcitedMembersInitialTotal\texcitedMembersFinalTotal\n");
+        long pooledTotal = 0;
+        long pooledEffective = 0;
+        long pooledExcitedInitial = 0;
+        long pooledExcitedFinal = 0;
+        long[] firstTicks = new long[report.anisotropyCampaignEquality().size()];
+        long[] lastTicks = new long[report.anisotropyCampaignEquality().size()];
+        int seedIdx = 0;
+        for (AnisotropyCampaignEquality e : report.anisotropyCampaignEquality()) {
+            sb.append("ANISOTROPY_CAMPAIGN_EQUALITY_SEED\t").append(e.seed())
+              .append('\t').append(e.totalCollisions()).append('\t')
+              .append(e.effectiveCollisions()).append('\t')
+              .append(formatPrecise(e.noOpFraction())).append('\t')
+              .append(e.excitedMembersInitial()).append('\t')
+              .append(e.cellsTouchedInitial()).append('\t')
+              .append(e.excitedMembersFinal()).append('\t')
+              .append(e.cellsTouchedFinal()).append('\t')
+              .append(e.collisionsAtFirstTick()).append('\t')
+              .append(e.collisionsAtLastTick()).append('\n');
+            pooledTotal += e.totalCollisions();
+            pooledEffective += e.effectiveCollisions();
+            pooledExcitedInitial += e.excitedMembersInitial();
+            pooledExcitedFinal += e.excitedMembersFinal();
+            firstTicks[seedIdx] = e.collisionsAtFirstTick();
+            lastTicks[seedIdx] = e.collisionsAtLastTick();
+            seedIdx++;
+        }
+        double pooledNoOpFraction = pooledTotal == 0L ? Double.NaN
+                                                        : (double) (pooledTotal
+                                                                     - pooledEffective)
+                                                          / pooledTotal;
+        // R2-1: the denominator must be scoped to the WHOLE pooled
+        // campaign (every seed's own lattice of even-parity member slots),
+        // not one lattice -- the numerator (pooledExcitedInitial/Final) is
+        // already summed across all AnisotropyProbe.DEFAULT_SEEDS.length
+        // seeds.
+        long activeMemberSlotsTotal = evenParityCellCount(AnisotropyProbe.DEFAULT_EXTENT)
+                                       * 30L
+                                       * AnisotropyProbe.DEFAULT_SEEDS.length;
+        long evenParityCellsTotal = evenParityCellCount(AnisotropyProbe.DEFAULT_EXTENT);
+        sb.append("ANISOTROPY_CAMPAIGN_EQUALITY_POOLED\t").append(pooledTotal)
+          .append('\t').append(pooledEffective).append('\t')
+          .append(formatPrecise(pooledNoOpFraction)).append('\t')
+          .append(activeMemberSlotsTotal).append('\t')
+          .append(evenParityCellsTotal).append('\t')
+          .append(pooledExcitedInitial).append('\t')
+          .append(pooledExcitedFinal).append('\n');
+        sb.append("# anisotropyCampaignEqualityCharacterization=pooled no-op fraction=")
+          .append(formatPrecise(pooledNoOpFraction)).append(" (")
+          .append(pooledTotal - pooledEffective).append('/').append(pooledTotal)
+          .append("), excited members ").append(pooledExcitedInitial)
+          .append("/").append(activeMemberSlotsTotal).append(" at t=0 -> ")
+          .append(pooledExcitedFinal).append("/").append(activeMemberSlotsTotal)
+          .append(" after the campaign's full 127-tick run, collisionsPerTick is ")
+          .append(tickFlatnessStatement(firstTicks, lastTicks))
+          .append(" (first-tick vs last-tick counts in ANISOTROPY_CAMPAIGN_EQUALITY_SEED above) -- "
+                  + "EQUALITY IS THIS CAMPAIGN'S OWN INITIAL CONDITION AND IS ABSORBING under the accepted "
+                  + "diff=0 self-loop (CollisionTable's non-bijective rule, Section 4's sdbClosedForm above): "
+                  + "every background member is seeded quanta=0, and phase[i]=floorMod(phase[i]+quanta[i],P) "
+                  + "means a zero-quanta member NEVER rotates, so a (0,0) contact is a PERMANENT no-op, not a "
+                  + "transient equilibrium approach -- this is a DIFFERENT and MORE SEVERE characterization "
+                  + "than Section 4's long-run trend (variance contraction from a WIDE random background), and "
+                  + "it is THIS campaign's data the isotropy statistic in Section 1/5 is computed from, not the "
+                  + "long run's.\n");
+        sb.append('\n');
+    }
+
+    /**
+     * Reviewer R2-2 fix: "collisionsPerTick is FLAT per seed" was an
+     * unconditional hardcoded literal even though seed 47's
+     * collisionsAtFirstTick/collisionsAtLastTick goes 23-&gt;21 (a C3-class
+     * defect -- a hardcoded conclusion not derived from the data -- at a
+     * new site). Branches on the MEASURED max {@code |first-last|} delta
+     * across seeds; the only non-arbitrary "flat" cutoff that does not
+     * itself require an invented tolerance is EXACT equality across every
+     * seed, so any nonzero delta is reported as the measured spread
+     * instead of a pass/fail judgment call.
+     */
+    static String tickFlatnessStatement(long[] firstTicks, long[] lastTicks) {
+        if (firstTicks.length != lastTicks.length) {
+            throw new IllegalArgumentException("firstTicks/lastTicks length mismatch: "
+                                                + firstTicks.length + " vs "
+                                                + lastTicks.length);
+        }
+        long maxAbsDelta = 0L;
+        for (int i = 0; i < firstTicks.length; i++) {
+            maxAbsDelta = Math.max(maxAbsDelta,
+                                    Math.abs(lastTicks[i] - firstTicks[i]));
+        }
+        if (maxAbsDelta == 0L) {
+            return "EXACTLY FLAT per seed (first-tick == last-tick for every seed)";
+        }
+        return "NOT EXACTLY FLAT per seed (max |first-tick - last-tick| delta across seeds = "
+               + maxAbsDelta + ")";
     }
 
     private static void appendPostureSection(StringBuilder sb, Report report) {
@@ -1433,7 +2532,19 @@ public final class PhaseCMeasurement {
           .append(transport.permutationPValue() > 0.05
                   ? "statistically indistinguishable from an isotropic null at this campaign's power -- CONSISTENT WITH but NOT PROOF OF this hypothesis (small-N caveat above applies: absence of significance here may reflect insufficient statistical power, not genuine isotropy)"
                   : "statistically distinguishable from an isotropic null -- evidence AGAINST this hypothesis as measured, though the small-N caveat above still bounds confidence in this finding")
+          .append(" -- CONTAMINATION CAVEAT (fix-round Critical 1): this evidence carries its own "
+                  + "contamination, not merely the small-N caveat above -- see this report's ANISOTROPY "
+                  + "CAMPAIGN EQUALITY characterization (the campaign's all-zero-quanta background is an "
+                  + "ABSORBING initial condition under the accepted diff=0 self-loop, ~99% no-op fraction, "
+                  + "<1% of members ever excited), which the permutation null is calibrated FROM, not "
+                  + "independently of -- a null calibrated on a contaminated realization cannot itself "
+                  + "certify power, so \"NOT significant\" here should be read alongside that "
+                  + "characterization, not in isolation")
           .append('\n');
+        sb.append("# section1BCrossReference=see Section 1B rows LGA_CONTACT_DIRECTION_*/HOPPING_TENSOR and their "
+                  + "premise note (uniformNullPremise/contactDirectionCensusNote) for a first-order FCC "
+                  + "contact-direction observable, MECHANISM-DISTINCT from the postures above -- evidence only, "
+                  + "no posture is selected or advocated by this pointer\n");
         sb.append("# ESCALATION=this report presents measured anisotropy ratios+CIs from BOTH estimators and evidence for all three postures; NO posture is selected by this bead -- selecting one is out of scope per the locked design and would be exactly the silent-scope-reduction failure the review gates exist to catch. Escalate to the user/orchestrator with these numbers for the posture decision.\n");
     }
 

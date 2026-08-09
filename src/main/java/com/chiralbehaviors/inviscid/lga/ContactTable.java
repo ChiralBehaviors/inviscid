@@ -22,10 +22,30 @@ import java.nio.file.Path;
 import com.chiralbehaviors.inviscid.PhiCoordinates;
 
 /**
- * The runtime contact-predicate TABLE (bead inviscid-0nx.19, Phase C.2),
- * transcribed once from a {@link ContactAtlas} so the formal LGA does NO
- * run-time geometry - {@link #contacts} is a single packed-bitset lookup,
- * never a {@link ContactPredicate} evaluation.
+ * The contact-predicate TABLE (bead inviscid-0nx.19, Phase C.2),
+ * transcribed once from a {@link ContactAtlas} into a single packed-bitset
+ * lookup ({@link #contacts}).
+ *
+ * <h2>Role in the formal LGA (fix-round correction, bead inviscid-0nx.23):
+ * NOT the firing path</h2>
+ * {@link LatticeGasAutomaton}'s USER-DECISION-FINAL contact-firing
+ * mechanism is {@link FineStepContactTable}, re-derived from LIVE {@link
+ * ContactPredicate} geometry at construction (57.8M evaluations, see that
+ * class's Javadoc and {@code LatticeGasAutomaton}'s class Javadoc,
+ * "Contact firing") -- NOT this table's bin-level ANY-OVERLAP bitset. This
+ * table's {@link #contacts} lookup is never consulted in the tick path; the
+ * table is still constructed and HEADER-CHECKED (see "Header pairing" on
+ * {@code LatticeGasAutomaton}), so a stale atlas still fails loudly at
+ * construction, but it is otherwise dead in the firing path. That earlier
+ * revision (bin-level ANY-OVERLAP firing) was measured to produce a ~6.6x
+ * collision-rate gap against the hybrid (bead inviscid-0nx.21's test 8),
+ * root-caused to ANY-OVERLAP's deliberate over-inclusiveness -- not a bug
+ * in this class, but a property of what "transcribed once, no run-time
+ * geometry" trades away for {@code LatticeGasAutomaton}'s specific tick-path
+ * needs. This class's OWN transcription/loading contract below (ANY-OVERLAP
+ * semantics, the REFUSES-to-load guard, the packed-index layout) is
+ * unchanged and still exactly what it says -- only the claim that {@code
+ * LatticeGasAutomaton} fires off it is corrected.
  *
  * <h2>Transcription semantics: ANY-OVERLAP (bead inviscid-gyt, USER
  * DECISION 2026-08-08)</h2>

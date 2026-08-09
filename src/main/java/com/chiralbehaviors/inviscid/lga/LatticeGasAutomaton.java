@@ -97,12 +97,20 @@ import com.chiralbehaviors.inviscid.measure.CollisionStatistics;
  * independent of cell-visitation order - see {@link #cellVisitOrder()}.
  *
  * <h2>Header pairing (bead inviscid-0nx.19's contract)</h2>
- * The constructor builds {@link ContactTable} and {@link PhaseQuantizer}
- * from the LITERAL SAME {@link ContactAtlas.Header} instance and asserts
- * {@code table.header().equals(quantizerHeader)} as a defence-in-depth
- * guard (see {@code ContactTable#header()}'s own Javadoc for why this
- * cross-check exists) - a future refactor that decouples the two
- * construction paths fails loudly here, not silently downstream.
+ * The constructor receives one {@link ContactTable} (built from a
+ * {@link ContactAtlas.Header}) and a second {@link ContactAtlas.Header}
+ * (today, in practice, the literal same instance) named {@code
+ * quantizerHeader}, and asserts {@code table.header().equals(quantizerHeader)}
+ * as a defence-in-depth guard (see {@code ContactTable#header()}'s own
+ * Javadoc for why this cross-check exists) - a future refactor that
+ * decouples the two construction paths fails loudly here, not silently
+ * downstream. <b>This guard compares {@link ContactAtlas.Header}
+ * equality ONLY</b> - it does not construct or hold a {@link
+ * PhaseQuantizer} instance (bead inviscid-0nx.23's fix-round removed the
+ * unused {@code quantizer} field and its package-private accessor, which
+ * had zero callers anywhere including tests; {@code quantizerHeader}'s
+ * name is retained for its OTHER live uses below - {@code subBinSteps},
+ * {@code geometryResolution}, {@code memberRadius}).
  *
  * @author halhildebrand
  */
@@ -131,7 +139,6 @@ public class LatticeGasAutomaton implements QuantaField, TickDriver {
     private final long[]              quanta;
     private List<Integer>             lastTouched = List.of();
     private final ContactTable        table;
-    private final PhaseQuantizer      quantizer;
     private final FineStepContactTable fineContacts;
     private final CollisionTable      collisions;
     private final CollisionStatistics statistics;
@@ -189,7 +196,6 @@ public class LatticeGasAutomaton implements QuantaField, TickDriver {
                                              + quantizerHeader);
         }
         this.table = table;
-        this.quantizer = PhaseQuantizer.of(quantizerHeader);
         this.collisions = collisions;
         this.statistics = statistics;
         this.nLga = table.nLga();
@@ -221,11 +227,6 @@ public class LatticeGasAutomaton implements QuantaField, TickDriver {
         int length = 30 * extent.x * extent.y * extent.z;
         this.phase = new int[length];
         this.quanta = new long[length];
-    }
-
-    /** @return the {@link PhaseQuantizer} this driver's {@link ContactTable} is paired with. */
-    PhaseQuantizer quantizer() {
-        return quantizer;
     }
 
     /** @return M, the sub-bin accumulator steps per contact bin. */
