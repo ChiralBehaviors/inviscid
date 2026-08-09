@@ -321,11 +321,16 @@ public final class AnisotropyProbe {
      * ratio-of-means ({@code pooledRatio}, with its own
      * resample-then-aggregate bootstrap CI {@code pooledRatioCiLower}/
      * {@code pooledRatioCiUpper}), plus a permutation/null-calibration
-     * test ({@code permutationPValue} = fraction of direction-label-
+     * test ({@code permutationPValue} = (countGe+1)/(permutationCount+1),
+     * the standard +1 continuity-corrected fraction of direction-label-
      * shuffled resamples whose pooled ratio meets or exceeds the
-     * observed one; {@code permutationNull95} = the null distribution's
-     * 95th percentile, for context; {@code permutationCount} = how many
-     * permutation draws were actually usable, i.e. non-degenerate).
+     * observed one -- the observed statistic is exchangeable with the
+     * null draws under H0, so it counts as one of its own reference set,
+     * and a finite permutation count can never license a fabricated
+     * exact-zero p-value; {@code permutationNull95} = the null
+     * distribution's 95th percentile, for context; {@code
+     * permutationCount} = how many permutation draws were actually
+     * usable, i.e. non-degenerate).
      */
     public record PooledResult(Map<StructureFactor.Direction, PooledDirectionStats> perDirection,
                                 OptionalDouble pooledRatio,
@@ -629,15 +634,25 @@ public final class AnisotropyProbe {
                                                            PERMUTATION_COUNT,
                                                            PERMUTATION_RNG_SEED);
             permutationCount = nulls.length;
+            // guards the +1 correction too (inviscid-0sn): without this,
+            // permutationCount==0 would compute (0+1)/(0+1)=1.0, a NEW
+            // fabricated-p=1.0 failure mode the correction could
+            // introduce, not just the original divide-by-zero.
             if (permutationCount > 0) {
                 double observed = observedRatio.getAsDouble();
-                long countGe = 0;
-                for (double v : nulls) {
-                    if (v >= observed) {
-                        countGe++;
-                    }
-                }
-                permutationPValue = countGe / (double) permutationCount;
+                long countGe = countGe(nulls, observed);
+                // +1 continuity correction (inviscid-0sn): under H0 the
+                // observed statistic is exchangeable with the null draws,
+                // so it counts as one of its own reference set -- avoids
+                // a fabricated exact-zero p-value that a finite
+                // permutation count can never actually prove. Maximum
+                // shift from the correction is bounded by
+                // 1/(permutationCount+1) (~5e-4 at N=2000), well inside
+                // the matched-noise control tests' margins to their 0.05
+                // threshold (~0.36 and ~0.048 -- see
+                // permutationTestIsNonSignificantForMatchedNoiseIsotropicControl
+                // / permutationTestDetectsGenuineTwoFoldAnisotropyAtMatchedNoise).
+                permutationPValue = (countGe + 1) / (double) (permutationCount + 1);
                 double[] sorted = nulls.clone();
                 Arrays.sort(sorted);
                 int idx95 = Math.min((int) (0.95 * sorted.length),
@@ -699,6 +714,28 @@ public final class AnisotropyProbe {
             }
         }
         return Arrays.copyOf(nulls, kept);
+    }
+
+    /**
+     * How many of {@code nulls} meet or exceed {@code observed} -- the
+     * numerator ingredient of the permutation p-value's +1 continuity
+     * correction (inviscid-0sn). Ties count TOWARD the null (conservative
+     * standard practice, consistent with the +1 correction's own
+     * exchangeability rationale): an exact tie is treated as "at least as
+     * extreme as observed", not excluded. Extracted as its own
+     * package-private method so the counting rule is directly testable
+     * without needing to force an exact tie through the full
+     * shuffle-based {@link #permutationNullDistribution} + campaign
+     * fixture (ties have ~0 probability under continuous noise).
+     */
+    static long countGe(double[] nulls, double observed) {
+        long countGe = 0;
+        for (double v : nulls) {
+            if (v >= observed) {
+                countGe++;
+            }
+        }
+        return countGe;
     }
 
     private static void shuffle(double[] arr, Random random) {
