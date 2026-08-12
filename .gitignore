@@ -7,6 +7,10 @@
 **/.idea
 **/.serena
 
+# Python analysis harness bytecode
+__pycache__/
+*.pyc
+
 
 # Beads / Dolt files (added by bd init)
 .dolt/

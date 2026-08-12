@@ -1,0 +1,59 @@
+name: CI
+
+# This repo commits directly to master, so the push build IS the gate -- there is
+# no PR check upstream of it and nothing is tested twice. The pull_request trigger
+# is here for the occasional branch; a tree that passed as a PR is not re-tested on
+# merge, because the paths filter and concurrency group below keep the gate single.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+# Back-to-back pushes must not stack full runs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # ubuntu only. The suite is headless by construction -- no JavaFX toolkit is
+    # started -- so there is nothing here that needs a macOS or Windows runner.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Temurin 21 rather than the author's local GraalVM 25: both satisfy the
+      # project's source/target 20, and building on a different JDK is what makes
+      # this a check rather than a mirror of one machine.
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build and test
+        run: mvn -B -ntp -Djava.awt.headless=true test
+
+      # Surefire's per-test detail is the only thing worth keeping off a red run,
+      # and it costs nothing on a green one.
+      - name: Upload surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          retention-days: 7

@@ -64,6 +64,19 @@
             <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- SVD, eigendecomposition and least-squares solves for the jitterbug
+             configuration-variety measurements (rank/nullity of the constraint
+             Jacobian, Kabsch alignment, Newton projection onto the variety).
+             TEST SCOPE ONLY: src/main stays on javax.vecmath and plain arithmetic.
+             If production code needs this, that is a design change to argue for,
+             not a scope widening to slip in. -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-math3</artifactId>
+            <version>3.6.1</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
