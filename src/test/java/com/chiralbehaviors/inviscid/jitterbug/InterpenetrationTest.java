@@ -33,10 +33,22 @@ import org.junit.Test;
  * This is the finding nobody was looking for, and it reframes {@code a = 60}
  * after that angle's claimed status as a rank singularity was refuted. The
  * model self-intersects on {@code (60, 120)} and on {@code (240, 300)} in the
- * {@code eps -> 0} limit, and nowhere else. So the admissible symmetric path is
- * the interval, not the circle: Fuller's "rotate a further 60 and lower" is a
- * re-grip past a hard contact, not a continuation, and there is no 2*pi circuit
- * for a periodicity argument to run on.
+ * {@code eps -> 0} limit, and nowhere else.
+ *
+ * <p>
+ * These tests measure the interference; they do not rule on it. Under USER
+ * DECISION 16 (2026-08-12, bead {@code inviscid-qvf.8}) interference is
+ * <b>permitted</b>, so the symmetric path continues through both intervals and
+ * the configuration space is the whole variety. An earlier version of this
+ * javadoc concluded that "the admissible symmetric path is the interval, not
+ * the circle" and that "there is no 2*pi circuit for a periodicity argument to
+ * run on"; that conclusion is <b>withdrawn</b>. It was a verdict on the
+ * measurement rather than the measurement, and every count asserted below is
+ * untouched by its withdrawal.
+ *
+ * <p>
+ * (The hbar periodicity argument stays dead regardless — it fails on three
+ * further independent counts that have nothing to do with interference.)
  *
  * <p>
  * At the finite margin the counter actually runs at, the endpoints sit a little

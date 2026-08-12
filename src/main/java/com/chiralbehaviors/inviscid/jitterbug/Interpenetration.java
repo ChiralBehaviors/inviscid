@@ -59,8 +59,26 @@ import java.util.List;
  * That still makes {@code a = 60} the <b>contact boundary</b> — a real
  * distinction, after its previously claimed distinction as a rank singularity
  * was refuted and the phenomenon was nearly discarded along with the mechanism.
- * The admissible symmetric path is therefore the interval [-60, 60], not a
- * circle, and there is no 2*pi circuit.
+ * At exactly 60, 120, 240 and 300 the struts <em>coincide</em> in pairs rather
+ * than cross, and the pierce count is 0 there: touching is not penetrating,
+ * which is what makes 60 a boundary rather than interior.
+ *
+ * <p>
+ * <b>What this class does NOT decide.</b> Everything above is a measurement.
+ * Whether interference <em>disqualifies</em> a configuration is a separate
+ * modelling choice, and it has been made the other way: under USER DECISION 16
+ * (2026-08-12, bead {@code inviscid-qvf.8}) <b>interference is permitted</b> —
+ * Fuller's reading, on which there are no faces at all, only 24 struts cohered
+ * at 12 flexible joints (Synergetics 460.011), and "there are only interfering
+ * and noninterfering patterns". The configuration space is the whole variety.
+ *
+ * <p>
+ * An earlier version of this javadoc concluded that "the admissible symmetric
+ * path is the interval [-60, 60], not a circle, and there is no 2*pi circuit".
+ * <b>That conclusion is WITHDRAWN.</b> It was a verdict attached to the
+ * measurement, not the measurement, and the verdict did not survive the
+ * decision. The counts, the intervals and the tangential onset are unaffected —
+ * which is precisely why the two were recorded separately.
  *
  * <p>
  * No new dependencies: plain arithmetic only.
