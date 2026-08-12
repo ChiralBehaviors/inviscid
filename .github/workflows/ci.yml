@@ -34,12 +34,12 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Temurin 21 rather than the author's local GraalVM 25: both satisfy the
       # project's source/target 20, and building on a different JDK is what makes
       # this a check rather than a mirror of one machine.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -52,7 +52,7 @@ jobs:
       # and it costs nothing on a green one.
       - name: Upload surefire reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: surefire-reports
           path: target/surefire-reports/
