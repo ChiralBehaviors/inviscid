@@ -87,6 +87,29 @@ on smoothness. The operative property is narrower: selecting a **proper subset**
 which is just non-smoothness of max/min over a tied family. Details and verdicts in T2
 `inviscid/V-kernel-family-survey.md`.
 
+Frequency spectrum (`jb_r` … `jb_t`, 2026-08-14, bead `inviscid-qvf.2`). Everything before this was
+**inertia only** — the ±/0 eigenvalue count, which is metric-independent by Sylvester's law and says
+nothing about how fast anything moves. USER DECISION 17 fixed the ground state (the VE) and the
+variant (RAW, on real distances) and left the **kernel** free, so the kernel is exactly what the
+spectrum measures.
+
+| file | what it measures |
+|---|---|
+| `jb_r_mass_metric.py` | the internal mass metric `M = Pᵀ diag(m) P` restricted to the six internal directions, built independently of `src/test/java/.../InternalMassMetric.java`. **Validation anchor:** contracted with the symmetric-path generator it must reproduce `M_eff(a) = (2/3)sin²a + 1/3` (point masses) and `+ 1/12` (uniform laminae). Plus total-mass, positive-definiteness, chart-covariance, and gauge-leak checks |
+| `jb_s_frequency_spectrum.py` | S0 control (re-measured, not inherited), then `H v = ω² M v` at the VE for nine raw kernels × both mass models; zero-mode count with a tolerance sweep; the symmetry-block decomposition that reduces the spectrum to three numbers; ratio tables; the exponent at which the point-mass mode ordering flips |
+| `jb_t_modes_primitive_offpath.py` | S3 mode geometry as block **traces** (invariant under the eigensolver's arbitrary basis inside a degenerate block); S4 raw vertex vs raw strut-midpoint spectra; S5 off-equilibrium, using a second genuinely different chart (`OriginFrame`, rotation pivoted at the origin) to *measure* the chart-dependence rather than quote one chart's answer |
+
+Headlines. Six real frequencies exist, with **zero** zero-modes at every tolerance from 1e-4 to
+1e-12. The 2+3+1 degeneracy makes `H` and `M` both scalar on each symmetry block, so
+`ω_b = √(h_b/m_b)` and the whole spectrum is three numbers. **The frequency ratios are NOT
+kernel-invariant** (ω_S/ω_D spans 1.475×, ω_T/ω_D 1.184× across the nine kernels) — the kernel is a
+real physical parameter, not an overall stiffness scale. The mass model rescales each block by a
+fixed kernel-independent factor (√(8/5), √2, 2) and **changes the mode ordering** for five of nine
+kernels. Raw vertex and raw strut-midpoint kernels share a ground state but **not** a spectrum. And
+every inverse power — plus the narrow Gaussian — has a **second stable equilibrium inside the
+interference band (60,120)**, legal only under DECISION 16. Details and verdicts in T2
+`inviscid/first-frequency-spectrum.md`.
+
 Prior headline: `Vol_hull` is **not differentiable** at the vector equilibrium. It has a cone point —
 `V/V_tet = 20 + 4√3·|a_rad| − …` along the path, and a strictly positive first-order rise in
 *all six* internal directions. So `V = −k·Vol_hull` has no Hessian at the VE and cannot yield a
@@ -109,5 +132,15 @@ located the real branch points, labelling-free endpoint classification) and `cri
   construction.
 - Sign convention: these scripts use `σ = +(sx·sy·sz)`; the Java uses `σ = −(sx·sy·sz)`. The two
   families are related by `a → −a` exactly (set-Hausdorff 4e-16). Immaterial — do not "fix" it.
+- A **pole manufactures a false stationary point** in any dV/da sign-change scan: an inverse power
+  runs +∞ just below a=60 and −∞ just above, and bisection refines that textbook sign change to
+  a=60, where V is not finite. `jb_t.path_critical` verifies every root (V finite, |dV/da| actually
+  small) and prints the rejections rather than dropping them.
+- Off a critical point the Hessian is **not** a tensor, so "the spectrum at the icosahedron" is
+  chart-dependent — measured at 45% of the spectrum span between two charts that agree to 6e-8 at
+  the VE. The canonical fix (the Riemannian Hessian of the mass metric) is not implemented.
+- `numpy` 1.26 on this BLAS emits spurious `RuntimeWarning: divide by zero / overflow / invalid
+  encountered in matmul`, reproducibly for `np.zeros((72,48)) @ np.zeros(48)`. Verified spurious;
+  `jb_r`…`jb_t` silence it with `np.seterr`. Do not read it as a numerical event.
 
 Requires `numpy` and `scipy`. Run any file directly: `python3 -W ignore jb_a_family.py`.
