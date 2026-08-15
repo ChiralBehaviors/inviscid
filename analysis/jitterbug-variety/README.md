@@ -68,7 +68,26 @@ cheapest.
 | `jb_m_kink_crosscheck.py` | cross-checks the two non-smoothness claims against independent machinery: a reference segment-segment distance, and the hull's **facet combinatorics** (14 planes at a=0, 20 everywhere else) |
 | `jb_n_global_search.py` | random-restart projected ascent/descent on the variety — is each claimed ground state global, or only a minimum of the 1-D slice? |
 
-Headline: `Vol_hull` is **not differentiable** at the vector equilibrium. It has a cone point —
+Kernel-family survey (`jb_o` … `jb_q`, 2026-08-12, bead `inviscid-qvf.2`). The prior survey killed
+two candidates and left one structural hypothesis: that the non-smooth ones (`Vol_hull`, strut
+clearance) fail *because* they are **witness-selection** functionals, so the surviving family is
+smooth all-pairs kernels. These files sweep that family and attack the hypothesis.
+
+| file | what it measures |
+|---|---|
+| `jb_o_kernel_family.py` | K0/K1/K2: `V_f = Σ f(‖r_i−r_j‖²)` over the 12 shared vertices for `f` = `1/r^p` (p=1,2,3,6,12), Gaussians, and quadratic spread — raw **and** centroid-normalised. Argmin over the whole circle, smoothness by h-scaling against two opposite controls, 6-D gradient, Hessian **inertia**. Also establishes the two structural facts that decide how the table reads: 24 of the 66 vertex pairs are **frozen struts**, and **a ↔ 180−a is an exact isometry** |
+| `jb_p_witness_falsify.py` | K3: five attacks on the witness-selection hypothesis, including the one that lands |
+| `jb_q_strut_kernels.py` | K4: the same kernels on the 24 strut **midpoints**, plus strut-axis and midpoint+axis variants — does the choice of primitive move the ground state? |
+
+Headlines. **No smooth all-pairs kernel measured moves the raw ground state off the vector
+equilibrium** (10 kernels × vertices and struts, all at the VE, all smooth, all inertia (6,0,0)).
+The witness-selection hypothesis is **REFUTED as stated** — hull *surface area* is a witness
+functional and is smooth at the VE, and `λ_max` vs `λ_sum` of the same eigen-decomposition split
+on smoothness. The operative property is narrower: selecting a **proper subset** of a tied orbit,
+which is just non-smoothness of max/min over a tied family. Details and verdicts in T2
+`inviscid/V-kernel-family-survey.md`.
+
+Prior headline: `Vol_hull` is **not differentiable** at the vector equilibrium. It has a cone point —
 `V/V_tet = 20 + 4√3·|a_rad| − …` along the path, and a strictly positive first-order rise in
 *all six* internal directions. So `V = −k·Vol_hull` has no Hessian at the VE and cannot yield a
 frequency there. Details and verdicts in T2 `inviscid/V-candidate-ground-state-measurements.md`.
