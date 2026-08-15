@@ -527,6 +527,122 @@ def s5d_second_minimum():
         print(f"    V_thomson({a:10.6f}) = {V(vert(a)):.6f}")
 
 
+def path_critical_f(f, lo, hi, step=0.05, h=1e-5):
+    """`path_critical` for a bare f(a). Same pole-verification guard."""
+    grid = np.arange(lo, hi, step)
+    d = []
+    for a in grid:
+        vp, vm = f(a + h), f(a - h)
+        d.append((vp - vm) / (2 * h) if np.isfinite(vp) and np.isfinite(vm)
+                 else np.nan)
+    d = np.array(d)
+    roots = []
+    for i in range(len(grid) - 1):
+        if not (np.isfinite(d[i]) and np.isfinite(d[i + 1])):
+            continue
+        if d[i] * d[i + 1] >= 0:
+            continue
+        a0, a1 = grid[i], grid[i + 1]
+        for _ in range(80):
+            mid = 0.5 * (a0 + a1)
+            dm = (f(mid + h) - f(mid - h)) / (2 * h)
+            if not np.isfinite(dm):
+                break
+            if d[i] * dm < 0:
+                a1 = mid
+            else:
+                a0 = mid
+        cand = 0.5 * (a0 + a1)
+        vc, dc = f(cand), (f(cand + h) - f(cand - h)) / (2 * h)
+        if np.isfinite(vc) and np.isfinite(dc) and abs(dc) < 1e-3 * (1 + abs(vc)):
+            roots.append((cand, float(vc), "min" if d[i] < 0 else "max"))
+    return roots
+
+
+def s5e_energy_and_barrier():
+    """Is the second equilibrium ABOVE or BELOW the VE, and is it separated?
+
+    The stability verdict (inertia (6,0,0)) says only that the second point is a
+    LOCAL minimum. Whether DECISION 17 survives turns on the ENERGY: above the
+    VE means metastable and the decision stands; below means the VE was never
+    the ground state and the earlier surveys missed it by not scanning inside
+    the interference band.
+
+    HYPOTHESIS BEING TESTED, recorded so it can be broken rather than
+    confirmed: a monotone-repulsive kernel should prefer the configuration with
+    the largest separations, and the VE has the largest circumradius on the
+    path, so the VE should win. NOTE the heuristic is NOT a proof and has
+    already failed once in this project -- the centroid-NORMALISED kernels
+    prefer the icosahedron, so 'repulsion picks the biggest thing' does not
+    survive contact with shape. The energies below are what decides it.
+    """
+    print()
+    print("=" * 78)
+    print("S5e  ENERGY OF THE SECOND EQUILIBRIUM, AND THE BARRIER")
+    print("=" * 78)
+    prims = (("vertex", lambda kern: (lambda a: make_V(kern, False)(vert(a)))),
+             ("strut", lambda kern: (lambda a: mid_V(kern, False)(corners(a)))))
+    for pname, build in prims:
+        print(f"\n  --- primitive: {pname} ---")
+        print(f"  {'kernel':20s} {'a2':>11s} {'V(a2)':>15s} {'V(VE)':>15s} "
+              f"{'V(a2)-V(VE)':>15s}  verdict")
+        for name, kern in RAW_KERNELS:
+            f = build(kern)
+            v0 = f(0.0)
+            roots = [r for r in path_critical_f(f, 0.0, 90.0)
+                     if r[2] == "min" and r[0] > 1e-3]
+            if not roots:
+                print(f"  {name:20s} {'none':>11s} {'--':>15s} {v0:15.8f} "
+                      f"{'--':>15s}  no second minimum")
+                continue
+            for a2, v2, _ in roots:
+                verdict = ("ABOVE -> metastable, DECISION 17 stands" if v2 > v0
+                           else "BELOW -> THE VE IS NOT THE GROUND STATE")
+                print(f"  {name:20s} {a2:11.6f} {v2:15.8f} {v0:15.8f} "
+                      f"{v2 - v0:+15.8f}  {verdict}")
+
+    print()
+    print("  --- the barrier between the two minima, along the path ---")
+    print("  DERIVED, no run needed, for every inverse power and BOTH primitives:")
+    print("  at a=60 the 12 shared vertices merge in pairs (and the 24 struts")
+    print("  coincide in pairs, so 12 midpoint pairs also merge), so some r_ij")
+    print("  is exactly 0 and 1/r^p is +inf. The barrier is INFINITE. Numeric")
+    print("  corroboration, not proof of the limit:")
+    fv = lambda a: make_V(dict(RAW_KERNELS)["1/r^1  (Thomson)"], False)(vert(a))
+    for a in (59.0, 59.9, 59.99, 59.999, 60.0):
+        print(f"    V_thomson(vertex, {a:9.5f}) = {fv(a):.6f}")
+    print()
+    print("  MEASURED for the members with no pole (Gaussians):")
+    for name, kern in RAW_KERNELS:
+        if not name.startswith("gauss"):
+            continue
+        for pname, build in prims:
+            f = build(kern)
+            v0 = f(0.0)
+            roots = path_critical_f(f, 0.0, 90.0)
+            mins = [r for r in roots if r[2] == "min" and r[0] > 1e-3]
+            maxs = [r for r in roots if r[2] == "max"]
+            if not mins:
+                continue
+            a2, v2, _ = mins[0]
+            if not maxs:
+                print(f"    {name} / {pname}: second min at {a2:.6f} but NO "
+                      f"interior maximum found -- barrier not located")
+                continue
+            ab, vb, _ = max(maxs, key=lambda r: r[1])
+            print(f"    {name} / {pname}: min {a2:.6f} V={v2:.8f} | "
+                  f"barrier top {ab:.6f} V={vb:.8f} | VE V={v0:.8f}")
+            print(f"        barrier above the second well = {vb - v2:.8f} "
+                  f"({(vb - v2) / (v2 - v0) * 100:.2f}% of the well's excitation "
+                  f"above the VE)")
+    print()
+    print("  SCOPE LIMIT, and it is load-bearing: every barrier here is measured")
+    print("  ALONG THE SYMMETRIC PATH ONLY. The variety is 6-dimensional, so a")
+    print("  lower route around the a=60 wall through the five transverse")
+    print("  directions is NOT excluded by anything measured. 'Infinite barrier'")
+    print("  means infinite ON THE PATH, not dynamically disconnected.")
+
+
 if __name__ == "__main__":
     np.set_printoptions(precision=6, suppress=False, linewidth=170)
     s3_modes()
