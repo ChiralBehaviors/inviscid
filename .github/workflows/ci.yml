@@ -45,8 +45,17 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
+      # -DskipLga drops the retired LGA arc's tests (epic inviscid-0nx, closed by
+      # owner decision). They were 799s of a 932s run -- 86%, HybridAutomatonTest
+      # alone 34% -- on an arc that is not under development. The flag is on the
+      # command line rather than defaulted in the pom so that this exclusion is
+      # visible at the gate, and so a plain `mvn test` locally still runs the
+      # whole suite for whoever picks up inviscid-1zr / yj3 / 8uh / ip2.
+      #
+      # Accepted gap: the core sits under both arcs, so a core change can break
+      # LGA without CI noticing. Recovery is `mvn test` with no property.
       - name: Build and test
-        run: mvn -B -ntp -Djava.awt.headless=true test
+        run: mvn -B -ntp -Djava.awt.headless=true -DskipLga test
 
       # Surefire's per-test detail is the only thing worth keeping off a red run,
       # and it costs nothing on a green one.

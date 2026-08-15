@@ -111,4 +111,45 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            Opt-in exclusion of the retired LGA arc's tests (epic inviscid-0nx,
+            closed by owner decision). Activated ONLY by -DskipLga, so a plain
+            `mvn test` still runs everything: the LGA code is frozen, not dead,
+            and inviscid-1zr / yj3 / 8uh / ip2 are open bugs filed against it
+            whose tests must run for whoever picks them up.
+
+            CI passes -DskipLga on the push gate. On the runners we were getting
+            in August 2026 the lga.* classes were 799s of a 932s run: 86%, with
+            HybridAutomatonTest alone 34%, for an arc no longer under
+            development.
+
+            KNOWN GAP, deliberate: Necronomata and the rest of the core sit
+            underneath BOTH arcs, so a core change can now break LGA without CI
+            noticing. The full suite is one flag away (`mvn test`, no property)
+            and that is the intended recovery.
+        -->
+        <profile>
+            <id>skip-lga-tests</id>
+            <activation>
+                <property>
+                    <name>skipLga</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/lga/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
