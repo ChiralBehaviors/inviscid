@@ -675,6 +675,16 @@ def active_set(topo, members, a, kind, tol=ACTIVE_TOL):
     "smallest excess discarded", both computed WITH `tol`, which made the band
     move with the constant it was guarding: see `_population_gap`.
 
+    A FAITHFUL REVERT OF THAT EARLIER VERSION MUST TOUCH BOTH RETURN SITES --
+    the "intra" branch's `return tuple(pairs), worst, gap` above and the
+    "inter" branch's below carried the SAME tol-dependent rule, and a revert
+    that only restores one of them is not a demonstration of the fix. Verified
+    directly (both sites reverted together, swept from tol=1e-300 to tol=1.0
+    at this file's own re-derived angles): the pre-fix band check was True
+    over the ENTIRE range tested, not merely late by some number of decades --
+    it never reddened. A single-branch revert can look like a demonstration
+    (it does redden across part of that range) without being a faithful one.
+
     A member is written in UNIT-AND-VERTEX form rather than as a pair of wired
     point classes, because a class can contain several units and `members[c][0]`
     then picks an arbitrary one. At the in-phase configuration every
@@ -2126,16 +2136,29 @@ def y3_order(y0):
             prx, _, _ = active_set(t27, m27, a, kind)
             if not prx:
                 continue
-            vals, res = [], []
+            vals, vals_min, res = [], [], []
             for eps in EXCURSION_RUNGS:
                 ph = a + eps * u
                 z, r, _ = solve_dephased(t27, ph)
                 res.append(r)
-                vals.append(max(member_length(ph, z, mm, t27) - STRUT_LEN
-                                for mm in prx))
+                # THE `max` HERE IS THE WORST-CASE SPAN AND IS OBJECT-LEVEL
+                # LOAD-BEARING, not decoration a probe corpus happened to
+                # never reach: `min` in its place (best-case span among the
+                # SAME active members, SAME solved configuration) is a
+                # falsifier for `exc_positive` below that mutates the object
+                # rather than TOL["lp"]. It is installed as a gated CONTROL,
+                # not narrated -- `exc_falsifier_ok` and its row below, which
+                # follow this section's own `exc_ctrl_res` idiom. Computed
+                # here, in the same loop and from the same `z`, so it costs
+                # no extra solve.
+                lengths = [member_length(ph, z, mm, t27) - STRUT_LEN
+                          for mm in prx]
+                vals.append(max(lengths))
+                vals_min.append(min(lengths))
             arr = np.array(vals, float)
-            exc[tag] = dict(vals=arr, res=float(max(res, default=1.0)),
-                            n=len(vals))
+            arr_min = np.array(vals_min, float)
+            exc[tag] = dict(vals=arr, vals_min=arr_min,
+                            res=float(max(res, default=1.0)), n=len(vals))
             print(f"      {tag:6s} on CUBE27-M along the zone-corner "
                   f"alternation, |u|_inf = 1:")
             print("        eps(deg) " + " ".join(f"{e:>11g}"
@@ -2156,6 +2179,25 @@ def y3_order(y0):
         bool(np.all(np.diff(v["vals"]) > 0.0)) for v in exc.values())
     out["exc_top"] = max(EXCURSION_RUNGS) if EXCURSION_RUNGS else 0.0
     out["exc_n"] = min((v["n"] for v in exc.values()), default=0)
+    # THE FALSIFIER FOR `exc_positive`, INSTALLED AS A GATED CONTROL rather
+    # than narrated. `vals_min` (collected above, same loop, same solve) picks
+    # the BEST-case span among the same active members instead of the
+    # worst-case one `vals` reads -- the same object the real measurement
+    # reads, aggregated the other way. If it comes out NEGATIVE at every
+    # rung, `exc_positive` is demonstrated to be sensitive to which object the
+    # geometry hands it, rather than to a threshold a probe could just move.
+    out["exc_falsifier_max"] = (
+        max(float(v["vals_min"].max()) for v in exc.values())
+        if exc else float("inf"))
+    out["exc_falsifier_ok"] = bool(exc) and all(
+        float(v["vals_min"].max()) < -TOL["lp"] for v in exc.values())
+    print(f"      CONTROL: the SAME solves, aggregated by MIN instead of MAX")
+    print(f"      over the active set, go NEGATIVE at every rung -- least")
+    print(f"      negative case {out['exc_falsifier_max']:+.4e}, versus "
+          f"TOL[lp] {TOL['lp']:.0e}. Not")
+    print("      all active-set members relieve together, so selecting the")
+    print("      wrong one flips the sign the row above asserts: the")
+    print("      measurement is object-sensitive, not a constant-detector.")
     # THE CONTROL: a direction that does NOT close, solved at one amplitude, so
     # that the closure gate above is demonstrated rather than asserted.
     out["exc_ctrl_res"] = 0.0
@@ -2418,7 +2460,16 @@ def y4_static_vs_path(y0):
                        and turns["incommensurate k = 2pi/phi^2"][1] == 1)
     out["turns_lo"] = tlo
     out["turns_hi"] = thi
-    out["turns_band_ok"] = tlo <= TURNS_TOL < thi
+    # STRICT ON BOTH SIDES, matching the other three two-sided bands in this
+    # file (tol_ok, rtol_ok, tie_band_ok all use `<` on both ends, not `<=`).
+    # Verified this does not move the shipped verdict: `tlo` is bit-exact 0.0
+    # (the trough units sit at exactly the minimum in double precision, so
+    # `tied.max()` in `_taking_turns` can only ever be 0.0), and TURNS_TOL is
+    # 1e-9 -- nowhere near that boundary. Aligning to `<` matches the band's
+    # own docstring ("TURNS_TOL must EXCEED the largest residual") and the
+    # criterion column's "0.0e+00..3.1e-04" reading, which is inclusive of
+    # neither endpoint.
+    out["turns_band_ok"] = tlo < TURNS_TOL < thi
     print(f"      TURNS_TOL band, measured: units counted as tied agree to "
           f"{tlo:.1e}")
     print(f"      and the nearest unit that is NOT tied is {thi:.3e} away, so "
@@ -3284,6 +3335,15 @@ def gate(y0, y1, y2, y3, y4, y5):
         # the other half of the partition and it is READ here; it was computed
         # and discarded in the version this fix pass started from, under a
         # comment claiming both halves were asserted.
+        # THIS ROW IS A DATA-INTEGRITY GUARD, NOT A MATHEMATICAL IDENTITY. It
+        # does not hold unconditionally by construction: `bad_free` and
+        # `bad_stressed` classify each row by `v.get("selfstress", 1) == 0`
+        # and `v.get("selfstress", 0) > 0` respectively, so a row dict that is
+        # missing the `selfstress` key falls through BOTH filters -- its `bad`
+        # count (if any) lands in neither bucket, while `nbad` above counts it
+        # regardless of that key. Such a row would make this equality FAIL,
+        # which is the intended catch: completeness of the free/stressed split
+        # over every pin record, not an algebraic tautology.
         ("Y3  ... and that split accounts for every pin",
          bad_free + bad_stressed == nbad,
          f"{bad_free}+{bad_stressed}", f"= {nbad}"),
@@ -3346,6 +3406,15 @@ def gate(y0, y1, y2, y3, y4, y5):
          f"> {SOLVE_TOL:.0e}"),
         ("Y3  ... excess stays POSITIVE out to 4 degrees",
          y3["exc_positive"], f"{y3['exc_top']:g} deg", f"> {TOL['lp']:.0e}"),
+        # THE OBJECT-MUTATING FALSIFIER FOR THE ROW ABOVE, GATED. Without
+        # this, the row's only coverage moves TOL["lp"] -- a change-detector
+        # shape. This CONTROL swaps which active-set member each rung reads
+        # (min instead of max, same solve) and asserts the result is
+        # NEGATIVE, so the row is proven sensitive to the geometry rather
+        # than to its own threshold. Mirrors `exc_ctrl_res`'s idiom above.
+        ("Y3  ... CONTROL: the min-swapped falsifier IS negative",
+         y3["exc_falsifier_ok"], f"{y3['exc_falsifier_max']:+.3e}",
+         f"< -{TOL['lp']:.0e}"),
         ("Y3  ... and strictly INCREASES: no turning point",
          y3["exc_monotone"], f"{y3['exc_n']}", "rungs, all up"),
         ("Y3  ... over at least 6 rungs reaching >= 1 degree",
@@ -3491,6 +3560,10 @@ def gate(y0, y1, y2, y3, y4, y5):
     print("     is satisfied by either condition being the whole story.")
     print("   * 'a non-closing direction is CAUGHT' -- without it, 'every rung")
     print("     closed' is satisfiable by a residual gate nothing can trip.")
+    print("   * 'the min-swapped falsifier IS negative' -- without it, 'excess")
+    print("     stays POSITIVE' is covered only by moving TOL[lp], a change-")
+    print("     detector shape; this asserts an object mutation (which active-")
+    print("     set member each rung reads) genuinely flips the sign.")
     print("   * 'the UNTRUNCATED step does not' -- without it the least-squares")
     print("     truncation is a change no check distinguishes from its absence.")
     print("   * 'single-direction parity is NOT retained, at any size' -- the")
