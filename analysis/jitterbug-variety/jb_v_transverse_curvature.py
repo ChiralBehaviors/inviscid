@@ -104,6 +104,13 @@ import itertools as it
 
 import numpy as np
 
+import jb_cache
+
+#: The importable name of THIS module -- a literal, because `__name__` is
+#: "__main__" under `python jb_v_transverse_curvature.py` and a prefetch
+#: worker in a fresh interpreter must be able to re-import it by name.
+_MODULE = "jb_v_transverse_curvature"
+
 from jb_a_family import corners
 from jb_j_internal_frame import Frame
 from jb_k_hull_hessian import aligned_frame
@@ -990,15 +997,46 @@ class Site:
 _SITE_CACHE = {}
 
 
+@jb_cache.memoize(_MODULE)
+def _site_build(a, h, kind, origin_pivot):
+    """The actual construction, behind the DISK layer of `site`'s two-level
+    cache.
+
+    `a` ARRIVES RAW, NOT ROUNDED, and that is load-bearing. `_SITE_CACHE`'s
+    key rounds to 12 decimals, but the construction this file has always
+    performed uses the caller's full-precision angle -- V3c's bisection and
+    V9's step sweep both hand in angles well past the 12th decimal. Feeding
+    the rounded key into `Site` instead was tried and REJECTED: it moved
+    published roots in the 6th decimal (45.818000 -> 45.818001, 62.094048 ->
+    62.094046) and their |lambda| columns by ~1e-6, which is a different
+    measurement wearing the same row. The disk key is therefore the raw angle;
+    the rounding stays where it always was, in the in-process layer above.
+
+    Cheap here, expensive across a run: ~137ms each, ~1391 distinct arguments
+    per gate (measured 2026-08-22), which is 195s of a 212s run. The entries
+    are large (~822KB, ~360KB stored), so the store is compressed and worth
+    watching; `--clear-cache` is the whole maintenance story."""
+    return Site(a, h=h, kind=kind, origin_pivot=origin_pivot)
+
+
 def site(a, h=H_MAIN, kind=None, origin_pivot=False):
     """`Site`, memoised. Purely an economy -- 73 Newton solves per stencil, and
     the bisections of V3c and the mirrored angles of V7 revisit the same
     configurations. Nothing about the result depends on the cache; it is keyed
-    on every argument that enters the construction."""
+    on every argument that enters the construction.
+
+    TWO LEVELS. `_SITE_CACHE` is the in-process one this file always had, and
+    it still absorbs the repeat calls within a single run (1604 calls, 1391
+    distinct). Underneath it `_site_build` adds a disk layer keyed on the
+    transitive SOURCE of the construction as well as its arguments, so the
+    cost survives process exit but is discarded the moment anything `Site`
+    reads actually changes."""
     kind = METRIC_FORM if kind is None else kind
     key = (round(float(a), 12), float(h), kind, bool(origin_pivot))
     if key not in _SITE_CACHE:
-        _SITE_CACHE[key] = Site(a, h=h, kind=kind, origin_pivot=origin_pivot)
+        # NOTE the raw `a`, `h` -- not `*key`. See `_site_build`'s docstring:
+        # passing the rounded key moves published roots.
+        _SITE_CACHE[key] = _site_build(a, h, kind, origin_pivot)
     return _SITE_CACHE[key]
 
 
@@ -3712,7 +3750,7 @@ def gate(v0, v1, v1b, v2, v3b, v3d, v4, v5, v6, v6b, v7, v8, v9,
     return 0
 
 
-if __name__ == "__main__":
+def main():
     np.set_printoptions(precision=6, suppress=False, linewidth=170)
 
     grid = main_grid()
@@ -3730,6 +3768,13 @@ if __name__ == "__main__":
     print(f"  metric form: MOMENTUM-FREE throughout (qvf.9 corollary iii)")
     print(f"  {len(COMBOS)} combinations = {len(RAW_KERNELS)} raw kernels x 2 "
           f"primitives x {len(MODELS)} mass models")
+
+    # SPECULATIVE PARALLEL PREFETCH. Every `Site` is an independent pure
+    # construction, so the previous run's recorded argument trace -- the main
+    # grid plus every angle V3c's bisections and V9's step sweep reached --
+    # is replayed through a process pool before the serial pass below. Order
+    # and output are untouched; the pass simply finds the work already done.
+    jb_cache.prefetch(_site_build)
 
     sites = []
     unmeasurable = []
@@ -3765,5 +3810,17 @@ if __name__ == "__main__":
     v10_verdict(r3b[4], r3b[5], r3b[6], roots, r6b[0], r7[8],
                 max(r3d[0], r3d[2]))
     v11_scope()
-    sys.exit(gate(r0, r1, r1b, r2, r3b, r3d, r4, r5, r6, r6b, r7, r8, r9,
-                  n_brackets, n_refused))
+    return gate(r0, r1, r1b, r2, r3b, r3d, r4, r5, r6, r6b, r7, r8, r9,
+                n_brackets, n_refused)
+
+
+if __name__ == "__main__":
+    # `--no-cache` / `--clear-cache` are consumed here; anything else is a
+    # loud failure rather than a run that silently ignored what was asked.
+    _rest = jb_cache.parse_argv(sys.argv[1:])
+    if _rest:
+        print(f"unrecognised argument(s): {' '.join(_rest)}", file=sys.stderr)
+        print("usage: jb_v_transverse_curvature.py [--no-cache] [--clear-cache]",
+              file=sys.stderr)
+        sys.exit(2)
+    sys.exit(main())

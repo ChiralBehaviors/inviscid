@@ -127,6 +127,12 @@ import itertools as it
 import sys
 
 import numpy as np
+
+import jb_cache
+
+#: Importable name of THIS module -- see jb_y_dephasing for why this is a
+#: literal rather than `__name__`.
+_MODULE = "jb_x_array_linkage"
 from scipy.optimize import brentq
 
 from jb_a_family import corners, cluster, rot, L_EDGE, Z, faces
@@ -697,8 +703,13 @@ def solve_inphase(a, topo, seed, maxit=400):
     return float(np.linalg.norm(res)), sep, used
 
 
+@jb_cache.memoize(_MODULE)
 def best_inphase(a, topo, seeds=(None, 0, 1, 2, 3, 4)):
-    """Best over several starts, with the collapse guard applied SEPARATELY.
+    """MEMOISED (jb_cache): 128 calls, 768 `solve_inphase` solves, 30.3s of a
+    34.5s-wall gate. Pure in (a, topo, seeds) and in the constants
+    `solve_inphase` reads. See jb_y_dephasing's `_bloch_scan` for the contract.
+
+    Best over several starts, with the collapse guard applied SEPARATELY.
 
     Reported as two numbers, never one: the best residual found, and the best
     residual found among NON-DEGENERATE configurations. An unguarded solver
@@ -3086,6 +3097,10 @@ def main():
         return 1
 
     topos = build_topologies()
+
+    # SPECULATIVE PARALLEL PREFETCH: every angle's solve is independent.
+    jb_cache.prefetch(best_inphase)
+
     r0 = x0_control()
     r1 = x1_topology()
     x2, guard_fired = x2_existence(topos)
@@ -3110,5 +3125,13 @@ if __name__ == "__main__":
     # every quantity in the gate is compared against a finite threshold, so a
     # genuine nan reaches the table as a FAIL rather than as a warning nobody
     # reads.
+    # `--no-cache` / `--clear-cache` are consumed here; anything else is a
+    # loud failure rather than a run that silently ignored what was asked.
+    _rest = jb_cache.parse_argv(sys.argv[1:])
+    if _rest:
+        print(f"unrecognised argument(s): {' '.join(_rest)}", file=sys.stderr)
+        print("usage: jb_x_array_linkage.py [--no-cache] [--clear-cache]",
+              file=sys.stderr)
+        sys.exit(2)
     with np.errstate(all="ignore"):
         sys.exit(main())
