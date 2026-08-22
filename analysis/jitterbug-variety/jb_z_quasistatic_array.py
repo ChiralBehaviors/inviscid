@@ -239,6 +239,86 @@ own wording), not QPFAIL -- QPFAIL is reserved for actual solver failure
 (caught earlier, at `crank_step`'s own status check), the `_LPFail`-class
 distinction the HAZARDS section requires.
 
+PHASE 1c -- THE LOCK SURFACE a*(w,t) + MOTION ORDER (bead `inviscid-qvf.19`)
+--------------------------------------------------------------------------------
+THE DELIVERABLE: ONE model (the frozen kernel + stepper above, called but not
+modified) producing BOTH bench predictions of the qvf.11/qvf.15 fork. `a*(w,t)`
+is the SUSTAINED jam angle (`crank_run(..., instant_jam=False)`) swept over a
+w-grid (fixed t=0, arm A: does the lock move with wire slack, per the qvf.11
+k-table's 13.849356 deg span) and a t-grid (fixed, large w so wires never bind,
+arm C: does the lock move with thickness and stay w-insensitive). Each grid
+carries a second, absolute, incommensurate arm (house style). The headline row
+is the DISCRIMINATION RATIO |da*/dw| normalised against |da*/dt|, gated into a
+two-sided band with three printed verdicts (ARM-A-LIKE / ARM-C-LIKE /
+NON-DISCRIMINATING) that FAILS, never inf-passes, when not computable. NO row
+asserts `a* == a_ico` (the qvf.15 ruler-test hazard: both prior mechanisms
+predict that exact instant, so it discriminates nothing).
+
+A GENUINE STEP-SIZE SENSITIVITY, calibrated live before committing the grid
+(not assumed): `crank_run`'s SUSTAINED outcome at a fixed (w, t) is NOT
+h0-invariant. `H_STEP=2.0` (bead .18's own REACH-tuned value) fails to detect
+a real jam at w=0 that `h0=0.5` (bead .18's own JAM-tuned value, matching the
+independently reviewed 0.7852886398227111 number) DOES detect. This bead fixes
+`H_LOCK=0.5` for every call it makes, so the surface is internally consistent.
+
+FIX ROUND (critique T2 23299, 2 ship-blockers; code review T2 23337, 1 High
+2 Medium 2 Low) -- addressed here, not deferred:
+SHIP-BLOCKER 1: the critic's own independent h0-refinement probe found the
+h0-sensitivity above is WORSE than first disclosed -- a*(w=0) does not
+converge across h0 in {1.0, 0.5, 0.25, 0.125} and the ORIGINAL Z15 CROSS
+test (bead .18) was CONFOUNDED (cross_w0 at h0=0.5, cross_wico at h0=2.0 --
+different w AND different h0). `z15_crank_gates` gains two matched-h0 legs
+(cross_w0/cross_wico themselves UNCHANGED) completing both matched pairs;
+THE CORRECTED FINDING: at matched h0, w does NOT flip the outcome either way
+(both jam at h0=0.5, both reach at h0=2.0) -- bead .18's "W IS CAUSAL"
+reading does not survive a matched-h0 test. `h_refinement_probe` gates the
+ACTUAL stable claim (interior w-SPREAD stays flat across H_REFINE_LEVELS,
+even though each point's own absolute a* keeps drifting) two-sidedly against
+the boundary point's genuine non-convergence, and classifies any small-h0
+qpfail as budget-exhaustion (verified: full rate_history, rates far from
+stall) rather than a genuine solver failure.
+SHIP-BLOCKER 2: the ORIGINAL t-column started every sweep at a=0, where the
+fold-mechanism's touching pairs are EXACTLY at gap=0 by construction, making
+"any t>0 collapses a*" a tautology of the idealized zero-clearance pose, not
+a measurement. `compute_a_start_t` derives a clearance-relieved start angle
+(bisection over the OPENING pairs' own gap(a) against a FIXED target gap --
+see its own constant's docstring for why the target is fixed rather than
+re-derived from T_GRID's own max), validated live by a companion row
+confirming real multi-step motion results, not another instant re-lock.
+T_GRID/T_GRID_ALT are re-priced to straddle the re-based array's OWN
+jam/reach threshold (found near t=0.187 by live calibration), and a*_t is
+now an OPENING RANGE from A_START_T, not an absolute angle from the touching
+pose -- Q2's denominator is a measurement again, not a construction artifact.
+HIGH: the ALT grids' non-ratio-derivation from the PRIMARY grids is now a
+GATED row (coprimality/offset-apartness, the jb_y K_GRID precedent), not
+prose alone. MEDIUM: `w_ok`/`t_ok` fold non-emptiness into their `all()`;
+`motion_order_trace` reads a single, homogeneous raw-velocity-norm metric
+for every unit (previously driven units used a v_cmd-projected rate, an
+incommensurate scale against undriven units' raw norm), and the write-back's
+own strongest "units take turns" evidence (undriven corners exactly 0.0 for
+several early steps) is now a gated row, not prose only. LOW: row T's
+distinct-binding-sets row now has a real, failable condition (`> 1`); the
+shuffle/flatness thresholds are named module constants.
+
+MOTION ORDER: a bespoke, short trace (`motion_order_trace`, NOT a reuse of
+`crank_run`'s feasibility backtrack -- see its own docstring) reading per-unit
+velocity components directly off `crank_step`'s solve. Single-crank-handle
+drive shows units do NOT all move together (a falsifiable claim, row S);
+driven="all" at large w, t=0 shows the array DOES move uniformly (the control
+that can fail).
+
+FOUR DECLARATIONS for Phase 1c: KERNEL, MASS MODEL, PRIMITIVE -- INAPPLICABLE,
+NOT FORGOTTEN, same reasons as Phase 1a/1b. METRIC FORM carries bead .18's own
+TREATMENT (a) choice FORWARD (W = identity, already gated W-insensitive): a*
+is the same norm-free jam angle Phase 1b already established as quotable, and
+da*/dw, da*/dt are differences of it -- norm-free too, no "per unit of W"
+hedge (that hedge belongs to treatment (b), not (a)).
+
+WRITE-BACK STATUS: T2 `inviscid/qvf-lock-surface-phase1.md` is stamped
+"DRAFT -- NOT YET VALIDATED (pending inviscid-qvf.20)" per the bead's own
+S2 critique finding -- these are physically actionable numbers the owner
+reads against his rig, and qvf.20's probe pass can still move them.
+
 CONVENTIONS INHERITED FROM THIS DIRECTORY
 ------------------------------------------
 Deterministic and byte-identical across runs; exit code from the gate table;
@@ -253,6 +333,14 @@ import sys
 
 import numpy as np
 from scipy.optimize import nnls
+
+import jb_cache
+
+#: The importable name of THIS module. Spelled as a literal rather than taken
+#: from `__name__` because `__name__` is "__main__" under `python
+#: jb_z_quasistatic_array.py`, and a prefetch worker in a fresh interpreter
+#: must be able to re-import the same module by name to re-enter `crank_run`.
+_MODULE = "jb_z_quasistatic_array"
 
 from jb_a_family import R_CIRC, Z, corners, faces, rot
 from jb_g_strut_clearance import segment_distance as jb_g_segment_distance
@@ -462,6 +550,207 @@ MAX_CRANK_STEPS = 200
 #: must be unchanged under it.
 ALT_W_ANGULAR_SCALE = 4.0
 
+# ==========================================================================
+# LOCK-SURFACE CONSTANTS (bead inviscid-qvf.19, Phase 1c). Re-declared
+# locally per the mutation-probe rule even where a value (e.g. H_LOCK)
+# echoes an existing one.
+#
+# H_LOCK: THE STEP SIZE DECISION THIS BEAD HAD TO MAKE, calibrated live
+# (not guessed) before committing the grid, because it turned out the crank
+# stepper's SUSTAINED outcome at a fixed (w, t) is NOT h0-invariant --
+# h0=H_STEP=2.0 (bead .18's own REACH-tuned value, used by h_run/cross_wico)
+# fails to detect a real jam at w=0 that h0=0.5 (bead .18's own JAM-tuned
+# value, used by g_run/cross_w0) DOES detect, reproducing the independently
+# reviewed 0.7852886398227111 number to 6 decimal places. Measured directly
+# (not assumed): at h0=2.0 EVERY sampled w in [0, w_ico], including w=0,
+# reports "reached"; at h0=0.5 the SAME w=0 reports "jammed" (matching the
+# reviewed number) and every other sampled w in (0, w_ico] ALSO reports
+# "jammed", at a value indistinguishable to 6 decimal places across every
+# fraction tried. This is a genuine step-size sensitivity of the FROZEN
+# stepper (crank_run/crank_step are not touched here, only called), not a
+# bug introduced by this bead -- flagged below and in the T2 write-back as
+# a deferred item for qvf.20's mutation-probe pass. H_LOCK is fixed at the
+# JAM-tuned value for every call this bead makes (both grids, both arms,
+# the motion-order trace, the drive-robustness check) so every number in
+# the surface is comparable on the same footing.
+H_LOCK = 0.5
+
+#: Upper bound on the swept target angle: 5x the largest jam angle observed
+#: in calibration (~0.98 deg) across every (w, t) point tried, so a status
+#: of "reached" (no lock found) is a genuine, distinguishable outcome from
+#: "jammed" rather than an artifact of too tight a ceiling.
+A_TARGET_LOCK = 5.0
+MAX_STEPS_LOCK = 20
+
+#: PRIMARY w-grid, as FRACTIONS of w_ico (computed from `fold_halves`, not a
+#: bare literal -- see `_w_ico_lock`). Includes the w=0 boundary (already
+#: independently validated by bead .18's own g_run/cross_w0) plus three
+#: interior points spanning to just below w_ico (0.9x): >=4 distinct values,
+#: a stated range [0, 0.9*w_ico].
+W_GRID_FRAC = (0.0, 0.3, 0.6, 0.9)
+#: SECOND, ABSOLUTE, INCOMMENSURATE arm (house style, jb_y's K_GRID/
+#: K_GRID_ALT precedent): irregular offsets from the primary fractions
+#: (+0.12, +0.08, +0.02, -0.02), none coincident, none a common ratio of
+#: the primary set -- chosen to avoid both the w=0 special case (already
+#: covered by the primary arm) and the w_ico edge, while still landing
+#: inside the same validated [0, w_ico) domain.
+W_GRID_FRAC_ALT = (0.12, 0.38, 0.62, 0.88)
+
+#: t-grid (thickness), swept at a FIXED, LARGE w (see T_SWEEP_W_FRAC) so
+#: wires never bind and only contact + thickness governs -- the design of
+#: record's own arm-C isolation ("w fixed and large"). RE-PRICED in the
+#: qvf.19 fix round (SHIP-BLOCKER 2, T2 23299 CRITICAL 2): the ORIGINAL
+#: values (0.0, 0.02, 0.08) were chosen before the t-sweep was re-based off
+#: A_START_T -- once re-based, a live scan (bisection-style, by hand,
+#: during development) found the re-based array's opening-vs-immediate-jam
+#: threshold sits near t=0.187, NOT near t=0 (the whole point of the fix:
+#: a clearance-relieved start tolerates real thickness before locking).
+#: The values below straddle that measured threshold on BOTH sides so
+#: da*/dt is a genuine, non-degenerate, two-valued signal (opens the full
+#: T_TARGET_SPAN below the threshold; re-locks at the start above it) --
+#: NOT chosen to land inside a flat, uninformative region on one side.
+T_GRID = (0.05, 0.15, 0.19)
+T_GRID_ALT = (0.03, 0.17, 0.195)
+#: Which W_GRID_FRAC fraction of w_ico the t-sweep holds fixed.
+T_SWEEP_W_FRAC = 0.9
+
+#: Discrimination-ratio band edges (row Q2), PRICED FROM THIS RUN'S OWN
+#: NUMBERS: calibration measured |da*/dw| indistinguishable from 0 across
+#: the interior w-grid against a |da*/dt| of order 10 (t=0 -> t=0.08 spans
+#: essentially the whole ~0.98 deg jam-angle range), so a ratio near 0 is
+#: expected -- these edges (a decade wide, symmetric in log space) sit
+#: comfortably clear of that expected value on the ARM-C side while still
+#: leaving genuine room for ARM-A-LIKE or NON-DISCRIMINATING outcomes to be
+#: reachable in principle, so the row is not rigged to one verdict by
+#: construction.
+DISCRIM_RATIO_LOW = 0.2
+DISCRIM_RATIO_HIGH = 5.0
+#: Below this, |da*/dt| (the ratio's denominator) is treated as too close
+#: to zero for the ratio to be COMPUTABLE -- the row FAILS rather than
+#: printing an inf-pass (jb_x X7's shape, deliberately not repeated here).
+RATIO_ZERO_TOL = 1e-9
+
+#: Row Q's two-way separation gate: the t-driven separation (arm C) must
+#: exceed this; the w-only separation among the grid's non-boundary points
+#: (arm A, at the same large-w reference) must stay under it.
+T_SEPARATION_TOL = 0.1
+W_SEPARATION_TOL = 0.05
+
+#: Row R's two-sided non-vacuity band on the WHOLE surface's a* span (every
+#: value from both grids, both arms): a stuck constant fails the lower
+#: bound; a degenerate or blown-up statistic fails the upper.
+SPAN_LOWER = 1e-6
+SPAN_UPPER = 2.0 * A_TARGET_LOCK
+
+#: Motion-order trace (row S): a SHORT, bespoke stepping loop (see
+#: `motion_order_trace`'s own docstring for why it does not reuse
+#: `crank_run`'s feasibility backtrack) -- a diagnostic of ORDER, not a
+#: hardened lock-surface measurement.
+MOTION_ORDER_STEPS = 8
+MOTION_ORDER_H = 0.5
+#: A per-unit velocity-component norm above this counts as "moving".
+MOTION_ACTIVITY_TOL = 1e-6
+#: The CONTROL's "moves uniformly" band, among the SIX TOPOLOGICALLY
+#: EQUIVALENT corner units (SC7's star center, unit 0, is symmetry-
+#: distinguished -- degree 6 against the corners' degree 1 -- so the
+#: array's own automorphism group fixes it pointwise and only permutes
+#: units 1..6 among themselves; equivariance therefore predicts those SIX
+#: agree with EACH OTHER, not that the CENTER matches them too. Measured
+#: at driven="all", w large, t=0, FIRST step: the six corner rates agree
+#: to a spread of ~1.7e-3; priced generously above that measured value.
+MOTION_UNIFORM_TOL = 0.01
+#: Which W_GRID_FRAC fraction of w_ico the single-crank-handle TEST case
+#: uses; the CONTROL case (driven="all") uses T_SWEEP_W_FRAC (large w).
+MOTION_TEST_W_FRAC = 0.5
+
+#: Drive-model-robustness check (the hazard comment's own requirement,
+#: 2026-08-21: "confirm the flatness is drive-model-robust before quoting
+#: it"): re-measure two W_GRID_FRAC points under the single-crank-handle
+#: drive and confirm the SAME small-spread structure holds there too, on
+#: its own terms (not by cross-arm equality to the driven="all" numbers,
+#: which measure a different physical quantity).
+DRIVE_ROBUST_TOL = 0.5
+
+# ==========================================================================
+# FIX-ROUND CONSTANTS (qvf.19-critique.md T2 23299, qvf.19-code-review.md T2
+# 23337). Two ship-blockers (h0-non-convergence confounding the Z15 CROSS
+# test; the t-column being a construction artifact of starting every sweep
+# at the idealized a=0 touching pose) plus one High and two Medium code-
+# review findings. Re-declared locally per house style.
+# ==========================================================================
+
+#: Named (code review LOW): the shuffle-control "differs from the fitted
+#: slope" threshold for rows O/P, previously an inline 1e-6.
+SLOPE_SHUFFLE_DIFFER_TOL = 1e-6
+#: Named (code review LOW): row O's "interior slope is flat" threshold,
+#: previously an inline 1e-3.
+W_INTERIOR_FLAT_TOL = 1e-3
+
+#: HIGH fix (23337): the ALT grids must be demonstrated, not merely
+#: asserted in prose, to be non-ratio-derived from the PRIMARY grids (the
+#: jb_y K_GRID/K_GRID_ALT precedent: coprimality + offset-apartness gate
+#: rows). "Non-ratio-derived" is checked as: no constant k satisfies
+#: ALT[i] == k*PRIMARY[i] for every i simultaneously (a single common
+#: scale factor would mean the ALT arm is the primary arm rescaled, the
+#: exact "coarsens in lock-step" bug jb_y's own docstring warns against);
+#: "offset-apart" is checked as every ALT value sitting at least this far
+#: from every PRIMARY value (no accidental coincidence).
+GRID_RATIO_CONST_TOL = 1e-6
+GRID_OFFSET_APART_TOL = 1e-3
+
+#: SHIP-BLOCKER 1b (23299 CRITICAL 1): h-refinement. >=3 h0 levels, halved,
+#: at representative (w,t) points, to gate whether the JAM/REACH verdict
+#: and a* are STABLE as h0 shrinks -- a genuinely two-sided claim (the row
+#: must be able to fail if a value the critique found NON-convergent is
+#: misreported as stable, or if a value found CONVERGENT is misreported as
+#: unstable).
+H_REFINE_LEVELS = (0.5, 0.25, 0.125)
+#: The interior w-point's a* must stay within this band across every
+#: H_REFINE_LEVELS value to count as "stable" -- priced from the critique's
+#: own reproduced numbers (identical to 6 decimals at h0=0.5 and h0=0.25).
+H_REFINE_STABLE_TOL = 0.02
+#: Below this, TWO h0 levels' a* are considered "distinguishable" (i.e.
+#: NOT converged) -- used to positively demonstrate the w=0 boundary point
+#: FAILS the stability band, the other half of the two-sided row.
+H_REFINE_UNSTABLE_FLOOR = 0.1
+H_REFINE_TARGET = 5.0
+H_REFINE_MAX_STEPS = 30
+
+#: SHIP-BLOCKER 2 (23299 CRITICAL 2): the t-column's clearance-relieved
+#: start angle. Derived (bisection over the OPENING/wire-mechanism pairs'
+#: own gap(a), the SAME quantity `wire_gradient_row` uses), not picked:
+#: the smallest angle at which every OPENING pair's gap exceeds
+#: T_START_TARGET_GAP. Scoped to the OPENING pairs specifically (not
+#: "every non-pinned pair") because the CLOSING/ridge pairs at the SAME
+#: shared-square locations are, measured directly, exactly touching at
+#: a=0 and get MONOTONICALLY WORSE (not better) as a increases -- T2
+#: 23195's registry/ridge mechanism, a DIFFERENT physical effect with no
+#: "relief" angle at all on this side of a=0. A_START_T is validated live
+#: (not merely computed) by a companion gate row confirming a real
+#: `crank_run` from A_START_T at the largest swept t produces genuine
+#: multi-step motion, not another instant re-lock.
+#:
+#: T_START_TARGET_GAP is a FIXED, stated clearance target -- DELIBERATELY
+#: NOT derived from max(T_GRID+T_GRID_ALT) (that shape was tried first and
+#: rejected: it makes A_START_T move every time T_GRID is re-priced, which
+#: moves the re-based array's OWN jam/reach threshold, which then demands
+#: re-pricing T_GRID again -- a circular dependency discovered live while
+#: calibrating this fix, not a hypothetical). 0.117 = the ORIGINAL
+#: T_GRID's largest swept value (0.097) plus a 0.02 clearance margin, the
+#: same figure this constant produced before the circularity was found and
+#: broken; T_GRID/T_GRID_ALT below are then priced (a SEPARATE, one-time
+#: calibration) against the resulting fixed A_START_T.
+T_START_TARGET_GAP = 0.117
+T_START_BISECT_HI = 20.0
+T_START_BISECT_ITERS = 40
+#: Opening-range budget beyond A_START_T for the re-based t-sweep (mirrors
+#: A_TARGET_LOCK's old magnitude).
+T_TARGET_SPAN = 5.0
+#: R-t's upper bound (row R split per-arm in this fix round, since the
+#: t-arm's a* is an OPENING RANGE bounded by T_TARGET_SPAN, a different
+#: scale from the w-arm's absolute-angle a*, bounded by A_TARGET_LOCK).
+SPAN_UPPER_T = 2.0 * T_TARGET_SPAN
+
 
 # ==========================================================================
 # Z0: FOUNDATION -- the plate-normal-invariance fact this whole kernel rests
@@ -501,7 +790,7 @@ def _z0_normal_invariance():
         u = plate_normal(f)
         for a in list(ANGLE_GRID) + list(ANGLE_GRID_ALT) + [0.0, 60.0]:
             tri = plate_triangle(a, f)
-            n = np.cross(tri[1] - tri[0], tri[2] - tri[0])
+            n = _cross3(tri[1] - tri[0], tri[2] - tri[0])
             n = n / np.linalg.norm(n)
             worst = max(worst, min(np.linalg.norm(n - u), np.linalg.norm(n + u)))
     return worst
@@ -531,30 +820,133 @@ def z0_control():
 # Z1: SIGNED TRIANGLE-TRIANGLE GAP, WITNESS POINTS, NORMAL
 # ==========================================================================
 
+def _cross3(a, b):
+    """Hand-rolled 3-vector cross product. Bit-identical to np.cross on
+    3-vectors (same per-component expressions, same IEEE754 order) while
+    skipping numpy's axis normalization, which profiling measured at ~60%%
+    of the whole gate's wall clock (3.9M np.cross calls per crank run)."""
+    return np.array((a[1] * b[2] - a[2] * b[1],
+                     a[2] * b[0] - a[0] * b[2],
+                     a[0] * b[1] - a[1] * b[0]))
+
+
+def _clamp01(x):
+    """min(max(x,0),1): bit-identical to np.clip(x, 0.0, 1.0) on scalars
+    (incl. NaN propagation) without numpy's ufunc dispatch overhead."""
+    return 1.0 if x > 1.0 else (0.0 if x < 0.0 else x)
+
+
+def _norm3(v):
+    """sqrt(v.v): bit-identical to np.linalg.norm on a real 1-D vector
+    (numpy computes exactly sqrt(dot(x, x)) there) without its wrapper."""
+    return float(v @ v) ** 0.5
+
+
+# --------------------------------------------------------------------------
+# SCALAR CORE. The 15-candidate witness search below was measured
+# (2026-08-22) at 76% of this file's ENTIRE wall clock: 2.34M
+# `_seg_seg_witness` calls, 3.96M `_cross3` calls, 4.20M `numpy.array`
+# constructions per gate run, at ~3.5us each -- all of it numpy's per-call
+# dispatch on THREE-ELEMENT vectors, none of it arithmetic.
+#
+# So the arithmetic runs on plain floats and numpy appears only at the
+# boundary, once per triangle pair instead of once per candidate. The public
+# entry points keep their array-in / array-out signatures and become thin
+# wrappers over this core, so there is exactly ONE implementation of each
+# primitive and no second copy that can drift from it.
+#
+# BIT-IDENTICAL, not merely close, and by construction rather than by luck:
+# every expression below preserves the original's operand order and grouping,
+# and `a @ b` on a 3-vector was verified (200k random pairs, zero mismatches)
+# to be exactly `a0*b0 + a1*b1 + a2*b2` -- numpy performs no reassociation at
+# this length. `mean` over 3 elements was verified the same way. The standing
+# proof is the gate itself: `--no-cache` output before and after this change
+# is byte-identical, every row included.
+# --------------------------------------------------------------------------
+
+def _dot3s(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _sub3s(a, b):
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def _cross3s(a, b):
+    """`_cross3` on float triples: same component expressions, no array."""
+    return (a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0])
+
+
+def _norm3s(v):
+    return (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) ** 0.5
+
+
+def _tri_s(tri):
+    """A numpy (3,3) triangle as a tuple of three float triples."""
+    a, b, c = tri
+    return ((float(a[0]), float(a[1]), float(a[2])),
+            (float(b[0]), float(b[1]), float(b[2])),
+            (float(c[0]), float(c[1]), float(c[2])))
+
+
+def _seg_seg_witness_s(p1, q1, p2, q2):
+    """Scalar `_seg_seg_witness`. Operand order matches the array form
+    line for line; `p1 + d1 * s` becomes `p1_i + d1_i * s`, which is the
+    same per-component expression numpy evaluates."""
+    d1 = _sub3s(q1, p1)
+    d2 = _sub3s(q2, p2)
+    r = _sub3s(p1, p2)
+    a = _dot3s(d1, d1)
+    e = _dot3s(d2, d2)
+    if a < 1e-14 and e < 1e-14:
+        return p1, p2, _norm3s(r)
+    if a < 1e-14:
+        t = _clamp01(-_dot3s(d2, r) / e) if e > 1e-14 else 0.0
+        pb = (p2[0] + d2[0] * t, p2[1] + d2[1] * t, p2[2] + d2[2] * t)
+        return p1, pb, _norm3s(_sub3s(p1, pb))
+    if e < 1e-14:
+        s = _clamp01(_dot3s(d1, r) / a)
+        pa = (p1[0] + d1[0] * s, p1[1] + d1[1] * s, p1[2] + d1[2] * s)
+        return pa, p2, _norm3s(_sub3s(pa, p2))
+    b = _dot3s(d1, d2)
+    c = _dot3s(d1, r)
+    f = _dot3s(d2, r)
+    den = a * e - b * b
+    s = _clamp01((b * f - c * e) / den) if den > 1e-12 else 0.0
+    t = _clamp01((b * s + f) / e)
+    s = _clamp01((b * t - c) / a)
+    pa = (p1[0] + d1[0] * s, p1[1] + d1[1] * s, p1[2] + d1[2] * s)
+    pb = (p2[0] + d2[0] * t, p2[1] + d2[1] * t, p2[2] + d2[2] * t)
+    return pa, pb, _norm3s(_sub3s(pa, pb))
+
+
 def _seg_seg_witness(p1, q1, p2, q2):
     """Closest points on two segments (clamped parametric solve, the same
     method as `jb_g_strut_clearance.segment_distance` / jb_x's private
     `_seg_seg`, extended to return the witness points, not just the
-    distance)."""
-    d1, d2, r = q1 - p1, q2 - p2, p1 - p2
-    a, e = d1 @ d1, d2 @ d2
-    if a < 1e-14 and e < 1e-14:
-        return p1, p2, float(np.linalg.norm(r))
-    if a < 1e-14:
-        t = np.clip(-(d2 @ r) / e, 0.0, 1.0) if e > 1e-14 else 0.0
-        pa, pb = p1, p2 + d2 * t
-        return pa, pb, float(np.linalg.norm(pa - pb))
-    if e < 1e-14:
-        s = np.clip((d1 @ r) / a, 0.0, 1.0)
-        pa, pb = p1 + d1 * s, p2
-        return pa, pb, float(np.linalg.norm(pa - pb))
-    b, c, f = d1 @ d2, d1 @ r, d2 @ r
-    den = a * e - b * b
-    s = np.clip((b * f - c * e) / den, 0.0, 1.0) if den > 1e-12 else 0.0
-    t = np.clip((b * s + f) / e, 0.0, 1.0)
-    s = np.clip((b * t - c) / a, 0.0, 1.0)
-    pa, pb = p1 + d1 * s, p2 + d2 * t
-    return pa, pb, float(np.linalg.norm(pa - pb))
+    distance). Array-shaped wrapper over `_seg_seg_witness_s`."""
+    pa, pb, d = _seg_seg_witness_s(
+        tuple(map(float, p1)), tuple(map(float, q1)),
+        tuple(map(float, p2)), tuple(map(float, q2)))
+    return np.array(pa), np.array(pb), d
+
+
+def _barycentric_s(p, tri):
+    """Scalar `_barycentric`. `tri` is a tuple of three float triples."""
+    a, b, c = tri
+    ba = _sub3s(b, a)
+    ca = _sub3s(c, a)
+    n = _cross3s(ba, ca)
+    nn = _dot3s(n, n)
+    if nn < 1e-18:
+        return None
+    denom = nn
+    u = _dot3s(_cross3s(ba, _sub3s(p, a)), n) / denom
+    v = _dot3s(_cross3s(_sub3s(c, b), _sub3s(p, b)), n) / denom
+    w = _dot3s(_cross3s(_sub3s(a, c), _sub3s(p, c)), n) / denom
+    return w, u, v  # weights of (a, b, c) respectively
 
 
 def _barycentric(p, tri):
@@ -562,90 +954,109 @@ def _barycentric(p, tri):
     2D-area-ratio construction. Not clamped -- may go outside [0,1] for a
     point off the triangle's PLANE or outside its extent, which is exactly
     what the on-triangle gate row checks."""
+    return _barycentric_s(tuple(map(float, p)), _tri_s(tri))
+
+
+def _pt_tri_witness_s(p, tri):
+    """Scalar `_pt_tri_witness`. `proj` reproduces numpy's
+    `p - n * ((p - a) @ n) / nn` componentwise: the scale is applied to each
+    component BEFORE the division, which is the order the array form uses."""
     a, b, c = tri
-    n = np.cross(b - a, c - a)
-    nn = n @ n
-    if nn < 1e-18:
-        return None
-    denom = nn
-    u = (np.cross(b - a, p - a) @ n) / denom
-    v = (np.cross(c - b, p - b) @ n) / denom
-    w = (np.cross(a - c, p - c) @ n) / denom
-    return w, u, v  # weights of (a, b, c) respectively
+    n = _cross3s(_sub3s(b, a), _sub3s(c, a))
+    nn = _dot3s(n, n)
+    if nn >= 1e-18:
+        s = _dot3s(_sub3s(p, a), n)
+        proj = (p[0] - n[0] * s / nn,
+                p[1] - n[1] * s / nn,
+                p[2] - n[2] * s / nn)
+        bw, uw, vw = _barycentric_s(proj, tri)
+        if bw >= 0 and uw >= 0 and vw >= 0:
+            return proj, _norm3s(_sub3s(p, proj))
+    cands = [_seg_seg_witness_s(p, p, a, b), _seg_seg_witness_s(p, p, b, c),
+             _seg_seg_witness_s(p, p, c, a)]
+    best = min(cands, key=lambda x: x[2])
+    return best[1], best[2]
 
 
 def _pt_tri_witness(p, tri):
     """Closest point ON triangle tri to point p (projection, clamped to the
     face; falls back to the nearest edge when the projection lands outside).
     Extends jb_x's private `_pt_tri` (distance-only) to return the witness."""
+    q, d = _pt_tri_witness_s(tuple(map(float, p)), _tri_s(tri))
+    return np.array(q), d
+
+
+def _seg_tri_hits_s(p, q, tri):
+    """Scalar Moller-Trumbore."""
     a, b, c = tri
-    n = np.cross(b - a, c - a)
-    nn = n @ n
-    if nn < 1e-18:
-        cands = [_seg_seg_witness(p, p, a, b), _seg_seg_witness(p, p, b, c),
-                  _seg_seg_witness(p, p, c, a)]
-        best = min(cands, key=lambda x: x[2])
-        return best[1], best[2]
-    proj = p - n * ((p - a) @ n) / nn
-    bw, uw, vw = _barycentric(proj, tri)
-    if bw >= 0 and uw >= 0 and vw >= 0:
-        return proj, float(np.linalg.norm(p - proj))
-    cands = [_seg_seg_witness(p, p, a, b), _seg_seg_witness(p, p, b, c),
-              _seg_seg_witness(p, p, c, a)]
-    best = min(cands, key=lambda x: x[2])
-    return best[1], best[2]
+    e1 = _sub3s(b, a)
+    e2 = _sub3s(c, a)
+    d = _sub3s(q, p)
+    h = _cross3s(d, e2)
+    det = _dot3s(e1, h)
+    if abs(det) < 1e-14:
+        return False
+    inv = 1.0 / det
+    s = _sub3s(p, a)
+    u = inv * _dot3s(s, h)
+    if u < 0.0 or u > 1.0:
+        return False
+    qv = _cross3s(s, e1)
+    v = inv * _dot3s(d, qv)
+    if v < 0.0 or u + v > 1.0:
+        return False
+    t = inv * _dot3s(e2, qv)
+    return 0.0 < t < 1.0
 
 
 def _seg_tri_hits(p, q, tri):
     """Moller-Trumbore: does segment pq pierce the OPEN interior of tri?
     Same primitive as jb_x's private `_seg_tri_hits`, reimplemented locally
     (mutation-probe rule; this file imports no private symbols from jb_x)."""
-    a, b, c = tri
-    e1, e2 = b - a, c - a
-    d = q - p
-    h = np.cross(d, e2)
-    det = e1 @ h
-    if abs(det) < 1e-14:
-        return False
-    inv = 1.0 / det
-    s = p - a
-    u = inv * (s @ h)
-    if u < 0.0 or u > 1.0:
-        return False
-    qv = np.cross(s, e1)
-    v = inv * (d @ qv)
-    if v < 0.0 or u + v > 1.0:
-        return False
-    t = inv * (e2 @ qv)
-    return 0.0 < t < 1.0
+    return _seg_tri_hits_s(tuple(map(float, p)), tuple(map(float, q)),
+                           _tri_s(tri))
+
+
+def _closest_point_pair_s(sA, sB):
+    """Scalar 15-candidate search. Candidate order and every comparison
+    (`d < best[2]`, strict) are unchanged from the array form, so ties resolve
+    to the same candidate they always did -- which is what keeps the returned
+    WITNESS POINTS, not merely the distance, identical."""
+    best = None
+    for i in range(3):
+        for j in range(3):
+            pa, pb, d = _seg_seg_witness_s(sA[i], sA[(i + 1) % 3],
+                                           sB[j], sB[(j + 1) % 3])
+            if best is None or d < best[2]:
+                best = (pa, pb, d)
+    for i in range(3):
+        q, d = _pt_tri_witness_s(sA[i], sB)
+        if d < best[2]:
+            best = (sA[i], q, d)
+    for i in range(3):
+        q, d = _pt_tri_witness_s(sB[i], sA)
+        if d < best[2]:
+            best = (q, sB[i], d)
+    return best
 
 
 def _closest_point_pair(triA, triB):
     """The 15-candidate unsigned closest-point search: 9 edge-edge pairs + 3
-    vertex(A)-vs-triB + 3 vertex(B)-vs-triA. Returns (pA, pB, distance)."""
-    best = None
-    for i in range(3):
-        for j in range(3):
-            pa, pb, d = _seg_seg_witness(triA[i], triA[(i + 1) % 3],
-                                         triB[j], triB[(j + 1) % 3])
-            if best is None or d < best[2]:
-                best = (pa, pb, d)
-    for i in range(3):
-        q, d = _pt_tri_witness(triA[i], triB)
-        if d < best[2]:
-            best = (triA[i], q, d)
-    for i in range(3):
-        q, d = _pt_tri_witness(triB[i], triA)
-        if d < best[2]:
-            best = (q, triB[i], d)
-    return best
+    vertex(A)-vs-triB + 3 vertex(B)-vs-triA. Returns (pA, pB, distance).
+
+    The two triangles cross into float space ONCE here, not once per
+    candidate: this single conversion is what removes ~4.2M array
+    constructions per gate run."""
+    pa, pb, d = _closest_point_pair_s(_tri_s(triA), _tri_s(triB))
+    return np.array(pa), np.array(pb), d
 
 
 def _is_piercing(triA, triB):
+    sA, sB = _tri_s(triA), _tri_s(triB)
     for i in range(3):
-        if _seg_tri_hits(triA[i], triA[(i + 1) % 3], triB):
+        if _seg_tri_hits_s(sA[i], sA[(i + 1) % 3], sB):
             return True
-        if _seg_tri_hits(triB[i], triB[(i + 1) % 3], triA):
+        if _seg_tri_hits_s(sB[i], sB[(i + 1) % 3], sA):
             return True
     return False
 
@@ -699,7 +1110,7 @@ def signed_gap(triA, triB, nA):
         active-set threshold near g = 0). DEEP penetration-depth accuracy in
         this branch is explicitly OUT OF SCOPE and no row claims it.
     """
-    nB = np.cross(triB[1] - triB[0], triB[2] - triB[0])
+    nB = _cross3(triB[1] - triB[0], triB[2] - triB[0])
     nB = nB / np.linalg.norm(nB)
     if abs(float(nA @ nB)) > PARALLEL_TOL:
         cA = triA.mean(axis=0)
@@ -1004,11 +1415,11 @@ def _vertex_above_face(i, d, a=A_ICO_LOCAL, spread=5.0):
     nA = plate_normal(i)
     cA = triA.mean(axis=0)
     Q = cA + nA * d
-    perp1 = np.cross(nA, np.array([1.0, 0.0, 0.0]))
+    perp1 = _cross3(nA, np.array([1.0, 0.0, 0.0]))
     if np.linalg.norm(perp1) < 1e-6:
-        perp1 = np.cross(nA, np.array([0.0, 1.0, 0.0]))
+        perp1 = _cross3(nA, np.array([0.0, 1.0, 0.0]))
     perp1 = perp1 / np.linalg.norm(perp1)
-    perp2 = np.cross(nA, perp1)
+    perp2 = _cross3(nA, perp1)
     triB = np.array([Q, Q + perp1 * spread + nA * spread,
                      Q + perp2 * spread + nA * spread])
     return triA, triB, nA
@@ -1232,7 +1643,7 @@ def z6_wire_and_thickness():
 # ==========================================================================
 
 def _tri_plane(tri):
-    n = np.cross(tri[1] - tri[0], tri[2] - tri[0])
+    n = _cross3(tri[1] - tri[0], tri[2] - tri[0])
     d = -n @ tri[0]
     return n, d
 
@@ -1272,7 +1683,7 @@ def tri_tri_crossing_segment(t1, t2, tol=1e-9):
     dist1 = np.array([n2 @ t1[i] + d2 for i in range(3)])
     if np.all(dist1 > tol) or np.all(dist1 < -tol):
         return None
-    D = np.cross(n1, n2)
+    D = _cross3(n1, n2)
     nD = np.linalg.norm(D)
     if nD < 1e-12:
         return None
@@ -1295,13 +1706,13 @@ def tri_tri_crossing_segment(t1, t2, tol=1e-9):
 
 def _strict_interior(pt, tri, tol=1e-9):
     a, b, c = tri
-    n = np.cross(b - a, c - a)
+    n = _cross3(b - a, c - a)
     nn = n @ n
     if nn < 1e-18:
         return False
-    u = np.cross(b - a, pt - a) @ n
-    v = np.cross(c - b, pt - b) @ n
-    w = np.cross(a - c, pt - c) @ n
+    u = _cross3(b - a, pt - a) @ n
+    v = _cross3(c - b, pt - b) @ n
+    w = _cross3(a - c, pt - c) @ n
     return u > tol and v > tol and w > tol
 
 
@@ -1543,7 +1954,7 @@ def _contact_gradient_direction(triA, triB, nA, wA, wB):
     finite difference to disagree with nA by more than an order of magnitude,
     sign included, on a real SC7 pair). General, pierced (gap=-abs(proxy)):
     -sign(proxy)*nA."""
-    nB = np.cross(triB[1] - triB[0], triB[2] - triB[0])
+    nB = _cross3(triB[1] - triB[0], triB[2] - triB[0])
     nrm = np.linalg.norm(nB)
     nB = nB / nrm if nrm > 1e-300 else nA
     if abs(float(nA @ nB)) > PARALLEL_TOL:
@@ -1749,8 +2160,56 @@ def crank_pairs(topo):
     return enumerate_plate_pairs(topo)
 
 
+#: Classification safety pad for the broad-phase skip: a pair is treated as
+#: skippable-general only when |nA.nB| is at least this far BELOW
+#: PARALLEL_TOL, so a last-bit disagreement between the vectorized
+#: classification and signed_gap's own scalar one can only cause an extra
+#: evaluation, never a wrong skip. The Euclidean bound is sound ONLY for the
+#: general branch (the parallel branch's gap is an along-normal projection a
+#: Euclidean bound does not bound); parallel pairs are always evaluated --
+#: their branch is the cheap closed form anyway.
+BROADPHASE_CLASS_PAD = 1e-9
+
+
+def _pair_index_arrays(pairs):
+    """Flat plate indices (iA, jB) and face indices fA for each pair --
+    pure function of the pair list, computed once per crank run."""
+    ia = np.fromiter((i * 8 + fi for (i, fi, j, fj) in pairs),
+                     dtype=np.int64, count=len(pairs))
+    jb = np.fromiter((j * 8 + fj for (i, fi, j, fj) in pairs),
+                     dtype=np.int64, count=len(pairs))
+    fa = np.fromiter((fi for (i, fi, j, fj) in pairs),
+                     dtype=np.int64, count=len(pairs))
+    return ia, jb, fa
+
+
+def _pair_bounds_and_general(pairs, idx, xs, t):
+    """(bound, skippable_general) per pair. bound = |cA-cB| - rA - rB - t
+    <= the reported gap for GENERAL-branch pairs (unpierced: gap is a
+    Euclidean distance >= bound; pierced: triangles overlap, so
+    bound <= -t and the pair is never skipped). skippable_general mirrors
+    signed_gap's own branch condition, padded by BROADPHASE_CLASS_PAD."""
+    ia, jb, fa = idx
+    X = np.stack(xs)                       # (n, 8, 3, 3)
+    Cm4 = X.mean(axis=2)
+    Cm = Cm4.reshape(-1, 3)
+    R = np.sqrt(((X - Cm4[:, :, None, :]) ** 2).sum(-1)).max(-1).reshape(-1)
+    d = np.sqrt(((Cm[ia] - Cm[jb]) ** 2).sum(-1))
+    bound = d - R[ia] - R[jb] - t
+    e1 = (X[:, :, 1] - X[:, :, 0]).reshape(-1, 3)
+    e2 = (X[:, :, 2] - X[:, :, 0]).reshape(-1, 3)
+    nb = np.stack((e1[:, 1] * e2[:, 2] - e1[:, 2] * e2[:, 1],
+                   e1[:, 2] * e2[:, 0] - e1[:, 0] * e2[:, 2],
+                   e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]), axis=1)
+    nb = nb / np.sqrt((nb ** 2).sum(-1))[:, None]
+    na = np.stack([plate_normal(f) for f in range(8)])
+    dots = np.abs((na[fa] * nb[jb]).sum(-1))
+    general = dots <= PARALLEL_TOL - BROADPHASE_CLASS_PAD
+    return bound, general
+
+
 def crank_step(topo, pairs, xs, a_hat, w, t, driven="all",
-               enforce_contacts=True, w_diag=None, wpairs=None):
+               enforce_contacts=True, w_diag=None, wpairs=None, bp_idx=None):
     """One velocity-level QP solve. Returns
     (v, status, rate, binding, min_general_gap) where status is one of
     "OK" / "QPFAIL" (the two DISJOINT solver outcomes) -- `rate` and
@@ -1770,10 +2229,26 @@ def crank_step(topo, pairs, xs, a_hat, w, t, driven="all",
     active_labels = []
     min_general_gap = float("inf")
     if enforce_contacts:
-        for (i, fi, j, fj) in pairs:
+        # BROAD-PHASE (exact, orchestrator-applied under owner directive
+        # 2026-08-22, pending re-review): GENERAL-branch pairs only. Their
+        # reported gap is a Euclidean distance (unpierced) or negative with
+        # overlapping triangles (pierced, bound <= -t, never skipped), so
+        # bound > EPS_ACT and bound > the running min_general_gap proves the
+        # pair can neither join the active set nor lower the reported
+        # minimum (the running min only decreases). PARALLEL pairs are
+        # never skipped: their gap is an along-normal projection a
+        # Euclidean bound does not bound (measured, not hypothesized -- a
+        # first distance-only version of this skip failed exactness on
+        # exactly that class and was corrected to this form).
+        if bp_idx is None:
+            bp_idx = _pair_index_arrays(pairs)
+        _bnd, _gen = _pair_bounds_and_general(pairs, bp_idx, xs, t)
+        for _k, (i, fi, j, fj) in enumerate(pairs):
+            if _gen[_k] and _bnd[_k] > EPS_ACT and _bnd[_k] > min_general_gap:
+                continue
             gap, row = contact_gradient_row(xs, i, fi, j, fj, t, ndof)
             nA = plate_normal(fi)
-            nB = np.cross(xs[j][fj][1] - xs[j][fj][0], xs[j][fj][2] - xs[j][fj][0])
+            nB = _cross3(xs[j][fj][1] - xs[j][fj][0], xs[j][fj][2] - xs[j][fj][0])
             nB_norm = np.linalg.norm(nB)
             is_general = nB_norm > 1e-300 and abs(float(nA @ (nB / nB_norm))) <= PARALLEL_TOL
             if is_general:
@@ -1836,11 +2311,22 @@ def crank_step(topo, pairs, xs, a_hat, w, t, driven="all",
 MEANINGLESS_DEPTH_FLOOR = 1.0
 
 
+@jb_cache.memoize(_MODULE)
 def crank_run(topo, a_start, a_target, w, t, driven="all",
               enforce_contacts=True, w_diag=None, h0=H_STEP,
               max_steps=MAX_CRANK_STEPS, backtrack=True,
               gap_floor=GAP_FLOOR_TOL, instant_jam=True):
-    """Returns a dict: status in {"reached","jammed","qpfail"}; a_final;
+    """MEMOISED (jb_cache): this function is the whole cost of this file --
+    ~30 calls, 99.8% of a 6m14s run, measured 2026-08-22. It is a pure
+    function of its arguments and of module constants, so its results are
+    cached on the SHA of its own transitive source closure plus its bound
+    arguments, and computed in parallel ahead of the serial gate pass. Edit
+    the stepper, the contact kernel, or any constant either reads and every
+    affected entry invalidates automatically; edit a print statement and none
+    do. `--no-cache` bypasses both mechanisms and must print byte-identically
+    -- that equivalence, not this comment, is what makes the claim checkable.
+
+    Returns a dict: status in {"reached","jammed","qpfail"}; a_final;
     jam_angle (jammed only); binding (jammed only); steps; min_general_gap;
     rate_history (for the mutation-probe / insensitivity comparisons).
 
@@ -1866,6 +2352,7 @@ def crank_run(topo, a_start, a_target, w, t, driven="all",
     stuck, not merely reduced)."""
     pairs = crank_pairs(topo)
     wpairs = wire_pairs(topo)
+    bp_idx = _pair_index_arrays(pairs)
     origins = topo.sites(verts(a_start))
     xs = [corners(a_start) + origins[i] for i in range(topo.n)]
     a_hat = a_start
@@ -1877,10 +2364,13 @@ def crank_run(topo, a_start, a_target, w, t, driven="all",
         worst = float("inf")
         if not enforce_contacts:
             return worst
-        for (i, fi, j, fj) in pairs:
+        _sb, _sg = _pair_bounds_and_general(pairs, _pair_index_arrays(pairs), xs_now, t)
+        for _k, (i, fi, j, fj) in enumerate(pairs):
+            if _sg[_k] and _sb[_k] > worst:
+                continue  # general-branch only; bound > running worst >= final worst
             g, _ = contact_gradient_row(xs_now, i, fi, j, fj, t, 48 * topo.n)
             nA = plate_normal(fi)
-            nB = np.cross(xs_now[j][fj][1] - xs_now[j][fj][0], xs_now[j][fj][2] - xs_now[j][fj][0])
+            nB = _cross3(xs_now[j][fj][1] - xs_now[j][fj][0], xs_now[j][fj][2] - xs_now[j][fj][0])
             nB_norm = np.linalg.norm(nB)
             is_general = nB_norm > 1e-300 and abs(float(nA @ (nB / nB_norm))) <= PARALLEL_TOL
             if is_general:
@@ -1889,7 +2379,8 @@ def crank_run(topo, a_start, a_target, w, t, driven="all",
 
     for step in range(max_steps):
         v, status, rate, binding, mgg = crank_step(
-            topo, pairs, xs, a_hat, w, t, driven, enforce_contacts, w_diag, wpairs)
+            topo, pairs, xs, a_hat, w, t, driven, enforce_contacts, w_diag,
+            wpairs, bp_idx)
         min_general_gap = min(min_general_gap, mgg)
         if binding:
             binding_ever.update((b[0], b[1], b[2], b[3], b[4]) for b in binding)
@@ -2003,7 +2494,7 @@ def _find_general_branch_pair(topo, a):
     for (i, fi, j, fj) in crank_pairs(topo):
         triA, triB = xs[i][fi], xs[j][fj]
         nA = plate_normal(fi)
-        nB = np.cross(triB[1] - triB[0], triB[2] - triB[0])
+        nB = _cross3(triB[1] - triB[0], triB[2] - triB[0])
         nrm = np.linalg.norm(nB)
         if nrm < 1e-300 or abs(float(nA @ (nB / nrm))) > PARALLEL_TOL:
             continue
@@ -2176,6 +2667,23 @@ def z15_crank_gates(topo):
     cross_wico = crank_run(topo, 0.0, A_ICO_LOCAL, w=w_ico, t=0.0, driven="all", h0=H_STEP,
                            instant_jam=False)
 
+    # MATCHED-h0 CROSS REBUILD (qvf.19 fix round, critique 23299 CRITICAL 1,
+    # ship-blocker): cross_w0 (h0=0.5) and cross_wico (h0=H_STEP=2.0) above
+    # are CONFOUNDED -- they differ in BOTH w AND h0, so their differing
+    # outcomes never isolated the w-effect from the step-size effect, despite
+    # this row's own original comment claiming "varies ONLY w". This bead is
+    # explicitly authorized to touch these rows (once, for this fix) to add
+    # the two MISSING matched legs -- cross_w0/cross_wico themselves are left
+    # completely unchanged (same code, same values) so no PRIOR row's value
+    # changes; the two new legs below complete BOTH 2x2 matched pairs
+    # (h0 in {0.5, 2.0}} x (w in {0, w_ico}}): cross_w0/cross_wico already
+    # cover (h0=0.5,w=0) and (h0=2.0,w=w_ico); the two adds below are
+    # (h0=0.5,w=w_ico) and (h0=2.0,w=0).
+    cross_h05_wico = crank_run(topo, 0.0, A_ICO_LOCAL, w=w_ico, t=0.0, driven="all", h0=0.5,
+                               instant_jam=False)
+    cross_h2_w0 = crank_run(topo, 0.0, A_ICO_LOCAL, w=0.0, t=0.0, driven="all", h0=H_STEP,
+                            instant_jam=False)
+
     # eps_act decade-insensitivity: rerun G's FIRST step at EPS_ACT_ALT.
     pairs = crank_pairs(topo)
     origins0 = topo.sites(verts(0.0))
@@ -2236,6 +2744,7 @@ def z15_crank_gates(topo):
 
     return {"g_run": g_run, "h_run": h_run, "i_run": i_run, "w_ico": w_ico,
             "cross_w0": cross_w0, "cross_wico": cross_wico,
+            "cross_h05_wico": cross_h05_wico, "cross_h2_w0": cross_h2_w0,
             "rate_alt_eps": rate_alt_eps, "rate_nominal_eps": rate_nominal_eps,
             "rate_w1": rate_w1, "rate_walt": rate_walt,
             "binding_set_w1": binding_set_w1, "binding_set_walt": binding_set_walt,
@@ -2280,10 +2789,331 @@ def z16_qpfail_probe(topo):
 
 
 # ==========================================================================
+# Z17: THE LOCK SURFACE a*(w, t) + MOTION ORDER (bead inviscid-qvf.19,
+# Phase 1c -- THE DELIVERABLE). Builds ONLY on the FROZEN kernel (Z0-Z9,
+# bead .17) and stepper (Z8-Z16, bead .18): every call below goes through
+# `crank_run`/`crank_step` unmodified. Nothing in Z0-Z16 above this comment
+# is touched by this bead.
+#
+# FOUR DECLARATIONS for this section, per the amended design of record (T2
+# 23230, restated in `main()`'s banner): KERNEL, MASS MODEL, PRIMITIVE --
+# INAPPLICABLE, same reasons as the rest of this file (no potential, no
+# mass, no primitive choice; every quantity is a phase-space configuration
+# read off a static QP solve). METRIC FORM: bead .18 already CHOSE
+# treatment (a) -- W = identity, gated W-insensitive (row M) -- so this
+# bead carries that choice FORWARD rather than re-deciding it: jam angle,
+# active-set composition and reached/jammed status are already established
+# as norm-free and quotable (main()'s own banner text, unchanged); this
+# bead's da*/dw and da*/dt are DIFFERENCES of that same norm-free jam
+# angle, so they inherit norm-freedom too -- treatment (b)'s "per unit of
+# W" hedge does not apply here, because (b) was not the treatment chosen.
+# ==========================================================================
+
+def _w_ico_lock():
+    """w_ico = 2*fold(a_ico), the design of record's own stated wire-slack
+    ceiling -- same formula `z15_crank_gates` computes locally, re-derived
+    here rather than threaded through as a parameter (mutation-probe
+    rule: a value used in two places is measured twice, not passed once
+    and trusted)."""
+    ref = DIAGONALS[0]
+    fold_ico = fold_halves(A_ICO_LOCAL)[ref]
+    return 2.0 * (fold_ico[1] - fold_ico[0])
+
+
+def lock_surface_point(topo, w, t, driven="all", h0=H_LOCK, a_start=0.0,
+                       target_span=A_TARGET_LOCK, max_steps=MAX_STEPS_LOCK):
+    """One (w, t) grid point, from a_start, SUSTAINED semantics
+    (instant_jam=False, the bead's own requirement -- ONSET would read the
+    transient contact-only resistance every row here already knows
+    relaxes, not a genuine lock). a_target = a_start + target_span.
+
+    Returns a_star: when a_start == 0.0 (the w-arm, unaffected by
+    SHIP-BLOCKER 2), the ABSOLUTE jam angle -- jam_angle when jammed,
+    a_target itself (a CENSORED value, "no lock found by a_target") when
+    reached, None when qpfail. When a_start > 0.0 (the t-arm, re-based per
+    SHIP-BLOCKER 2's fix), a_star is instead the OPENING RANGE
+    (a_final - a_start) -- the physically meaningful quantity from a
+    clearance-relieved starting pose, matching critique 23299's own
+    suggestion ("measure a*(t) as an opening RANGE rather than an
+    absolute angle"). QPFAIL is never silently folded into either
+    physical reading."""
+    a_target = a_start + target_span
+    r = crank_run(topo, a_start, a_target, w=w, t=t, driven=driven, h0=h0,
+                  max_steps=max_steps, instant_jam=False)
+    if r["status"] == "jammed":
+        raw = r["jam_angle"]
+    elif r["status"] == "reached":
+        raw = a_target
+    else:
+        raw = None
+    a_star = (raw - a_start) if (raw is not None and a_start > 0.0) else raw
+    return {"status": r["status"], "a_star": a_star, "w": w, "t": t,
+            "a_start": a_start, "binding_ever": r["binding_ever"], "steps": r["steps"]}
+
+
+def _min_opening_gap(topo, a, wpairs):
+    """The minimum gap over the OPENING (wire-mechanism) plate pairs at
+    phase a -- the SAME quantity `wire_gradient_row` measures (t=0, no QP
+    involved), reused here as a pure geometric probe for `compute_a_start_t`."""
+    ndof = 48 * topo.n
+    origins = topo.sites(verts(a))
+    xs = [corners(a) + origins[i] for i in range(topo.n)]
+    best = float("inf")
+    for (u, fi, v, fj) in wpairs:
+        g, _ = contact_gradient_row(xs, u, fi, v, fj, 0.0, ndof)
+        best = min(best, g)
+    return best
+
+
+def compute_a_start_t(topo):
+    """SHIP-BLOCKER 2's derived (not picked) clearance-relieved start angle.
+    Bisects for the smallest a at which every OPENING pair's gap exceeds
+    the FIXED T_START_TARGET_GAP (see its own docstring for why this is
+    fixed rather than derived from T_GRID's own max -- a circularity found
+    live during development). Bracket validity (glo below target at a=0,
+    ghi above target at the hi bound) is checked, not assumed -- a bad
+    bracket returns a_start=None rather than a silently wrong bisection
+    result."""
+    wpairs = wire_pairs(topo)
+    target = T_START_TARGET_GAP
+    lo, hi = 0.0, T_START_BISECT_HI
+    glo = _min_opening_gap(topo, lo, wpairs)
+    ghi = _min_opening_gap(topo, hi, wpairs)
+    bracket_ok = glo < target <= ghi
+    if not bracket_ok:
+        return {"a_start": None, "target": target,
+                "glo": glo, "ghi": ghi, "bracket_ok": False}
+    for _ in range(T_START_BISECT_ITERS):
+        mid = 0.5 * (lo + hi)
+        gmid = _min_opening_gap(topo, mid, wpairs)
+        if gmid < target:
+            lo = mid
+        else:
+            hi = mid
+    return {"a_start": hi, "target": target,
+            "glo": glo, "ghi": ghi, "bracket_ok": True}
+
+
+def h_refinement_probe(topo):
+    """SHIP-BLOCKER 1b, REVISED (critique 23299's own correction of the
+    first draft of this row, found live during development): the critique's
+    "interior w-flatness DOES survive refinement" claim is about the
+    SPREAD between two interior w points AT a given h0 staying near zero,
+    NOT about either point's own ABSOLUTE a* being h0-invariant -- the
+    absolute value drifts substantially with h0 at EVERY w tested
+    (interior included: 0.9815 -> 0.6243 -> 0.4492 as h0 halves through
+    H_REFINE_LEVELS, measured live), so gating "a* itself is stable" at the
+    interior point would have been WRONG -- it would have failed for a
+    reason that has nothing to do with the actual claim being checked.
+
+    THREE representative w points, t=0, at every H_REFINE_LEVELS h0:
+    two INTERIOR points (0.3*w_ico, 0.6*w_ico) whose SPREAD from each
+    other is gated to stay near zero AT EACH h0 (the actual "flatness
+    survives refinement" claim), and the w=0 BOUNDARY point, whose own
+    ABSOLUTE a* is gated to be NON-stable across h0 (the critique's
+    "1.119 -> 0.785 -> 0.581 -> ..., no sign of a limit" finding).
+    Two-sided by construction: the interior SPREAD row can fail if
+    refinement reveals real w-dependence at some h0; the boundary row can
+    fail if refinement reveals the boundary point IS, after all, stable
+    (misreporting a real instability as resolved would be exactly as
+    dishonest as the reverse)."""
+    w_ico = _w_ico_lock()
+    interior_a_w = 0.3 * w_ico
+    interior_b_w = 0.6 * w_ico
+    results = {"interior_a": [], "interior_b": [], "boundary": []}
+    for h0 in H_REFINE_LEVELS:
+        for label, w in (("interior_a", interior_a_w), ("interior_b", interior_b_w),
+                        ("boundary", 0.0)):
+            r = crank_run(topo, 0.0, H_REFINE_TARGET, w=w, t=0.0, driven="all",
+                         h0=h0, max_steps=H_REFINE_MAX_STEPS, instant_jam=False)
+            if r["status"] == "jammed":
+                a_star = r["jam_angle"]
+            elif r["status"] == "reached":
+                a_star = H_REFINE_TARGET
+            else:
+                a_star = None
+            # Classify a qpfail: budget exhaustion (every step succeeded,
+            # rate_history is full-length and far from stalled) vs a
+            # genuine solver-side failure (crank_step's own status != OK,
+            # caught earlier in crank_run, rate_history short) -- read
+            # directly off the returned dict, not assumed.
+            budget_exhausted = (r["status"] == "qpfail"
+                               and len(r["rate_history"]) == H_REFINE_MAX_STEPS
+                               and (not r["rate_history"] or r["rate_history"][-1] > STALL_RATE_TOL))
+            results[label].append({"h0": h0, "status": r["status"], "a_star": a_star,
+                                   "steps": r["steps"], "budget_exhausted": budget_exhausted,
+                                   "last_rate": r["rate_history"][-1] if r["rate_history"] else None})
+    return results
+
+
+def lock_surface_sweep(topo):
+    """The full (w, t) surface: the w-arm (primary + alt) at t=0, a_start=0
+    (unaffected by SHIP-BLOCKER 2 -- no thickness parameter varies here);
+    the t-arm (primary + alt) at a fixed, large w (T_SWEEP_W_FRAC * w_ico,
+    so wires never bind -- the design of record's own arm-C isolation),
+    re-based at A_START_T (SHIP-BLOCKER 2's fix) so a*_t is an OPENING
+    RANGE, not an absolute angle measured from the idealized touching
+    pose. Every point uses driven="all" (in-phase crank, the design's
+    stated primary DRIVE) and the SAME H_LOCK."""
+    w_ico = _w_ico_lock()
+    w_ref = T_SWEEP_W_FRAC * w_ico
+    a_start_info = compute_a_start_t(topo)
+    a_start_t = a_start_info["a_start"]
+
+    w_points = [(frac * w_ico, 0.0) for frac in W_GRID_FRAC]
+    w_points_alt = [(frac * w_ico, 0.0) for frac in W_GRID_FRAC_ALT]
+    t_points = [(w_ref, t) for t in T_GRID]
+    t_points_alt = [(w_ref, t) for t in T_GRID_ALT]
+
+    def run_all(points, a_start=0.0):
+        return [lock_surface_point(topo, w, t, a_start=a_start) for (w, t) in points]
+
+    w_results = run_all(w_points)
+    w_results_alt = run_all(w_points_alt)
+    # a_start_t may be None on a bracket failure (Z17 gate reports this as
+    # a hard FAIL, never silently substitutes 0.0 -- see the
+    # "A_START_T bracket valid" row).
+    t_a_start = a_start_t if a_start_t is not None else 0.0
+    t_results = run_all(t_points, a_start=t_a_start)
+    t_results_alt = run_all(t_points_alt, a_start=t_a_start)
+    # A live validity check for the WHOLE re-basing strategy (not merely
+    # the bisection): does a real crank_run from A_START_T at the SMALLEST
+    # swept t actually produce multi-step motion, or does it just move the
+    # instant re-lock to a new angle? (Deliberately the SMALLEST, not the
+    # largest, swept t: T_GRID/T_GRID_ALT are priced to straddle a real
+    # jam/reach threshold discovered live -- the largest values are
+    # EXPECTED to jam, by design, so checking relief there would be
+    # checking the wrong side of the very threshold this row exists to
+    # confirm is real.)
+    t_min = min(T_GRID + T_GRID_ALT)
+    relief_check = lock_surface_point(topo, w_ref, t_min, a_start=t_a_start)
+
+    return {"w_ico": w_ico, "w_ref": w_ref, "a_start_info": a_start_info,
+            "a_start_t": a_start_t, "relief_check": relief_check,
+            "w_results": w_results, "w_results_alt": w_results_alt,
+            "t_results": t_results, "t_results_alt": t_results_alt}
+
+
+def _ols_slope(xs, ys):
+    """Plain least-squares slope of ys against xs (numpy polyfit, degree 1)
+    -- used for rows O/P so the shuffle CONTROL (a re-pairing of the SAME
+    y-values against the SAME x-positions in a different order) is a
+    meaningful perturbation of the fit, not merely a re-ordering that a
+    symmetric-in-order statistic (e.g. a two-point endpoint difference)
+    would be blind to."""
+    xs = np.asarray(xs, dtype=float)
+    ys = np.asarray(ys, dtype=float)
+    slope, _ = np.polyfit(xs, ys, 1)
+    return float(slope)
+
+
+def drive_robustness_check(topo):
+    """The hazard comment's own requirement: before quoting the w-column as
+    flat, confirm the flatness is not an artifact of ONE drive choice.
+    Re-measures two W_GRID_FRAC points (an interior one and the near-w_ico
+    one) under the single-crank-handle drive (DRIVEN_UNIT_INDEX) and
+    reports their OWN spread -- compared on its own terms, not against the
+    driven="all" numbers, since single-handle drive tracks a DIFFERENT
+    physical quantity (that one unit's own commanded phase, not an
+    array-wide uniform expansion)."""
+    w_ico = _w_ico_lock()
+    fracs = (W_GRID_FRAC[1], W_GRID_FRAC[-1])  # an interior + the near-limit point
+    pts = [lock_surface_point(topo, frac * w_ico, 0.0, driven=DRIVEN_UNIT_INDEX)
+           for frac in fracs]
+    finite = [p["a_star"] for p in pts if p["a_star"] is not None]
+    spread = (max(finite) - min(finite)) if len(finite) == len(pts) else None
+    return {"points": pts, "fracs": fracs, "spread": spread}
+
+
+def motion_order_trace(topo, w, t, driven, h0=MOTION_ORDER_H,
+                       n_steps=MOTION_ORDER_STEPS):
+    """A SHORT, bespoke trace of PER-UNIT activity across a crank run --
+    the qvf.14 path question (who moves, in what order) now asked with
+    contact present. Deliberately does NOT reuse `crank_run`'s feasibility
+    backtrack: that machinery answers "how far can the array go before it
+    locks", or a *j gap*; this question is "which unit's own velocity
+    component is nonzero, and from which step on" -- a diagnostic of ORDER,
+    read directly off each step's QP solve (`crank_step`, unmodified,
+    called exactly as `crank_run` calls it), not a hardened lock-surface
+    measurement. A full h0 step is applied every iteration (no bisection)
+    since the quantity of interest is which units are active, not a
+    precise jam angle -- if a later step's QP reports QPFAIL, the trace
+    stops there and reports the truncation honestly rather than padding it.
+
+    Per-unit reading (code review MEDIUM fix, 23337): the RAW velocity
+    norm ||v_i|| for EVERY unit, driven or not -- a single, homogeneous
+    physical quantity (previously driven units used a v_cmd-projected
+    rate, O(0.1-1), while undriven units used a raw norm, O(0.001-0.01);
+    mixing the two metrics made "not all equal" partly a scale artifact of
+    WHICH metric a unit happened to get, not purely a timing signal).
+    Verified live before committing this change: under driven="all" at
+    large w (the CONTROL regime), the raw-norm metric agrees across ALL
+    SEVEN units (not merely the six corners) to a spread of ~1.1e-5 --
+    tighter than the old mixed-metric reading, not weaker."""
+    n = topo.n
+    ndof = 48 * n
+    pairs = crank_pairs(topo)
+    wpairs = wire_pairs(topo)
+    origins = topo.sites(verts(0.0))
+    xs = [corners(0.0) + origins[i] for i in range(n)]
+    a_hat = 0.0
+    history = []
+    statuses = []
+    for _ in range(n_steps):
+        v, status, rate, binding, mgg = crank_step(topo, pairs, xs, a_hat, w, t,
+                                                    driven, True, None, wpairs)
+        statuses.append(status)
+        if status != "OK":
+            break
+        per_unit = np.array([float(np.linalg.norm(v[48 * i:48 * i + 48])) for i in range(n)])
+        history.append(per_unit)
+        xs = [project_to_pin_manifold(apply_body_motions(xs[i], h0 * v[48 * i:48 * i + 48]))[0]
+              for i in range(n)]
+        a_hat += h0 * rate
+    return {"history": history, "statuses": statuses, "driven": driven,
+            "n_steps_completed": len(history)}
+
+
+def _grid_ratio_apart_check(primary, alt):
+    """HIGH fix (23337): the jb_y K_GRID/K_GRID_ALT coprimality/offset-
+    apartness shape, applied to a real-valued fraction grid rather than
+    integers. NON-RATIO-DERIVED: no single constant k satisfies
+    alt[i] == k*primary[i] for every i (checked by requiring the
+    pairwise ratios alt[i]/primary[i] to NOT all agree to
+    GRID_RATIO_CONST_TOL -- primary[0]=0.0 makes that particular ratio
+    undefined, so it is excluded from the ratio comparison and covered by
+    the separate offset-apartness check instead). OFFSET-APART: every alt
+    value sits at least GRID_OFFSET_APART_TOL from every primary value."""
+    ratios = [a / p for p, a in zip(primary, alt) if abs(p) > 1e-12]
+    ratio_const = (len(ratios) >= 2
+                   and max(ratios) - min(ratios) < GRID_RATIO_CONST_TOL)
+    min_offset = min(abs(a - p) for a in alt for p in primary)
+    return {"ratios": ratios, "ratio_const": ratio_const,
+            "non_ratio_derived": not ratio_const,
+            "min_offset": min_offset, "offset_apart": min_offset > GRID_OFFSET_APART_TOL}
+
+
+def z17_lock_surface(topo):
+    surf = lock_surface_sweep(topo)
+    drive = drive_robustness_check(topo)
+    href = h_refinement_probe(topo)
+    w_grid_apart = _grid_ratio_apart_check(W_GRID_FRAC, W_GRID_FRAC_ALT)
+    t_grid_apart = _grid_ratio_apart_check(T_GRID, T_GRID_ALT)
+
+    test_trace = motion_order_trace(topo, MOTION_TEST_W_FRAC * surf["w_ico"], 0.0,
+                                    DRIVEN_UNIT_INDEX)
+    control_trace = motion_order_trace(topo, T_SWEEP_W_FRAC * surf["w_ico"], 0.0, "all")
+
+    return {"surf": surf, "drive": drive, "href": href,
+            "w_grid_apart": w_grid_apart, "t_grid_apart": t_grid_apart,
+            "test_trace": test_trace, "control_trace": control_trace}
+
+
+# ==========================================================================
 # THE GATE
 # ==========================================================================
 
-def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp):
+def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     """Every check's verdict in one table, and this process's exit code."""
     print()
     print("=" * 78)
@@ -2579,6 +3409,309 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp):
     checks.append(("Z14  the DYNAMIC crank_run flags that SAME pair active (qvf.17's story, live)",
                    ztwo["dynamic_binds_pair"], str(ztwo["dynamic_binds_pair"]), "True"))
 
+    # ---- Z17: THE LOCK SURFACE a*(w,t) + MOTION ORDER (bead qvf.19) ----
+    surf = zlock["surf"]
+    all_lock_results = (surf["w_results"] + surf["w_results_alt"]
+                        + surf["t_results"] + surf["t_results_alt"])
+
+    checks.append(("Z17  no QPFAIL anywhere in the (w,t) sweep (never silently skipped)",
+                   all(r["status"] != "qpfail" for r in all_lock_results),
+                   str([r["status"] for r in all_lock_results]), "no 'qpfail'"))
+
+    checks.append(("Z17  NO row asserts a* == a_ico (qvf.15 ruler-test hazard)",
+                   all(r["a_star"] is None or abs(r["a_star"] - A_ICO_LOCAL) > AICO_CONTROL_OFFSET
+                       for r in all_lock_results),
+                   "checked", f"none within {AICO_CONTROL_OFFSET:.0e} of a_ico"))
+
+    # ---- HIGH fix (23337): ALT grids are NON-RATIO-DERIVED from PRIMARY,
+    # GATED not merely asserted in prose (the jb_y K_GRID/K_GRID_ALT shape).
+    wga, tga = zlock["w_grid_apart"], zlock["t_grid_apart"]
+    checks.append(("GRID  W_GRID_FRAC_ALT is non-ratio-derived from W_GRID_FRAC",
+                   wga["non_ratio_derived"], str(wga["ratios"]), "no common ratio"))
+    checks.append(("GRID  W_GRID_FRAC_ALT is offset-apart from every PRIMARY value",
+                   wga["offset_apart"], f"{wga['min_offset']:.4f}", f"> {GRID_OFFSET_APART_TOL}"))
+    checks.append(("GRID  T_GRID_ALT is non-ratio-derived from T_GRID",
+                   tga["non_ratio_derived"], str(tga["ratios"]), "no common ratio"))
+    checks.append(("GRID  T_GRID_ALT is offset-apart from every PRIMARY value",
+                   tga["offset_apart"], f"{tga['min_offset']:.4f}", f"> {GRID_OFFSET_APART_TOL}"))
+
+    # ---- SHIP-BLOCKER 1a (23299): matched-h0 CROSS rebuild. cross_w0 and
+    # cross_wico (bead .18, UNCHANGED here) are CONFOUNDED -- different w
+    # AND different h0. The two ADDED legs (cross_h05_wico, cross_h2_w0)
+    # complete both matched pairs so the w-effect is isolated from the
+    # step-size effect. THE CORRECTED CONCLUSION (a real change from bead
+    # .18's own "W IS CAUSAL" reading): at MATCHED h0=0.5, w=0 AND w=w_ico
+    # BOTH jam; at matched h0=2.0, both REACH. W's causal role, as bead
+    # .18 originally claimed from the CONFOUNDED pair, does NOT survive a
+    # matched-h0 test -- reported here as a correction, not smoothed over.
+    cw0, cwico = zg["cross_w0"], zg["cross_wico"]
+    ch05wico, ch2w0 = zg["cross_h05_wico"], zg["cross_h2_w0"]
+    checks.append(("CROSS-MATCHED  h0=0.5: w=0 status (bead .18's own cross_w0, unchanged)",
+                   cw0["status"] == "jammed", cw0["status"], "jammed"))
+    checks.append(("CROSS-MATCHED  h0=0.5: w=w_ico status (NEW matched leg)",
+                   ch05wico["status"] in ("jammed", "reached"), ch05wico["status"], "computed"))
+    checks.append(("CROSS-MATCHED  h0=0.5: OUTCOMES AGREE (w is NOT shown causal at this h0)",
+                   cw0["status"] == ch05wico["status"],
+                   f"{cw0['status']} vs {ch05wico['status']}", "agree (correction)"))
+    checks.append(("CROSS-MATCHED  h0=2.0: w=w_ico status (bead .18's own cross_wico, unchanged)",
+                   cwico["status"] == "reached", cwico["status"], "reached"))
+    checks.append(("CROSS-MATCHED  h0=2.0: w=0 status (NEW matched leg)",
+                   ch2w0["status"] in ("jammed", "reached"), ch2w0["status"], "computed"))
+    checks.append(("CROSS-MATCHED  h0=2.0: OUTCOMES AGREE (w is NOT shown causal at this h0 either)",
+                   cwico["status"] == ch2w0["status"],
+                   f"{cwico['status']} vs {ch2w0['status']}", "agree (correction)"))
+
+    # ---- SHIP-BLOCKER 1b (23299): h-refinement. See h_refinement_probe's
+    # own docstring for why the gated claim is SPREAD-flatness (survives
+    # refinement) at the interior points, not either point's ABSOLUTE a*
+    # (which drifts substantially with h0 at every w tested, boundary
+    # included) -- and separately, the boundary point's own ABSOLUTE a*
+    # is gated NON-stable, the critique's core finding.
+    href = zlock["href"]
+    interior_spreads = [abs(a["a_star"] - b["a_star"]) for a, b in
+                        zip(href["interior_a"], href["interior_b"])
+                        if a["a_star"] is not None and b["a_star"] is not None]
+    interior_complete = len(interior_spreads) == len(H_REFINE_LEVELS)
+    checks.append(("HREF  interior a* computable at every H_REFINE_LEVELS h0 (both points)",
+                   interior_complete,
+                   str([(a["status"], b["status"]) for a, b in
+                        zip(href["interior_a"], href["interior_b"])]), "all jammed/reached"))
+    checks.append(("HREF  interior SPREAD (0.3wico vs 0.6wico) stays flat AT EVERY h0 level",
+                   interior_complete and all(s < H_REFINE_STABLE_TOL for s in interior_spreads),
+                   str([f"{s:.2e}" for s in interior_spreads]), f"all < {H_REFINE_STABLE_TOL}"))
+    boundary_vals = [b["a_star"] for b in href["boundary"] if b["a_star"] is not None]
+    boundary_complete = len(boundary_vals) == len(H_REFINE_LEVELS)
+    boundary_diffs = [abs(boundary_vals[i] - boundary_vals[i + 1])
+                      for i in range(len(boundary_vals) - 1)] if boundary_complete else []
+    checks.append(("HREF  boundary (w=0) a* computable at every H_REFINE_LEVELS h0",
+                   boundary_complete, str([b["status"] for b in href["boundary"]]),
+                   "all jammed/reached"))
+    checks.append(("HREF  boundary a* is NOT stable across h0 (critique's non-convergence, confirmed)",
+                   boundary_complete and all(d > H_REFINE_UNSTABLE_FLOOR for d in boundary_diffs),
+                   str([f"{d:.3f}" for d in boundary_diffs]), f"all > {H_REFINE_UNSTABLE_FLOOR}"))
+    qpfail_budget = [b for b in (href["interior_a"] + href["interior_b"] + href["boundary"])
+                     if b["status"] == "qpfail"]
+    budget_classified = all(b["budget_exhausted"] for b in qpfail_budget)
+    checks.append(("HREF  any qpfail in the refinement ladder is classified BUDGET-EXHAUSTED, "
+                   "not a genuine solver failure",
+                   budget_classified,
+                   f"{len(qpfail_budget)} qpfail row(s), all budget-exhausted={budget_classified}"
+                   if qpfail_budget else "0 qpfail rows", "True (or none)"))
+
+    # ---- SHIP-BLOCKER 2 (23299): A_START_T derivation + live validity ----
+    asi = surf["a_start_info"]
+    checks.append(("A_START_T  bisection bracket is valid (glo below target, ghi at/above it)",
+                   asi["bracket_ok"], f"glo={asi['glo']:.2e} ghi={asi['ghi']:.4f}",
+                   f"straddle target={asi['target']:.3f}"))
+    checks.append(("A_START_T  derived start angle is finite and POSITIVE (a genuine relief, not 0)",
+                   surf["a_start_t"] is not None and surf["a_start_t"] > 0.0,
+                   f"{surf['a_start_t']:.6f}" if surf["a_start_t"] is not None else "None", "> 0"))
+    rc = surf["relief_check"]
+    checks.append(("A_START_T  LIVE VALIDITY: a real crank_run from A_START_T at the smallest "
+                   "swept t produces genuine multi-step motion (not another instant re-lock)",
+                   rc["steps"] > 0, f"steps={rc['steps']} status={rc['status']}", "steps > 0"))
+
+    # ---- O: SIGNED SENSITIVITY, arm A axis (da*/dw at fixed t=0) ----
+    w_star = [r["a_star"] for r in surf["w_results"]]
+    w_vals = [r["w"] for r in surf["w_results"]]
+    w_star_alt = [r["a_star"] for r in surf["w_results_alt"]]
+    w_vals_alt = [r["w"] for r in surf["w_results_alt"]]
+    w_ok = (len(w_star) > 0 and len(w_star_alt) > 0
+           and all(v is not None for v in w_star) and all(v is not None for v in w_star_alt))
+    if w_ok:
+        da_dw = _ols_slope(w_vals, w_star)
+        # INTERIOR-only slope (excludes the w=0 boundary point) -- per the
+        # h-refinement finding above, `da_dw` (full grid, boundary
+        # included) is NOT h0-convergent and is REPORTED ONLY, never fed
+        # into Q2's ratio below; `da_dw_interior` is the h0-refinement-
+        # validated, gate-worthy quantity (HREF rows above). The ALT arm,
+        # by construction, never samples w=0, so it is compared against
+        # the PRIMARY arm's OWN interior points, not the full-grid slope.
+        da_dw_interior = _ols_slope(w_vals[1:], w_star[1:])
+        da_dw_alt = _ols_slope(w_vals_alt, w_star_alt)
+        da_dw_shuffled = _ols_slope(w_vals, list(reversed(w_star)))
+    else:
+        da_dw = da_dw_interior = da_dw_alt = da_dw_shuffled = float("nan")
+    checks.append(("O  primary w-grid: every point JAMMED or REACHED (a* computable)",
+                   w_ok, str([r["status"] for r in surf["w_results"]]), "no 'qpfail'"))
+    checks.append(("O  da*/dw, FULL grid (includes w=0) -- REPORTED ONLY, non-convergent per HREF",
+                   w_ok and np.isfinite(da_dw), f"{da_dw:+.6f} deg/w", "finite (not gated on Q2)"))
+    checks.append(("O  da*/dw, INTERIOR ONLY -- the h0-refinement-validated quantity Q2 USES",
+                   w_ok and np.isfinite(da_dw_interior), f"{da_dw_interior:+.6f} deg/w", "finite"))
+    checks.append(("O  CONTROL: shuffled (w, a*) pairing does NOT reproduce the fitted slope",
+                   w_ok and abs(da_dw_shuffled - da_dw) > SLOPE_SHUFFLE_DIFFER_TOL,
+                   f"{da_dw_shuffled:+.6f} vs {da_dw:+.6f}", "differ"))
+    checks.append(("O  ALT arm agrees with the PRIMARY arm's OWN interior slope (or both ~ 0)",
+                   w_ok and (abs(da_dw_interior) < W_INTERIOR_FLAT_TOL
+                            or (da_dw_interior > 0) == (da_dw_alt > 0)),
+                   f"{da_dw_alt:+.6f} vs interior {da_dw_interior:+.6f}", "same sign or both flat"))
+
+    # ---- P: SIGNED SENSITIVITY, arm C axis (da*/dt, opening range, at
+    # fixed w=w_ref, RE-BASED at A_START_T per SHIP-BLOCKER 2) ----
+    t_star = [r["a_star"] for r in surf["t_results"]]
+    t_vals = [r["t"] for r in surf["t_results"]]
+    t_star_alt = [r["a_star"] for r in surf["t_results_alt"]]
+    t_vals_alt = [r["t"] for r in surf["t_results_alt"]]
+    t_ok = (len(t_star) > 0 and len(t_star_alt) > 0
+           and all(v is not None for v in t_star) and all(v is not None for v in t_star_alt))
+    if t_ok:
+        da_dt = _ols_slope(t_vals, t_star)
+        da_dt_alt = _ols_slope(t_vals_alt, t_star_alt)
+        da_dt_shuffled = _ols_slope(t_vals, list(reversed(t_star)))
+    else:
+        da_dt = da_dt_alt = da_dt_shuffled = float("nan")
+    checks.append(("P  primary t-grid (re-based, opening range): every point computable",
+                   t_ok, str([r["status"] for r in surf["t_results"]]), "no 'qpfail'"))
+    checks.append(("P  da*/dt (arm C), opening range, fixed w=T_SWEEP_W_FRAC*w_ico, sign + magnitude",
+                   t_ok and np.isfinite(da_dt), f"{da_dt:+.6f} deg-range/t", "finite"))
+    checks.append(("P  CONTROL: shuffled (t, a*) pairing does NOT reproduce the fitted slope",
+                   t_ok and abs(da_dt_shuffled - da_dt) > SLOPE_SHUFFLE_DIFFER_TOL,
+                   f"{da_dt_shuffled:+.6f} vs {da_dt:+.6f}", "differ"))
+    checks.append(("P  ALT arm: da*/dt sign agrees with the primary arm",
+                   t_ok and (da_dt > 0) == (da_dt_alt > 0),
+                   f"{da_dt_alt:+.6f} vs {da_dt:+.6f}", "same sign"))
+
+    # ---- Q: THE SEPARATION ROW, both ways ----
+    if w_ok:
+        w_sep_all = abs(max(w_star) - min(w_star))
+        w_sep_interior = abs(max(w_star[1:]) - min(w_star[1:]))  # excludes the w=0 boundary point
+        ktable_ratio_interior = w_sep_interior / 13.849356
+    else:
+        w_sep_all = w_sep_interior = ktable_ratio_interior = float("nan")
+    checks.append(("Q  arm-A comparison: INTERIOR w-separation as a RATIO of the k-table span "
+                   "(the h0-validated quantity; the boundary-inclusive figure is reported "
+                   "separately, not used here, per HREF's non-convergence finding)",
+                   w_ok and np.isfinite(ktable_ratio_interior),
+                   f"{w_sep_interior:.6f} / 13.849356 = {ktable_ratio_interior:.4f}",
+                   "finite ratio, printed"))
+    checks.append(("Q  (reported only) FULL-grid w-separation, includes the non-convergent "
+                   "w=0 boundary jump",
+                   w_ok, f"{w_sep_all:.6f}", "reported, not gated"))
+    if t_ok:
+        t_sep = abs(max(t_star) - min(t_star))
+    else:
+        t_sep = float("nan")
+    checks.append(("Q  arm-C signature: t-driven opening-range separation exceeds T_SEPARATION_TOL",
+                   t_ok and t_sep > T_SEPARATION_TOL, f"{t_sep:.6f}", f"> {T_SEPARATION_TOL}"))
+    checks.append(("Q  arm-C signature: w-only separation (interior points) stays under W_SEPARATION_TOL",
+                   w_ok and w_sep_interior < W_SEPARATION_TOL,
+                   f"{w_sep_interior:.6f}", f"< {W_SEPARATION_TOL}"))
+
+    # ---- Q2: THE DISCRIMINATION-RATIO ROW (the deliverable's headline).
+    # USES da_dw_interior (the h0-refinement-validated quantity), NEVER
+    # the full-grid da_dw (SHIP-BLOCKER 1's own finding: non-convergent,
+    # sign-flipping across h0 -- unfit to feed a headline verdict). da_dt
+    # is the RE-BASED, opening-range quantity (SHIP-BLOCKER 2's fix). ----
+    ratio_computable = (w_ok and t_ok and np.isfinite(da_dw_interior) and np.isfinite(da_dt)
+                       and abs(da_dt) > RATIO_ZERO_TOL)
+    if ratio_computable:
+        discrim_ratio = abs(da_dw_interior) / abs(da_dt)
+        if discrim_ratio > DISCRIM_RATIO_HIGH:
+            verdict = "ARM-A-LIKE"
+        elif discrim_ratio < DISCRIM_RATIO_LOW:
+            verdict = "ARM-C-LIKE"
+        else:
+            verdict = "NON-DISCRIMINATING"
+    else:
+        discrim_ratio = None
+        verdict = None
+    checks.append(("Q2  DISCRIMINATION RATIO |da*/dw_interior|/|da*/dt| is COMPUTABLE "
+                   "(never an inf-pass)",
+                   ratio_computable,
+                   f"{discrim_ratio:.3e}" if ratio_computable else "undefined (|da*/dt| ~ 0)",
+                   f"nonzero denom > {RATIO_ZERO_TOL:.0e}"))
+    checks.append(("Q2  VERDICT: exactly one of ARM-A-LIKE / ARM-C-LIKE / NON-DISCRIMINATING",
+                   ratio_computable and verdict in ("ARM-A-LIKE", "ARM-C-LIKE", "NON-DISCRIMINATING"),
+                   str(verdict), f"band [{DISCRIM_RATIO_LOW}, {DISCRIM_RATIO_HIGH}]"))
+
+    # ---- R: NON-VACUITY, two-sided bands -- SPLIT PER ARM (23299-adjacent
+    # fix: the w-arm's a* is an ABSOLUTE ANGLE from a=0; the t-arm's a* is
+    # an OPENING RANGE from A_START_T (SHIP-BLOCKER 2) -- combining them
+    # into one "whole surface" span would mix two different quantities). ----
+    w_arm_results = surf["w_results"] + surf["w_results_alt"]
+    t_arm_results = surf["t_results"] + surf["t_results_alt"]
+    w_finite = [r["a_star"] for r in w_arm_results if r["a_star"] is not None]
+    t_finite = [r["a_star"] for r in t_arm_results if r["a_star"] is not None]
+    w_non_vacuous = len(w_finite) == len(w_arm_results) and len(w_finite) > 0
+    t_non_vacuous = len(t_finite) == len(t_arm_results) and len(t_finite) > 0
+    w_span = (max(w_finite) - min(w_finite)) if w_non_vacuous else None
+    t_span = (max(t_finite) - min(t_finite)) if t_non_vacuous else None
+    checks.append(("R-w  NON-VACUITY: every w-arm grid point contributed a finite a* (fold into all())",
+                   w_non_vacuous, f"{len(w_finite)}/{len(w_arm_results)}", "all finite"))
+    checks.append(("R-w  w-arm span (absolute angle) lies in a TWO-SIDED band",
+                   w_non_vacuous and SPAN_LOWER < w_span < SPAN_UPPER,
+                   f"{w_span:.6f}" if w_non_vacuous else "n/a", f"({SPAN_LOWER:.0e}, {SPAN_UPPER})"))
+    checks.append(("R-t  NON-VACUITY: every t-arm grid point contributed a finite a* (fold into all())",
+                   t_non_vacuous, f"{len(t_finite)}/{len(t_arm_results)}", "all finite"))
+    checks.append(("R-t  t-arm span (opening range) lies in a TWO-SIDED band",
+                   t_non_vacuous and SPAN_LOWER < t_span < SPAN_UPPER_T,
+                   f"{t_span:.6f}" if t_non_vacuous else "n/a", f"({SPAN_LOWER:.0e}, {SPAN_UPPER_T})"))
+
+    # ---- S: MOTION ORDER, falsifiable, with a can-fail control ----
+    # TEST reads the LAST completed step of the single-crank-handle trace
+    # (propagation has had time to reach some neighbours); CONTROL reads
+    # the FIRST step of the driven="all" trace, among the SIX topologically
+    # EQUIVALENT corner units only (index 0, the star centre, is symmetry-
+    # distinguished -- see MOTION_UNIFORM_TOL's docstring). Both now read a
+    # HOMOGENEOUS raw-velocity-norm metric for every unit (code review
+    # MEDIUM fix, 23337 -- `motion_order_trace`'s own docstring).
+    test_tr, ctrl_tr = zlock["test_trace"], zlock["control_trace"]
+    test_not_equal = False
+    if test_tr["history"]:
+        last = test_tr["history"][-1]
+        test_not_equal = bool(np.max(last) - np.min(last) > MOTION_ACTIVITY_TOL)
+    ctrl_equal = False
+    if ctrl_tr["history"]:
+        first_c = ctrl_tr["history"][0][1:]  # corner units only, first step
+        ctrl_equal = bool(np.max(first_c) - np.min(first_c) < MOTION_UNIFORM_TOL)
+    checks.append(("S  single-handle TEST: per-unit activity is NOT all equal (units take turns)",
+                   len(test_tr["history"]) > 0 and test_not_equal,
+                   f"spread={float(np.max(test_tr['history'][-1]) - np.min(test_tr['history'][-1])):.4f}"
+                   if test_tr["history"] else "n/a", f"> {MOTION_ACTIVITY_TOL:.0e}"))
+    # PROMOTED FROM PROSE (code review MEDIUM fix, 23337): the write-back's
+    # own strongest evidence for "units take turns" -- the undriven corner
+    # units read EXACTLY 0.0 while the driven unit is active, for the
+    # FIRST several steps -- as a real, falsifiable row rather than prose.
+    early_zero_steps = 0
+    for step_row in test_tr["history"]:
+        if np.max(step_row[1:]) < MOTION_ACTIVITY_TOL:
+            early_zero_steps += 1
+        else:
+            break
+    checks.append(("S  single-handle TEST: undriven corners read EXACTLY 0.0 for >=1 early step "
+                   "while the driven unit is active (the write-back's strongest evidence, gated)",
+                   len(test_tr["history"]) > 0 and early_zero_steps >= 1
+                   and float(test_tr["history"][0][0]) > MOTION_ACTIVITY_TOL,
+                   f"{early_zero_steps} early zero step(s)", ">= 1"))
+    checks.append(("S  CONTROL: driven=all, w large, t=0: the SIX corner units move uniformly",
+                   len(ctrl_tr["history"]) > 0 and ctrl_equal,
+                   f"spread={float(np.max(ctrl_tr['history'][0][1:]) - np.min(ctrl_tr['history'][0][1:])):.2e}"
+                   if ctrl_tr["history"] else "n/a", f"< {MOTION_UNIFORM_TOL}"))
+    checks.append(("S  NON-VACUITY: control run actually completed at least one step",
+                   len(ctrl_tr["history"]) > 0, str(len(ctrl_tr["history"])), "> 0"))
+
+    # ---- T: BINDING SET REPORTED PER GRID POINT ----
+    jammed_results = [r for r in all_lock_results if r["status"] == "jammed"]
+    binding_nonempty = all(bool(r["binding_ever"]) for r in jammed_results)
+    distinct_sets = {frozenset((b[0], b[1], b[2], b[3], b[4]) for b in r["binding_ever"])
+                     for r in jammed_results}
+    checks.append(("T  every JAMMED grid point's binding set is non-empty (fold into all())",
+                   len(jammed_results) > 0 and binding_nonempty,
+                   f"{len(jammed_results)} jammed points", "all non-empty"))
+    # LOW fix (23337): a REAL, falsifiable condition -- >1 distinct set is
+    # the actual mechanism-evidence signature this row exists to check
+    # (a monolithic single binding set everywhere would be a DIFFERENT,
+    # also-reportable result, and this row would correctly redden for it).
+    checks.append(("T  distinct binding sets across the grid (>1 is mechanism evidence, CAN FAIL)",
+                   len(distinct_sets) > 1, f"{len(distinct_sets)} distinct set(s)", "> 1"))
+
+    # ---- DRIVE-MODEL ROBUSTNESS (hazard comment, 2026-08-21) ----
+    drv = zlock["drive"]
+    checks.append(("DRIVE-ROBUST  single-crank-handle drive ALSO stays within DRIVE_ROBUST_TOL",
+                   drv["spread"] is not None and drv["spread"] < DRIVE_ROBUST_TOL,
+                   f"{drv['spread']:.6f}" if drv["spread"] is not None else "n/a",
+                   f"< {DRIVE_ROBUST_TOL}"))
+
     print()
     print("=" * 78)
     print(f"GATE  {len(checks)} rows: every check's verdict, and this process's "
@@ -2627,6 +3760,19 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp):
     print("     actually does anything (GAP_FLOOR_TOL vacuously wide).")
     print("   * M's alternate-W rerun -- without it, 'W=identity is a norm")
     print("     choice, not a physics choice' is asserted, never checked.")
+    print("   * O/P's shuffled-pairing controls (bead qvf.19) -- without")
+    print("     them, a two-point endpoint difference would report 'a slope'")
+    print("     regardless of which a* value landed at which w or t; the OLS")
+    print("     fit plus a re-paired-values control makes the ORDER of the")
+    print("     (w, a*) / (t, a*) pairing load-bearing, not merely printed.")
+    print("   * Q2's 'ratio not computable' FAIL branch -- without it, a")
+    print("     degenerate da*/dt (near zero) would either crash or print an")
+    print("     inf, the exact jb_x X7 shape this file's own house style")
+    print("     already refuses to repeat.")
+    print("   * Z17's 'NO row asserts a* == a_ico' row -- without it, the")
+    print("     qvf.15 ruler-test hazard (both prior mechanisms predict that")
+    print("     exact instant) could silently re-enter as false discriminating")
+    print("     evidence the next time this file is extended.")
     print()
     print("  ROWS DELETED RATHER THAN FIXED:")
     print("   * 'signed_gap agrees with unsigned _tri_tri on separated pairs'")
@@ -2652,6 +3798,16 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp):
     print("  against, and the quasi-static stepper (bead .18) never needs a")
     print("  gap deep in the negative regime -- its active-set threshold sits")
     print("  at g <= eps_act, near zero, by construction.")
+    print()
+    print("  A SECOND ROW DELIBERATELY NOT BUILT (bead qvf.19): resolving WHY")
+    print("  crank_run's SUSTAINED outcome depends on h0 (H_LOCK=0.5 finds a")
+    print("  jam at w=w_ico that H_STEP=2.0 does not, at the SAME w, t). This")
+    print("  bead FIXES h0 at the JAM-tuned, previously-validated value for")
+    print("  every call it makes so the surface is internally consistent, and")
+    print("  reports the sensitivity as a finding -- it does not attempt to")
+    print("  determine which step size is 'more correct', which needs a")
+    print("  mutation-probe pass over the FROZEN stepper (bead qvf.20's own")
+    print("  scope, not this bead's), not another lock-surface grid point.")
     print()
     print("  HAZARD DISCHARGE (qvf.17 critique 23251, T2 23251, bound to this")
     print("  bead by its own HAZARD comment 2026-08-21): signed_gap's general")
@@ -2687,6 +3843,16 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp):
     print("  own jam now binds wires directly, gated (K rows), not contacts")
     print("  alone. scipy.optimize.nnls's RuntimeError-on-non-convergence is")
     print("  now caught (Z16), routed to QPFAIL, never a traceback or a jam.")
+    print()
+    print("  PHASE 1c (bead qvf.19, THE DELIVERABLE): a*(w,t) measured over")
+    print("  the w-grid (fixed t=0) and t-grid (fixed, large w=0.9*w_ico) --")
+    print("  each with a second, absolute, incommensurate arm. The rows above")
+    print("  print the sign and magnitude of da*/dw and da*/dt, the")
+    print("  DISCRIMINATION-RATIO verdict (Q2), the surface's non-vacuity")
+    print("  span (R), the motion-order trace (S) and its binding sets (T),")
+    print("  and the drive-model-robustness check. DRAFT status per the bead:")
+    print("  T2 inviscid/qvf-lock-surface-phase1.md is stamped 'DRAFT -- NOT")
+    print("  YET VALIDATED (pending inviscid-qvf.20)'.")
 
     failed = [n for n, p, _, _ in checks if not p]
     print()
@@ -2706,6 +3872,7 @@ def main():
     np.set_printoptions(precision=6, suppress=True)
     print("=" * 78)
     print("jb_z_quasistatic_array -- contact kernel (1a) + crank stepper (1b)")
+    print("  + lock surface / motion order (1c)")
     print("=" * 78)
     print("  bead inviscid-qvf.17 (Phase 1a, FROZEN): signed plate gaps with")
     print("  witness points and an outward contact normal, wire spans, a")
@@ -2713,20 +3880,29 @@ def main():
     print("  1b): the quasi-static velocity-level crank stepper -- a hand-")
     print("  rolled active-set QP (Lawson-Hanson LDP/NNLS reduction) under")
     print("  non-penetration and tension-only wires, with jam detection.")
+    print("  bead inviscid-qvf.19 (Phase 1c, THE DELIVERABLE): the a*(w,t)")
+    print("  lock surface -- ONE model producing BOTH bench predictions of")
+    print("  the qvf.11/qvf.15 fork -- and the motion-order trace, built ONLY")
+    print("  by calling the FROZEN kernel and stepper above, unmodified.")
     print("  FOUR DECLARATIONS (per the AMENDED design of record, T2 23230):")
     print("  KERNEL, MASS MODEL, PRIMITIVE are INAPPLICABLE throughout --")
     print("  no potential, no mass, no primitive choice anywhere in this")
-    print("  file. METRIC FORM is QUALIFIED by the amendment: Phase 1a")
-    print("  carries no QP objective, so the qualification is vacuously")
-    print("  satisfied there (every 1a number is a NORM-FREE GEOMETRIC")
-    print("  LENGTH). Phase 1b's QP objective ||v-v_cmd||^2_W DOES carry a")
-    print("  weight -- TREATMENT (a) IS CHOSEN: W = identity in body")
-    print("  coordinates, plus a live gate row (M) demonstrating the norm-")
-    print("  free verdicts (jam status, binding-set composition) are")
-    print("  W-INSENSITIVE under an alternate diagonal W. Only norm-free")
-    print("  quantities (jam angle, active-set composition, reached/jammed)")
-    print("  are quotable from Phase 1b; magnitudes derived FROM the QP")
-    print("  solve itself (the achieved rate) are per-unit-of-this-W.")
+    print("  file, Phase 1c included: INAPPLICABLE, NOT FORGOTTEN. METRIC")
+    print("  FORM is QUALIFIED by the amendment: Phase 1a carries no QP")
+    print("  objective, so the qualification is vacuously satisfied there")
+    print("  (every 1a number is a NORM-FREE GEOMETRIC LENGTH). Phase 1b's")
+    print("  QP objective ||v-v_cmd||^2_W DOES carry a weight -- TREATMENT")
+    print("  (a) IS CHOSEN: W = identity in body coordinates, plus a live")
+    print("  gate row (M) demonstrating the norm-free verdicts (jam status,")
+    print("  binding-set composition) are W-INSENSITIVE under an alternate")
+    print("  diagonal W. Only norm-free quantities (jam angle, active-set")
+    print("  composition, reached/jammed) are quotable from Phase 1b;")
+    print("  magnitudes derived FROM the QP solve itself (the achieved")
+    print("  rate) are per-unit-of-this-W. Phase 1c CARRIES TREATMENT (a)")
+    print("  FORWARD (bead .18's own choice, not re-decided here): a* is")
+    print("  the SAME norm-free jam angle, and da*/dw, da*/dt are")
+    print("  DIFFERENCES of it -- norm-free too, quotable without a")
+    print("  per-unit-of-W hedge (that hedge is treatment (b)'s, not (a)'s).")
 
     if not PAIRS:
         print()
@@ -2738,6 +3914,16 @@ def main():
         print()
         print("  Nothing below could be computed, so nothing below is printed.")
         return 1
+
+    # SPECULATIVE PARALLEL PREFETCH. Every `crank_run` below is independent of
+    # every other, so the previous run's recorded argument trace is replayed
+    # through a process pool here, before the serial gate pass starts. The
+    # pass then finds every solve already cached and does nothing but print.
+    # This changes no value and no order: the prints below still happen in
+    # exactly the sequence they always did. On a first run, or after a grid is
+    # re-priced, the trace is short or empty and the missing solves simply
+    # compute serially at their own call sites and are recorded for next time.
+    jb_cache.prefetch(crank_run)
 
     z0 = z0_control()
     z2 = _z2_plate_pair_counts()
@@ -2753,10 +3939,20 @@ def main():
     zdow = doweled_diagnostic(topo)
     ztwo = z14_two_cell_sanity(topo)
     zqp = z16_qpfail_probe(topo)
+    zlock = z17_lock_surface(topo)
 
-    return gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp)
+    return gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock)
 
 
 if __name__ == "__main__":
+    # `--no-cache` / `--clear-cache` are consumed here; nothing else is
+    # accepted, so an unrecognised flag is a loud failure rather than a run
+    # that silently ignored what was asked of it.
+    _rest = jb_cache.parse_argv(sys.argv[1:])
+    if _rest:
+        print(f"unrecognised argument(s): {' '.join(_rest)}", file=sys.stderr)
+        print("usage: jb_z_quasistatic_array.py [--no-cache] [--clear-cache]",
+              file=sys.stderr)
+        sys.exit(2)
     with np.errstate(all="ignore"):
         sys.exit(main())
