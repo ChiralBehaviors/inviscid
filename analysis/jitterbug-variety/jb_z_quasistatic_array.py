@@ -347,7 +347,8 @@ from jb_g_strut_clearance import segment_distance as jb_g_segment_distance
 from jb_x_array_linkage import (A_ICO, DIAGONALS, PAIRS, STRUT_LEN, STRUTS,
                                 SQUARE_DIAGONALS, Topology, apply_body_motions,
                                 assemble_doweled, build_topologies, dverts_exact,
-                                hinge_jacobian, path_tangent_48, rank_of, verts)
+                                hinge_jacobian, path_tangent_48,
+                                position_jacobian_row, rank_of, verts)
 
 # ==========================================================================
 # LOCAL CONSTANTS
@@ -579,8 +580,39 @@ H_LOCK = 0.5
 #: in calibration (~0.98 deg) across every (w, t) point tried, so a status
 #: of "reached" (no lock found) is a genuine, distinguishable outcome from
 #: "jammed" rather than an artifact of too tight a ceiling.
-A_TARGET_LOCK = 5.0
-MAX_STEPS_LOCK = 20
+#: How far past `a_start` a lock-surface point cranks before giving up and
+#: reporting a CENSORED reading.
+#:
+#: RE-PRICED 5.0 -> 45.0 for bead inviscid-1wd. 5.0 was calibrated against the
+#: DISASSEMBLED array, whose "lock" sat at a* = 0.98 -- comfortably inside a
+#: 5-degree window. With the ball joint restored the array locks at a* = 29.88,
+#: so every sweep point ran to the target instead, every a* censored to the
+#: same 5.0, and the w-arm span collapsed to exactly zero: a surface made
+#: entirely of the budget rather than of the physics. The CENSORING row below
+#: is what turns that failure mode from a silent flat surface into a red row.
+#:
+#: 45.0 is NOT chosen to just clear the observed 29.88 -- a target tuned to the
+#: answer is the answer. It is this file's own largest `FOLD_TABLE_TARGET`
+#: entry, sits inside `ANGLE_GRID`'s span, and stays well clear of a = 60 where
+#: the twelve shared vertices merge into six and the pairing this whole file
+#: rests on stops existing.
+A_TARGET_LOCK = 45.0
+
+#: Step budget per lock-surface run. Raised 20 -> 150 alongside the target
+#: above: at h0 = H_LOCK the assembled array needs ~66 steps to reach its lock
+#: at 29.88 and proportionally more to run out a 45-degree window. Budget
+#: exhaustion surfaces as QPFAIL and is classified as BUDGET-EXHAUSTED rather
+#: than being read as a physical result -- it is never folded into a*.
+MAX_STEPS_LOCK = 150
+
+#: Step budget for the single-crank-handle DRIVE-ROBUSTNESS runs specifically.
+#: Larger than MAX_STEPS_LOCK because driving one unit advances the array's
+#: phase far more slowly than the uniform in-phase drive: measured, that path
+#: needs ~360 steps to run out the same 45-degree window that driven="all"
+#: covers in ~66. At the shared 150 both points simply exhausted the budget and
+#: reported QPFAIL, which is a statement about the budget and not about the
+#: drive.
+MAX_STEPS_DRIVE = 500
 
 #: PRIMARY w-grid, as FRACTIONS of w_ico (computed from `fold_halves`, not a
 #: bare literal -- see `_w_ico_lock`). Includes the w=0 boundary (already
@@ -647,6 +679,35 @@ SPAN_UPPER = 2.0 * A_TARGET_LOCK
 #: `crank_run`'s feasibility backtrack) -- a diagnostic of ORDER, not a
 #: hardened lock-surface measurement.
 MOTION_ORDER_STEPS = 8
+#: How many early steps the LEAD/LAG row reads. Early, because the question is
+#: whether the drive PROPAGATES -- once the array has taken it up the ratio
+#: settles and says nothing about order.
+#: Steps the JOINT-integrity probe cranks. Long enough for the retired
+#: per-unit projection to separate the joints well past JOINT_GAP_TOL (it
+#: reaches 0.043 in three steps at ~0.094 per degree), short enough to stay a
+#: gate row rather than a sweep.
+JOINT_PROBE_STEPS = 12
+
+#: The assembled array's tolerance on shared-vertex separation. Priced against
+#: `project_to_joint_manifold`'s own convergence floor (PROJECT_TOL) with room
+#: for the Newton solve to stop early, not against the control's drift -- a
+#: tolerance priced from the failure it is meant to catch would admit it.
+JOINT_GAP_TOL = 1e-9
+
+#: The control must separate by at least this much for the TEST's pass to mean
+#: anything. Well below the 0.043 measured at three steps, so the row reports a
+#: genuine gap rather than a coincidence of run length.
+JOINT_CONTROL_FLOOR = 1e-3
+
+MOTION_LEAD_STEPS = 4
+
+#: The lead/lag row's threshold: at least one early step must show every
+#: undriven unit moving at less than this fraction of the driven unit. Priced
+#: from the run's own numbers (0.431 at step 0, settling near 0.62) with
+#: headroom, and falsified by the driven="all" control, where the ratio goes
+#: to 1.
+MOTION_LEAD_RATIO_MAX = 0.8
+
 MOTION_ORDER_H = 0.5
 #: A per-unit velocity-component norm above this counts as "moving".
 MOTION_ACTIVITY_TOL = 1e-6
@@ -713,8 +774,11 @@ H_REFINE_STABLE_TOL = 0.02
 #: NOT converged) -- used to positively demonstrate the w=0 boundary point
 #: FAILS the stability band, the other half of the two-sided row.
 H_REFINE_UNSTABLE_FLOOR = 0.1
-H_REFINE_TARGET = 5.0
-H_REFINE_MAX_STEPS = 30
+#: Re-priced with A_TARGET_LOCK (bead inviscid-1wd) and for the same reason:
+#: at 5.0 the refinement probe measured how far the array got in 5 degrees,
+#: not where it locks.
+H_REFINE_TARGET = 45.0
+H_REFINE_MAX_STEPS = 300
 
 #: SHIP-BLOCKER 2 (23299 CRITICAL 2): the t-column's clearance-relieved
 #: start angle. Derived (bisection over the OPENING/wire-mechanism pairs'
@@ -749,7 +813,13 @@ T_TARGET_SPAN = 5.0
 #: R-t's upper bound (row R split per-arm in this fix round, since the
 #: t-arm's a* is an OPENING RANGE bounded by T_TARGET_SPAN, a different
 #: scale from the w-arm's absolute-angle a*, bounded by A_TARGET_LOCK).
-SPAN_UPPER_T = 2.0 * T_TARGET_SPAN
+#: RE-DERIVED for bead inviscid-1wd. This was 2.0 * T_TARGET_SPAN, but the
+#: t-arm has never passed T_TARGET_SPAN to `lock_surface_point` -- it takes the
+#: default `target_span=A_TARGET_LOCK`, so T_TARGET_SPAN bounded nothing and
+#: the band silently stayed priced for a 5-degree window while the arm ran to
+#: 45. It is the same bound the w-arm's own band uses, for the same reason: an
+#: opening range cannot exceed the window it was measured in.
+SPAN_UPPER_T = 2.0 * A_TARGET_LOCK
 
 
 # ==========================================================================
@@ -2009,6 +2079,17 @@ def contact_gradient_row(xs, i, fi, j, fj, t, ndof):
 #: is EXACTLY proportional to `fold_halves`' own fold quantity
 #: (gap / fold(a) = 2/sqrt(3), constant to 5 decimal places across every
 #: angle checked) -- a measured fact, not a guess.
+#: Bounded iterations for `project_to_joint_manifold`. Higher than the
+#: per-unit projector's 15 because the array-level system it solves is larger
+#: (36n + 3c rows against 48n unknowns) and starts further from its own
+#: solution after a full step.
+PROJECT_MAXIT = 30
+
+#: Convergence floor for the same. At 1e-13 the projector is asking for the
+#: assembled configuration to machine precision; the JOINT gate rows check
+#: what it actually achieves rather than assuming it got there.
+PROJECT_TOL = 1e-13
+
 WIRE_REF_ANGLE = 0.5
 WIRE_FD_H = 1e-3
 #: A candidate opening pair must sit within this of zero gap at the
@@ -2092,15 +2173,92 @@ def wire_gradient_row(xs, pair, w, ndof):
     return w - gap, -row, degenerate
 
 
-def build_pin_jacobian(xs, n):
-    """Block-diagonal (36n, 48n) equality Jacobian: the 36 intra-unit hinge
-    rows PER UNIT only -- NOT `assemble_free`'s inter-unit contact rows,
-    which encode RIGID pins (pre-DECISION-18 semantics; reused deliberately,
-    and ONLY, for the DOWELED diagnostic)."""
+def _hinge_only_jacobian(xs, n):
+    """The RETIRED block-diagonal Jacobian: 36 intra-unit hinge rows per unit
+    and no inter-unit rows at all -- exactly what `build_pin_jacobian` was
+    before bead inviscid-1wd.
+
+    It exists solely so the JOINT gate row can run a control arm that
+    reproduces the retired path in full. Nothing on the shipped path may call
+    it: the whole point of that bead is that an array assembled by this
+    Jacobian comes apart while being cranked."""
     ndof = 48 * n
     big = np.zeros((36 * n, ndof))
     for i in range(n):
         big[36 * i:36 * i + 36, 48 * i:48 * i + 48] = hinge_jacobian(xs[i])
+    return big
+
+
+def joint_vertex(xs, unit, pair_index):
+    """The physical position of the vertex `topo.contacts` names by
+    (unit, pair_index).
+
+    `topo.contacts` entries are (i, k, j, l) where k and l index `PAIRS`, NOT
+    the flat corner array -- `PAIRS[k][0]` is the (face, corner) address of the
+    hinge's first representative. Reading them as flat vertex indices instead
+    is wrong and is not loud about it: it returns a real position for a real
+    vertex, just the wrong one, and reports a joint separation of sqrt(6) at
+    the assembled pose. That mistake was made once while diagnosing this very
+    defect, so the convention lives in a named function rather than being
+    re-derived at each call site."""
+    fa, ca = PAIRS[pair_index][0]
+    return xs[unit][fa][ca]
+
+
+def joint_residual(xs, topo):
+    """The 3 x len(topo.contacts) BALL-JOINT violations: for each shared
+    vertex, the vector from one unit's copy of it to the other's. Zero when
+    the array is assembled. This is the constraint function whose Jacobian is
+    the inter-unit block of `build_pin_jacobian` below."""
+    out = np.zeros(3 * len(topo.contacts))
+    for e, (i, k, j, l) in enumerate(topo.contacts):
+        out[3 * e:3 * e + 3] = joint_vertex(xs, i, k) - joint_vertex(xs, j, l)
+    return out
+
+
+def build_pin_jacobian(xs, n, topo):
+    """The array's equality Jacobian: 36 intra-unit hinge rows per unit, PLUS
+    3 BALL-JOINT rows per `topo.contacts` entry -- (36n + 3c, 48n).
+
+    THE INTER-UNIT ROWS ARE A BALL JOINT, NOT A RIGID PIN (bead inviscid-1wd).
+    This function previously omitted them, on the stated grounds that
+    `assemble_free`'s inter-unit rows "encode RIGID pins (pre-DECISION-18
+    semantics)". Read that function: its inter-unit block is THREE rows per
+    contact, `position_jacobian_row` on each side, differenced. Three rows
+    constrain a shared vertex to stay shared and leave both units free to
+    pivot about it. A rigid pin -- position AND relative orientation -- would
+    be six. So the array's only assembly constraint was dropped on a mislabel,
+    and under DECISION 18 nothing replaced it: contact is one-sided, and the
+    wires are slack at a = 0 for every w above EPS_ACT.
+
+    What that cost, measured before the fix: the shared vertices separated
+    monotonically at ~0.094 per degree of crank (0.0000, 0.0143, 0.0285,
+    0.0427 over the first three steps, at w = 0 and w = 0.6*w_ico alike), and
+    the resulting "lock" at a* = 0.98 was the array coming apart rather than
+    a jitterbug array locking. With the rows restored the same probe locks at
+    a* = 29.88, which is 7.6 degrees PAST a_ico and therefore -- unlike every
+    figure it replaces -- not the instant both prior mechanisms predict.
+
+    A ball joint is a KINEMATIC CONSTRAINT, not a force: it adds no potential,
+    no mass, no primitive, and does not disturb METRIC FORM's treatment (a).
+    The FOUR DECLARATIONS are untouched by it. It is the constraint DECISION
+    18's contact model was always meant to sit on top of.
+
+    `topo` is REQUIRED rather than defaulted. A default would let a caller
+    silently rebuild the disassembled array this bead exists to retire, and
+    that failure mode is invisible in the output -- it moves a* without
+    erroring. Both call sites already have `topo` in hand."""
+    ndof = 48 * n
+    c = len(topo.contacts)
+    big = np.zeros((36 * n + 3 * c, ndof))
+    for i in range(n):
+        big[36 * i:36 * i + 36, 48 * i:48 * i + 48] = hinge_jacobian(xs[i])
+    for e, (i, k, j, l) in enumerate(topo.contacts):
+        fa, ca = PAIRS[k][0]
+        fb, cb = PAIRS[l][0]
+        r = 36 * n + 3 * e
+        big[r:r + 3, 48 * i:48 * i + 48] += position_jacobian_row(xs[i], fa, ca)
+        big[r:r + 3, 48 * j:48 * j + 48] -= position_jacobian_row(xs[j], fb, cb)
     return big
 
 
@@ -2129,6 +2287,53 @@ def project_to_pin_manifold(x, maxit=15, tol=1e-13):
             return x, rn
         x = apply_body_motions(x, dz)
     return x, float(np.linalg.norm(hinge_residual(x)))
+
+
+def project_to_joint_manifold(xs, topo, maxit=PROJECT_MAXIT, tol=PROJECT_TOL):
+    """Newton-project the WHOLE ARRAY back onto {hinge residuals = 0} AND
+    {ball-joint residuals = 0} after a step. Returns (xs, residual_norm).
+
+    WHY THIS IS ARRAY-LEVEL. Its predecessor, `project_to_pin_manifold`,
+    projects ONE unit onto its OWN hinge manifold, and `crank_run` called it in
+    a per-unit loop. That restores each unit's internal geometry and says
+    nothing about whether the units are still joined -- so even once the ball
+    joint is in the QP's Jacobian, where it holds only to FIRST order along a
+    finite step, the joints drift at second order with nothing to pull them
+    back. Measured: 0.0055 of residual separation over a 66-step run with the
+    constraint in the QP but the projection still per-unit. Projecting the
+    array as one system closes that.
+
+    Damped least squares, bounded iterations, never raises -- the same GN
+    style as `project_to_pin_manifold` and `solve_inphase`, and for the same
+    reason: a projection that throws inside a swept loop destroys the verdict
+    table (this file's house rule), and a projection that fails to converge is
+    a measurement about the configuration, reported through the returned
+    residual, not an exception."""
+    n = topo.n
+    for _ in range(maxit):
+        r = np.concatenate([np.concatenate([hinge_residual(x) for x in xs]),
+                            joint_residual(xs, topo)])
+        rn = float(np.linalg.norm(r))
+        if rn < tol:
+            return xs, rn
+        jac = build_pin_jacobian(xs, n, topo)
+        dz, *_ = np.linalg.lstsq(jac, -r, rcond=None)
+        if not np.all(np.isfinite(dz)):
+            return xs, rn
+        xs = [apply_body_motions(xs[i], dz[48 * i:48 * i + 48]) for i in range(n)]
+    r = np.concatenate([np.concatenate([hinge_residual(x) for x in xs]),
+                        joint_residual(xs, topo)])
+    return xs, float(np.linalg.norm(r))
+
+
+def max_joint_gap(xs, topo):
+    """The largest shared-vertex separation in the array -- the single number
+    that says whether the thing being cranked is still an array. Reported by
+    the JOINT gate rows and by `crank_run`'s own telemetry."""
+    if not topo.contacts:
+        return 0.0
+    return max(float(np.linalg.norm(joint_vertex(xs, i, k) - joint_vertex(xs, j, l)))
+               for (i, k, j, l) in topo.contacts)
 
 
 # ==========================================================================
@@ -2220,7 +2425,7 @@ def crank_step(topo, pairs, xs, a_hat, w, t, driven="all",
     n = topo.n
     ndof = 48 * n
     v_cmd, units = crank_v_cmd(topo, a_hat, driven, ndof)
-    j_pin = build_pin_jacobian(xs, n)
+    j_pin = build_pin_jacobian(xs, n, topo)
     n_basis = null_space_basis(j_pin, ndof)
     if wpairs is None:
         wpairs = wire_pairs(topo)
@@ -2433,11 +2638,13 @@ def crank_run(topo, a_start, a_target, w, t, driven="all",
                     "binding": binding, "binding_ever": binding_ever, "steps": step,
                     "min_general_gap": min_general_gap, "rate_history": rate_history}
 
-        new_xs = []
-        for i in range(topo.n):
-            xi, _ = project_to_pin_manifold(trial_xs[i])
-            new_xs.append(xi)
-        xs = new_xs
+        # ARRAY-LEVEL projection (bead inviscid-1wd). This was a per-unit
+        # loop over `project_to_pin_manifold`, which restores each unit's own
+        # hinge geometry and says nothing about whether the units are still
+        # joined -- the ball joint holds only to first order along a finite
+        # step, so without this the joints drift at second order with nothing
+        # pulling them back.
+        xs, _joint_rn = project_to_joint_manifold(trial_xs, topo)
         a_hat += h * rate
         if a_hat >= a_target:
             min_general_gap = min(min_general_gap, _scan_general_gap(xs))
@@ -2773,7 +2980,7 @@ def z16_qpfail_probe(topo):
         gap, row = contact_gradient_row(xs0, i, fi, j, fj, 0.0, ndof)
         if gap <= EPS_ACT:
             active_rows.append(row)
-    n_basis = null_space_basis(build_pin_jacobian(xs0, topo.n), ndof)
+    n_basis = null_space_basis(build_pin_jacobian(xs0, topo.n, topo), ndof)
     c_mat = np.array([row @ n_basis for row in active_rows])
     # A NONTRIVIAL target: c=0 (verified, then rejected) makes h_vec the
     # zero vector, at which x=0 trivially satisfies every row -- NNLS
@@ -3018,11 +3225,16 @@ def drive_robustness_check(topo):
     array-wide uniform expansion)."""
     w_ico = _w_ico_lock()
     fracs = (W_GRID_FRAC[1], W_GRID_FRAC[-1])  # an interior + the near-limit point
-    pts = [lock_surface_point(topo, frac * w_ico, 0.0, driven=DRIVEN_UNIT_INDEX)
+    pts = [lock_surface_point(topo, frac * w_ico, 0.0, driven=DRIVEN_UNIT_INDEX,
+                              max_steps=MAX_STEPS_DRIVE)
            for frac in fracs]
     finite = [p["a_star"] for p in pts if p["a_star"] is not None]
     spread = (max(finite) - min(finite)) if len(finite) == len(pts) else None
-    return {"points": pts, "fracs": fracs, "spread": spread}
+    statuses = [p["status"] for p in pts]
+    return {"points": pts, "fracs": fracs, "spread": spread,
+            "statuses": statuses,
+            "agree": len(set(statuses)) == 1,
+            "any_lock": any(st == "jammed" for st in statuses)}
 
 
 def motion_order_trace(topo, w, t, driven, h0=MOTION_ORDER_H,
@@ -3067,11 +3279,80 @@ def motion_order_trace(topo, w, t, driven, h0=MOTION_ORDER_H,
             break
         per_unit = np.array([float(np.linalg.norm(v[48 * i:48 * i + 48])) for i in range(n)])
         history.append(per_unit)
-        xs = [project_to_pin_manifold(apply_body_motions(xs[i], h0 * v[48 * i:48 * i + 48]))[0]
-              for i in range(n)]
+        xs, _ = project_to_joint_manifold(
+            [apply_body_motions(xs[i], h0 * v[48 * i:48 * i + 48]) for i in range(n)], topo)
         a_hat += h0 * rate
     return {"history": history, "statuses": statuses, "driven": driven,
             "n_steps_completed": len(history)}
+
+
+def joint_integrity_probe(topo, w=0.0, t=0.0, h0=H_LOCK,
+                          n_steps=JOINT_PROBE_STEPS):
+    """Does the thing being cranked stay an ARRAY? (bead inviscid-1wd)
+
+    Runs the stepper twice over the same steps and reports the worst
+    shared-vertex separation reached by each:
+
+      TEST     -- the shipped path: ball-joint rows in the QP's Jacobian AND
+                  the array-level `project_to_joint_manifold` after each step.
+      CONTROL  -- the retired path IN FULL: `_hinge_only_jacobian` in place of
+                  the ball-joint one, so the QP direction itself is blind to
+                  the joints, AND each unit projected onto its OWN hinge
+                  manifold by `project_to_pin_manifold`. Nothing constrains the
+                  joints and nothing pulls them closed, exactly as before this
+                  bead.
+
+    The CONTROL is not decoration. Without it "the joints hold" is satisfiable
+    by any run short enough for drift not to show, and the number that matters
+    is not the TEST's absolute value but the gap between the two. Measured
+    before the fix, the control separates at ~0.094 per degree of crank and
+    reaches 0.043 within three steps.
+
+    Never raises: a QPFAIL truncates the trace and is reported through
+    `steps`, in keeping with this file's rule that a swept probe returns a
+    reading rather than an exception."""
+    n = topo.n
+    ndof = 48 * n
+    pairs = crank_pairs(topo)
+    wpairs = wire_pairs(topo)
+
+    def run(joints_on):
+        origins = topo.sites(verts(0.0))
+        xs = [corners(0.0) + origins[i] for i in range(n)]
+        a_hat = 0.0
+        worst = 0.0
+        steps = 0
+        for _ in range(n_steps):
+            # The CONTROL arm reproduces the RETIRED path in full: no
+            # inter-unit rows in the Jacobian the QP takes its null space
+            # from, AND the old per-unit projection. Removing only the
+            # projection would understate it -- the joint rows alone already
+            # hold the array to first order, leaving just second-order drift
+            # (1.2e-03 over this probe) rather than the 0.043-in-three-steps
+            # the real retired path produced.
+            _saved = globals()["build_pin_jacobian"]
+            if not joints_on:
+                globals()["build_pin_jacobian"] = (
+                    lambda _xs, _n, _topo: _hinge_only_jacobian(_xs, _n))
+            try:
+                v, status, rate, _b, _m = crank_step(topo, pairs, xs, a_hat, w, t,
+                                                     "all", True, None, wpairs)
+            finally:
+                globals()["build_pin_jacobian"] = _saved
+            if status != "OK":
+                break
+            moved = [apply_body_motions(xs[i], h0 * v[48 * i:48 * i + 48])
+                     for i in range(n)]
+            if joints_on:
+                xs, _rn = project_to_joint_manifold(moved, topo)
+            else:
+                xs = [project_to_pin_manifold(m)[0] for m in moved]
+            a_hat += h0 * rate
+            worst = max(worst, max_joint_gap(xs, topo))
+            steps += 1
+        return {"worst": worst, "steps": steps, "a_hat": a_hat}
+
+    return {"test": run(True), "control": run(False)}
 
 
 def _grid_ratio_apart_check(primary, alt):
@@ -3099,6 +3380,7 @@ def z17_lock_surface(topo):
     href = h_refinement_probe(topo)
     w_grid_apart = _grid_ratio_apart_check(W_GRID_FRAC, W_GRID_FRAC_ALT)
     t_grid_apart = _grid_ratio_apart_check(T_GRID, T_GRID_ALT)
+    joints = joint_integrity_probe(topo)
 
     test_trace = motion_order_trace(topo, MOTION_TEST_W_FRAC * surf["w_ico"], 0.0,
                                     DRIVEN_UNIT_INDEX)
@@ -3106,6 +3388,7 @@ def z17_lock_surface(topo):
 
     return {"surf": surf, "drive": drive, "href": href,
             "w_grid_apart": w_grid_apart, "t_grid_apart": t_grid_apart,
+            "joints": joints,
             "test_trace": test_trace, "control_trace": control_trace}
 
 
@@ -3308,14 +3591,14 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     # SAME protocol (instant_jam=False, SUSTAINED), only w varies -- proves
     # w itself is causal, not merely correlated with the instant_jam flag
     # G/H's own comparison also varies. ----
-    cross_w0, cross_wico = zg["cross_w0"], zg["cross_wico"]
-    checks.append(("CROSS  same protocol, w=0: JAMMED (wires never relax, monotonic opening)",
-                   cross_w0["status"] == "jammed", cross_w0["status"], "jammed"))
-    checks.append(("CROSS  same protocol, w=w_ico: REACHED (opening tops out under the limit)",
-                   cross_wico["status"] == "reached", cross_wico["status"], "reached"))
-    checks.append(("CROSS  W IS CAUSAL: identical instant_jam, outcomes differ solely by w",
-                   cross_w0["status"] != cross_wico["status"],
-                   f"{cross_w0['status']} vs {cross_wico['status']}", "differ"))
+    # The three original CROSS rows ("w=0 JAMS", "w=w_ico REACHES", "therefore
+    # W IS CAUSAL") are DELETED rather than re-priced -- see the deleted-rows
+    # prose block. They asserted an outcome DIFFERENCE that the disassembled
+    # array produced and the assembled one does not, and they had already been
+    # half-retracted by the CROSS-MATCHED rows below, which showed the
+    # difference vanishes once h0 is held equal. `cross_w0`/`cross_wico` are
+    # still computed and still gated -- by CROSS-MATCHED, on the claim that
+    # survives.
 
     # ---- K: binding-set non-emptiness at jam ----
     checks.append(("K  binding active set at jam is NON-EMPTY",
@@ -3446,8 +3729,18 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     # matched-h0 test -- reported here as a correction, not smoothed over.
     cw0, cwico = zg["cross_w0"], zg["cross_wico"]
     ch05wico, ch2w0 = zg["cross_h05_wico"], zg["cross_h2_w0"]
-    checks.append(("CROSS-MATCHED  h0=0.5: w=0 status (bead .18's own cross_w0, unchanged)",
-                   cw0["status"] == "jammed", cw0["status"], "jammed"))
+    # RE-PRICED for bead inviscid-1wd. This row asserted the literal value
+    # "jammed", inherited from bead .18's cross_w0 and labelled "unchanged".
+    # Restoring the ball joint changed it to "reached", and pinning the old
+    # value would have meant asserting the disassembled array's behaviour on an
+    # assembled one. What the CROSS-MATCHED block is actually for -- showing
+    # that at MATCHED h0 the outcome does not turn on w -- is unaffected and is
+    # gated by the AGREE row below, which is where the falsifiable content
+    # lives. This row is reduced to a computability check so the AGREE row
+    # cannot pass on a missing operand.
+    checks.append(("CROSS-MATCHED  h0=0.5: w=0 status computable (bead .18's own "
+                   "cross_w0, VALUE MOVED by inviscid-1wd)",
+                   cw0["status"] in ("jammed", "reached"), cw0["status"], "computed"))
     checks.append(("CROSS-MATCHED  h0=0.5: w=w_ico status (NEW matched leg)",
                    ch05wico["status"] in ("jammed", "reached"), ch05wico["status"], "computed"))
     checks.append(("CROSS-MATCHED  h0=0.5: OUTCOMES AGREE (w is NOT shown causal at this h0)",
@@ -3672,17 +3965,32 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     # own strongest evidence for "units take turns" -- the undriven corner
     # units read EXACTLY 0.0 while the driven unit is active, for the
     # FIRST several steps -- as a real, falsifiable row rather than prose.
-    early_zero_steps = 0
-    for step_row in test_tr["history"]:
-        if np.max(step_row[1:]) < MOTION_ACTIVITY_TOL:
-            early_zero_steps += 1
-        else:
-            break
-    checks.append(("S  single-handle TEST: undriven corners read EXACTLY 0.0 for >=1 early step "
-                   "while the driven unit is active (the write-back's strongest evidence, gated)",
-                   len(test_tr["history"]) > 0 and early_zero_steps >= 1
-                   and float(test_tr["history"][0][0]) > MOTION_ACTIVITY_TOL,
-                   f"{early_zero_steps} early zero step(s)", ">= 1"))
+    # REPLACED for bead inviscid-1wd. The retired row required the undriven
+    # corners to read EXACTLY 0.0 for at least one early step. That evidence
+    # belonged to the DISASSEMBLED array: with no inter-unit constraint the
+    # undriven units genuinely had nothing to transmit motion to them. Once
+    # the ball joint is restored they are joined, so they move from step 0 --
+    # correctly, and the old row can never pass again for a physical reason,
+    # which is why it is replaced rather than loosened.
+    #
+    # What survives, and is the stronger statement, is LEAD/LAG: the driven
+    # unit outruns every other unit while the motion propagates. Measured
+    # here: max_other/driven = 0.431 at step 0, rising through 0.615, 0.617,
+    # 0.661 as the array takes up the drive. The paired CONTROL below
+    # (driven="all") is what makes this falsifiable -- there the ratio goes to
+    # 1 and this row would redden.
+    lead_ratios = []
+    for step_row in test_tr["history"][:MOTION_LEAD_STEPS]:
+        driven_act = float(step_row[DRIVEN_UNIT_INDEX])
+        others = [float(step_row[i]) for i in range(len(step_row))
+                  if i != DRIVEN_UNIT_INDEX]
+        if driven_act > MOTION_ACTIVITY_TOL and others:
+            lead_ratios.append(max(others) / driven_act)
+    checks.append(("S  single-handle TEST: the DRIVEN unit LEADS -- every other unit's "
+                   "activity stays a fraction of it while the motion propagates",
+                   len(lead_ratios) > 0 and min(lead_ratios) < MOTION_LEAD_RATIO_MAX,
+                   f"min ratio {min(lead_ratios):.4f}" if lead_ratios else "n/a",
+                   f"< {MOTION_LEAD_RATIO_MAX}"))
     checks.append(("S  CONTROL: driven=all, w large, t=0: the SIX corner units move uniformly",
                    len(ctrl_tr["history"]) > 0 and ctrl_equal,
                    f"spread={float(np.max(ctrl_tr['history'][0][1:]) - np.min(ctrl_tr['history'][0][1:])):.2e}"
@@ -3705,12 +4013,54 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     checks.append(("T  distinct binding sets across the grid (>1 is mechanism evidence, CAN FAIL)",
                    len(distinct_sets) > 1, f"{len(distinct_sets)} distinct set(s)", "> 1"))
 
+    # ---- JOINT INTEGRITY (bead inviscid-1wd): is it still an array? ----
+    jt = zlock["joints"]
+    checks.append(("JOINT  NON-VACUITY: the integrity probe actually cranked steps "
+                   "(both arms)",
+                   jt["test"]["steps"] > 0 and jt["control"]["steps"] > 0,
+                   f"test {jt['test']['steps']}, control {jt['control']['steps']}", "> 0"))
+    checks.append(("JOINT  TEST: shared vertices stay coincident through a real crank run",
+                   jt["test"]["steps"] > 0 and jt["test"]["worst"] < JOINT_GAP_TOL,
+                   f"{jt['test']['worst']:.3e}", f"< {JOINT_GAP_TOL:.0e}"))
+    checks.append(("JOINT  CONTROL: the retired per-unit projection MEASURABLY pulls the "
+                   "array apart (without this the TEST is unfalsifiable)",
+                   jt["control"]["steps"] > 0
+                   and jt["control"]["worst"] > JOINT_CONTROL_FLOOR,
+                   f"{jt['control']['worst']:.3e}", f"> {JOINT_CONTROL_FLOOR:.0e}"))
+    checks.append(("JOINT  the two arms differ by orders of magnitude, not by rounding",
+                   jt["test"]["steps"] > 0 and jt["control"]["steps"] > 0
+                   and jt["control"]["worst"] > 1e3 * max(jt["test"]["worst"], 1e-300),
+                   f"control/test = {jt['control']['worst'] / max(jt['test']['worst'], 1e-300):.2e}",
+                   "> 1e3"))
+
     # ---- DRIVE-MODEL ROBUSTNESS (hazard comment, 2026-08-21) ----
+    # RESHAPED for bead inviscid-1wd. The original row compared the two points'
+    # a* SPREAD against DRIVE_ROBUST_TOL, which presumes both points HAVE an
+    # a*. Under the assembled array they do not: single-crank-handle drive runs
+    # the full 45-degree window without locking at either w (measured, 360
+    # steps each). That is a real drive-dependence result -- the lock at 29.88
+    # belongs to the uniform in-phase drive -- so it is reported as such rather
+    # than being forced back into a spread comparison that no longer has
+    # operands. The rows below still bite: they fail if the two w points
+    # DISAGREE with each other, and if a lock does appear the spread row
+    # becomes live again on its own terms.
     drv = zlock["drive"]
-    checks.append(("DRIVE-ROBUST  single-crank-handle drive ALSO stays within DRIVE_ROBUST_TOL",
-                   drv["spread"] is not None and drv["spread"] < DRIVE_ROBUST_TOL,
-                   f"{drv['spread']:.6f}" if drv["spread"] is not None else "n/a",
-                   f"< {DRIVE_ROBUST_TOL}"))
+    checks.append(("DRIVE-ROBUST  NON-VACUITY: both single-handle points computable (no QPFAIL)",
+                   len(drv["statuses"]) > 0
+                   and all(st != "qpfail" for st in drv["statuses"]),
+                   f"{drv['statuses']}", "no 'qpfail'"))
+    checks.append(("DRIVE-ROBUST  the two w points AGREE in outcome under this drive (CAN FAIL)",
+                   len(drv["statuses"]) > 0 and drv["agree"],
+                   f"{' vs '.join(drv['statuses'])}", "identical"))
+    if drv["any_lock"]:
+        checks.append(("DRIVE-ROBUST  a* spread under single-handle drive within DRIVE_ROBUST_TOL",
+                       drv["spread"] is not None and drv["spread"] < DRIVE_ROBUST_TOL,
+                       f"{drv['spread']:.6f}" if drv["spread"] is not None else "n/a",
+                       f"< {DRIVE_ROBUST_TOL}"))
+    else:
+        checks.append(("DRIVE-ROBUST  no lock under single-handle drive: the 29.88 lock is "
+                       "DRIVE-SPECIFIC, reported not gated",
+                       True, f"{drv['statuses'][0]} at both w", "printed"))
 
     print()
     print("=" * 78)
@@ -3775,6 +4125,24 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     print("     evidence the next time this file is extended.")
     print()
     print("  ROWS DELETED RATHER THAN FIXED:")
+    print("   * the three CROSS rows ('w=0 JAMS', 'w=w_ico REACHES',")
+    print("     'therefore W IS CAUSAL') are deleted, not re-priced. They")
+    print("     asserted an outcome DIFFERENCE that the DISASSEMBLED array")
+    print("     produced and the assembled one does not -- with the ball")
+    print("     joint restored (bead inviscid-1wd) both legs reach. They had")
+    print("     already been half-retracted by the CROSS-MATCHED rows, which")
+    print("     showed the difference vanishes once h0 is held equal; those")
+    print("     rows carry whatever survives, and cross_w0/cross_wico are")
+    print("     still computed and still gated by them.")
+    print("   * S's 'undriven corners read EXACTLY 0.0 for >=1 early step'")
+    print("     is deleted rather than loosened. That evidence belonged to an")
+    print("     array with no inter-unit constraint, where the corners had")
+    print("     nothing to transmit motion to them. Joined, they move from")
+    print("     step 0 and the row can never pass again FOR A PHYSICAL")
+    print("     REASON. What replaces it is LEAD/LAG -- the driven unit")
+    print("     outruns every other while the drive propagates (min ratio")
+    print("     0.431) -- falsified by the driven='all' control, where the")
+    print("     ratio goes to 1.")
     print("   * 'signed_gap agrees with unsigned _tri_tri on separated pairs'")
     print("     was dropped: jb_x's `_tri_tri` is private and this file does")
     print("     not import private symbols from it (mutation-probe rule) --")
@@ -3843,6 +4211,27 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     print("  own jam now binds wires directly, gated (K rows), not contacts")
     print("  alone. scipy.optimize.nnls's RuntimeError-on-non-convergence is")
     print("  now caught (Z16), routed to QPFAIL, never a traceback or a jam.")
+    print()
+    print("  BEAD inviscid-1wd -- THE BALL JOINT. Everything below is measured")
+    print("  on an array that is actually assembled. `build_pin_jacobian` used")
+    print("  to omit jb_x `assemble_free`'s inter-unit rows, on the stated")
+    print("  grounds that they 'encode RIGID pins'. They do not: three rows per")
+    print("  contact, position coincidence only, orientation free -- a BALL")
+    print("  JOINT. A rigid pin would be six. So the array's only assembly")
+    print("  constraint was dropped on a mislabel, and under DECISION 18")
+    print("  nothing replaced it (contact is one-sided; the wires are slack at")
+    print("  a=0 for every w above EPS_ACT). The shared vertices separated at")
+    print("  ~0.094 per degree of crank and the resulting 'lock' at a*=0.98 was")
+    print("  the array coming apart. Restored, plus an ARRAY-LEVEL projection")
+    print("  (the old one projected each unit onto its OWN hinge manifold and")
+    print("  never re-closed the joints), the lock moves to a*=29.88 -- 7.6 deg")
+    print("  PAST a_ico, and therefore NOT the instant both prior mechanisms")
+    print("  predict, which is the first thing this surface has said that the")
+    print("  qvf.15 ruler-test hazard does not swallow. The JOINT rows gate it:")
+    print("  4.6e-16 of separation on the shipped path against 1.2e-01 on the")
+    print("  retired one. A ball joint is a KINEMATIC constraint, not a force --")
+    print("  no kernel, no mass, no primitive, METRIC FORM treatment (a)")
+    print("  undisturbed. THE FOUR DECLARATIONS ARE UNTOUCHED BY IT.")
     print()
     print("  PHASE 1c (bead qvf.19, THE DELIVERABLE): a*(w,t) measured over")
     print("  the w-grid (fixed t=0) and t-grid (fixed, large w=0.9*w_ico) --")
