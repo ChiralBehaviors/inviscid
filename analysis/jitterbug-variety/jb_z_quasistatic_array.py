@@ -723,15 +723,17 @@ PHASE_SYMMETRIC_SPREAD_TOL = 1e-12
 #: sits an order below, so the row states a real departure and not a rounding.
 PHASE_OFFPATH_FLOOR = 5e-3
 
-#: `a_hat` must be shown to differ from the measured phase by MORE than this.
-#: Stated as a floor, not a ceiling, because the finding IS the discrepancy:
-#: a row asserting the drift is small would be asserting something false.
-PHASE_DRIFT_FLOOR = 1.0
+#: How far `a_hat` may sit from the array's MEAN measured phase. Measured
+#: 0.34 / 0.27 / 0.21 deg across the h0 ladder, so this leaves ample headroom
+#: while still reddening if the integral ever came adrift of the array.
+PHASE_MEAN_DRIFT_TOL = 1.0
 
-#: How much the drift may vary ACROSS the step-size ladder. Small variation is
-#: the evidence that the drift is structural rather than discretisation --
-#: measured 4.83 / 4.91 / 4.98 over a 4x range of h0.
-PHASE_DRIFT_H0_TOL = 0.5
+#: The units must be shown NOT to share a phase. A floor, not a ceiling: the
+#: dephasing is the finding, and a row asserting the units stay in phase would
+#: assert something false. Measured spread is 6.3-6.7 deg; this sits well below
+#: so the row states a real effect, and it reddens if a change ever restored
+#: in-phase motion.
+PHASE_DEPHASE_FLOOR = 1.0
 
 #: Hinge residual, joint gap and triangle-edge deviation admitted through a
 #: crank run. All three sit at 1e-15 or below; this row is what distinguishes
@@ -3459,6 +3461,28 @@ def configuration_phase(x):
     return a, float(rs.max() - rs.min())
 
 
+def _array_phase(xs):
+    """(mean phase, spread ACROSS units, worst radius spread WITHIN a unit).
+
+    READING ONE UNIT IS NOT READING THE ARRAY, and the distinction is the whole
+    finding. An earlier version of this probe took `configuration_phase(xs[0])`
+    and called it the configuration's phase. Unit 0 of SC7 is the CENTRE unit,
+    which lags the six corners by up to 6.7 deg, so that reading reported the
+    centre's lag as though it were `a_hat` drifting -- with the wrong sign and
+    roughly twenty times the true magnitude.
+
+    The two spreads are different phenomena and are kept apart on purpose:
+    `dephase` is units disagreeing with EACH OTHER, `radius spread` is one unit
+    disagreeing with ITSELF (its twelve vertices leaving a common radius, i.e.
+    the linkage flexing off the symmetric path). Both are real here."""
+    phases, rads = [], []
+    for x in xs:
+        p, r = configuration_phase(x)
+        phases.append(p); rads.append(r)
+    return (float(np.mean(phases)), float(max(phases) - min(phases)),
+            float(max(rads)))
+
+
 @jb_cache.memoize(_MODULE)
 def phase_tracking_probe(topo, w_frac=PHASE_PROBE_W_FRAC, t=0.0,
                          target=PHASE_PROBE_TARGET, levels=PHASE_H0_LEVELS):
@@ -3487,8 +3511,8 @@ def phase_tracking_probe(topo, w_frac=PHASE_PROBE_W_FRAC, t=0.0,
                           for f in range(8) for k in range(3)])
         a_hat = 0.0
         rec = {"h0": h0, "reached": False, "hinge": 0.0, "joint": 0.0,
-               "edge": 0.0, "spread": 0.0, "phase": None, "a_hat": 0.0,
-               "steps": 0}
+               "edge": 0.0, "spread": 0.0, "dephase": 0.0, "phase": None,
+               "a_hat": 0.0, "steps": 0}
         for step in range(PHASE_PROBE_MAX_STEPS):
             v, status, rate, _b, _m = crank_step(topo, pairs, xs, a_hat, w, t,
                                                  "all", True, None, wpairs)
@@ -3519,14 +3543,16 @@ def phase_tracking_probe(topo, w_frac=PHASE_PROBE_W_FRAC, t=0.0,
             edge = np.array([float(np.linalg.norm(xs[0][f][k] - xs[0][f][(k+1) % 3]))
                              for f in range(8) for k in range(3)])
             rec["edge"] = max(rec["edge"], float(np.abs(edge - edge0).max()))
-            ph, sp = configuration_phase(xs[0])
+            ph, dph, sp = _array_phase(xs)
             rec["spread"] = max(rec["spread"], sp)
+            rec["dephase"] = max(rec["dephase"], dph)
             if a_hat >= target:
                 rec.update(reached=True, phase=ph, a_hat=a_hat)
                 break
         if not rec["reached"]:
-            ph, sp = configuration_phase(xs[0])
+            ph, dph, sp = _array_phase(xs)
             rec.update(phase=ph, a_hat=a_hat)
+            rec["dephase"] = max(rec["dephase"], dph)
         rec["drift"] = rec["a_hat"] - rec["phase"] if rec["phase"] is not None else None
         out.append(rec)
     return out
@@ -4236,18 +4262,31 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
                    and all(r["spread"] > PHASE_OFFPATH_FLOOR for r in ok_ph),
                    f"min spread {min(r['spread'] for r in ok_ph):.3e}" if ok_ph else "n/a",
                    f"> {PHASE_OFFPATH_FLOOR:.0e}"))
-    checks.append(("PHASE  a_hat IS NOT THE CONFIGURATION'S PHASE: the two differ by more "
-                   "than PHASE_DRIFT_FLOOR at every step size -- CAN FAIL",
+    # CORRECTED. These two rows previously asserted that a_hat differs from "the
+    # configuration's phase" by more than a degree and that the gap is
+    # STRUCTURAL. Both readings came from `configuration_phase(xs[0])` -- unit 0
+    # alone, which is SC7's CENTRE unit and lags the corners. Measured against
+    # the array MEAN the gap is 0.34 / 0.27 / 0.21 deg across a 4x ladder:
+    # small, and SHRINKING, i.e. discretisation. The 5 deg that was reported as
+    # a_hat's error was the centre unit's lag wearing a_hat's name.
+    checks.append(("PHASE  a_hat TRACKS the array's MEAN measured phase (it is crank throw, "
+                   "and it lands where the array's mean does) -- CAN FAIL",
                    len(ok_ph) > 0
-                   and all(abs(r["drift"]) > PHASE_DRIFT_FLOOR for r in ok_ph),
+                   and all(abs(r["drift"]) < PHASE_MEAN_DRIFT_TOL for r in ok_ph),
                    f"drifts {[round(r['drift'], 3) for r in ok_ph]}" if ok_ph else "n/a",
-                   f"all > {PHASE_DRIFT_FLOOR}"))
-    drifts = [r["drift"] for r in ok_ph]
-    checks.append(("PHASE  the drift is STRUCTURAL, not discretisation: it does not shrink "
-                   "across a 4x step-size ladder -- CAN FAIL",
-                   len(drifts) > 1 and (max(drifts) - min(drifts)) < PHASE_DRIFT_H0_TOL,
-                   f"spread {max(drifts) - min(drifts):.4f} over h0={list(PHASE_H0_LEVELS)}"
-                   if len(drifts) > 1 else "n/a", f"< {PHASE_DRIFT_H0_TOL}"))
+                   f"all < {PHASE_MEAN_DRIFT_TOL}"))
+    drifts = [abs(r["drift"]) for r in ok_ph]
+    checks.append(("PHASE  that residual SHRINKS under refinement, so it is discretisation "
+                   "and not a defect in the integral -- CAN FAIL",
+                   len(drifts) > 1 and drifts[-1] < drifts[0],
+                   f"{drifts[0]:.4f} -> {drifts[-1]:.4f} over h0={list(PHASE_H0_LEVELS)}"
+                   if len(drifts) > 1 else "n/a", "decreasing"))
+    checks.append(("PHASE  DEPHASING: under a UNIFORM in-phase drive the units do NOT share "
+                   "a phase -- the centre lags the corners -- CAN FAIL",
+                   len(ok_ph) > 0
+                   and all(r["dephase"] > PHASE_DEPHASE_FLOOR for r in ok_ph),
+                   f"min spread {min(r['dephase'] for r in ok_ph):.3f} deg" if ok_ph else "n/a",
+                   f"> {PHASE_DEPHASE_FLOOR} deg"))
 
     # ---- JOINT INTEGRITY (bead inviscid-1wd): is it still an array? ----
     jt = zlock["joints"]
@@ -4424,16 +4463,25 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     print("  at a = 30.000000000 with all SIXTEEN separated pairs closing")
     print("  simultaneously, and containing NO w -- an independent geometric")
     print("  proof of the interior da*/dw = 0.")
-    print("  The row is not built because THIS FILE DOES NOT WALK THAT PATH.")
-    print("  The PHASE rows above measure it: the linkage flexes asymmetrically")
-    print("  (vertex radii spread to 6.2e-02 while hinges, joints and triangle")
-    print("  edges stay exact to 9e-15, so it is real freedom of the linkage,")
-    print("  not a broken solver), and a_hat runs 5.0-5.2 deg above the best")
-    print("  symmetric fit at every step size across a 4x ladder. Asserting")
-    print("  a* == 30 would compare a bookkeeping integral on an asymmetric")
-    print("  configuration against a closed form that assumes a symmetric one,")
-    print("  and it would pass only by the two errors cancelling -- which is")
-    print("  what the raw numbers (29.83 against 30.00) actually do.")
+    print("  The row is not built because THIS FILE DOES NOT WALK THAT PATH,")
+    print("  and the PHASE rows above measure the two ways it departs. Units")
+    print("  flex INTERNALLY -- vertex radii spread to ~1e-01 while hinges,")
+    print("  joints and triangle edges stay exact to 9e-15, so it is real")
+    print("  freedom of the linkage and not a broken solver. And the units")
+    print("  DEPHASE from EACH OTHER under a uniform in-phase drive: SC7's")
+    print("  centre lags its six corners by 6.4-6.7 deg, and the corners")
+    print("  themselves split four-and-two. a* is CRANK THROW -- the arc")
+    print("  length of the drive projected on the symmetric-path tangent --")
+    print("  and it does land on the array's MEAN phase (0.34/0.27/0.21 deg")
+    print("  across a 4x ladder, shrinking, so that residual is")
+    print("  discretisation). What it is NOT is any single unit's phase,")
+    print("  because there is no single phase to have. Asserting a* == 30")
+    print("  would compare one number against a closed form that assumes")
+    print("  every unit shares it, when they are 6.7 deg apart.")
+    print("  A CORRECTION IS RECORDED HERE RATHER THAN QUIETLY DROPPED: these")
+    print("  rows previously read `configuration_phase(xs[0])` -- unit 0 alone,")
+    print("  the CENTRE -- and reported its lag as a_hat drifting by 5 deg,")
+    print("  with the wrong sign and about twenty times the true magnitude.")
     print()
     print("  HAZARD DISCHARGE (qvf.17 critique 23251, T2 23251, bound to this")
     print("  bead by its own HAZARD comment 2026-08-21): signed_gap's general")
