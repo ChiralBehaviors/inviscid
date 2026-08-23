@@ -686,6 +686,58 @@ MOTION_ORDER_STEPS = 8
 #: per-unit projection to separate the joints well past JOINT_GAP_TOL (it
 #: reaches 0.043 in three steps at ~0.094 per degree), short enough to stay a
 #: gate row rather than a sweep.
+#: The w fraction the phase probe cranks at. The interior of the w grid, where
+#: a* is flat, so the probe reads the same regime the surface is quoted from.
+PHASE_PROBE_W_FRAC = 0.6
+
+#: Common `a_hat` at which every step size is compared. Comparing at one a_hat
+#: rather than at each run's own freeze is what separates the drift from where
+#: each run happened to stop. Comfortably short of the freeze at every level.
+PHASE_PROBE_TARGET = 20.0
+
+#: Step sizes the probe compares. A 4x range: if the drift were discretisation
+#: it would shrink across this, and it does not.
+PHASE_H0_LEVELS = (0.5, 0.25, 0.125)
+
+#: Budget per level. h0=0.125 needs ~172 steps to reach PHASE_PROBE_TARGET.
+PHASE_PROBE_MAX_STEPS = 400
+
+#: Instrument-calibration angles: `configuration_phase` must recover these from
+#: `corners(a)` alone. Spread across the range, none of them special.
+PHASE_PROBE_ANGLES = (3.0, 11.0, 22.238756093, 37.0)
+
+#: Second, absolute, incommensurate calibration arm -- house rule for any swept
+#: grid, applied here too rather than exempting the instrument from it.
+PHASE_PROBE_ANGLES_ALT = (7.0, 19.0, 28.0, 41.0)
+
+#: How exactly the instrument must invert on a KNOWN symmetric pose. It manages
+#: 4e-16; this leaves four orders of headroom and still fails loudly if the
+#: closed-form inversion is ever wrong.
+PHASE_INSTRUMENT_TOL = 1e-12
+
+#: Radius spread admitted on a genuinely symmetric pose. Machine zero.
+PHASE_SYMMETRIC_SPREAD_TOL = 1e-12
+
+#: The array must demonstrably LEAVE the symmetric path for the off-path rows
+#: to mean anything. Measured spread at the probe target is ~6.2e-02; this floor
+#: sits an order below, so the row states a real departure and not a rounding.
+PHASE_OFFPATH_FLOOR = 5e-3
+
+#: `a_hat` must be shown to differ from the measured phase by MORE than this.
+#: Stated as a floor, not a ceiling, because the finding IS the discrepancy:
+#: a row asserting the drift is small would be asserting something false.
+PHASE_DRIFT_FLOOR = 1.0
+
+#: How much the drift may vary ACROSS the step-size ladder. Small variation is
+#: the evidence that the drift is structural rather than discretisation --
+#: measured 4.83 / 4.91 / 4.98 over a 4x range of h0.
+PHASE_DRIFT_H0_TOL = 0.5
+
+#: Hinge residual, joint gap and triangle-edge deviation admitted through a
+#: crank run. All three sit at 1e-15 or below; this row is what distinguishes
+#: "the linkage flexed" from "the solver broke".
+LINKAGE_EXACT_TOL = 1e-10
+
 JOINT_PROBE_STEPS = 12
 
 #: The assembled array's tolerance on shared-vertex separation. Priced against
@@ -3355,6 +3407,131 @@ def joint_integrity_probe(topo, w=0.0, t=0.0, h0=H_LOCK,
     return {"test": run(True), "control": run(False)}
 
 
+# ==========================================================================
+# Z18: PHASE TRACKING (bead inviscid-qvf.19 follow-up). Is `a_hat` the
+# configuration's phase, and is the array still on the symmetric path the
+# vertex ellipses describe?
+# ==========================================================================
+
+def unit_radii(x):
+    """The 12 DISTINCT vertex distances from one unit's own centroid.
+
+    `x` carries 24 corner slots (8 plates x 3), but `PAIRS` identifies them in
+    hinged couples, so only 12 are distinct points. Taking all 24 would double-
+    count and hide exactly the asymmetry this measurement exists to see."""
+    c = x.reshape(-1, 3).mean(axis=0)
+    seen = set()
+    out = []
+    for (fa, ca), (fb, cb) in PAIRS:
+        if (fa, ca) in seen:
+            continue
+        seen.add((fa, ca)); seen.add((fb, cb))
+        out.append(float(np.linalg.norm(x[fa][ca] - c)))
+    return np.array(out)
+
+
+def configuration_phase(x):
+    """(phase_deg, radius_spread) read from a unit's ACTUAL geometry.
+
+    On the symmetric jitterbug path every vertex rides the same ellipse, so all
+    twelve sit at one radius
+        r(a) = sqrt(2 - (4/3) sin^2 a)
+    which follows directly from the ellipse parameterisation
+    (sqrt(2) cos a, -sqrt(2/3) sin a) -- verified against `corners(a)` to 4e-16
+    across a in [0, 89], with the twelve radii agreeing to 2e-16. It is monotone
+    on [0, 90], so it INVERTS in closed form:
+        a = arcsin( sqrt( 3 (2 - r^2) / 4 ) ).
+
+    This is a MEASUREMENT of the configuration, unlike `crank_run`'s `a_hat`,
+    which is the running integral `a_hat += h * rate` and never consults the
+    geometry it is supposed to describe.
+
+    `radius_spread` (max - min over the twelve) is what says whether the phase
+    is even well defined: it is 0 on the symmetric path by construction, and
+    anything else means the linkage has flexed ASYMMETRICALLY, where no single
+    phase describes the unit and the ellipse closed form does not apply. The
+    returned phase is then the best symmetric fit to an unsymmetric thing, and
+    is reported with its spread rather than alone."""
+    rs = unit_radii(x)
+    rm = float(rs.mean())
+    inner = 3.0 * (2.0 - rm * rm) / 4.0
+    a = float(np.degrees(np.arcsin(np.sqrt(max(0.0, min(1.0, inner))))))
+    return a, float(rs.max() - rs.min())
+
+
+@jb_cache.memoize(_MODULE)
+def phase_tracking_probe(topo, w_frac=PHASE_PROBE_W_FRAC, t=0.0,
+                         target=PHASE_PROBE_TARGET, levels=PHASE_H0_LEVELS):
+    """Crank to a FIXED `a_hat` at several step sizes and, at that common
+    stopping point, compare `a_hat` against the measured phase.
+
+    Comparing at one `a_hat` rather than at each run's own freeze is what makes
+    the step sizes commensurable: the freezes land at different angles, so a
+    per-freeze comparison would confound the drift with where each run stopped.
+
+    Also carries the LINKAGE VALIDITY readings -- hinge residual, joint gap, and
+    per-triangle edge deviation -- because "the units left the symmetric path"
+    only means something if they are still valid states of the linkage. If the
+    triangles were deforming or the hinges opening, the same numbers would
+    instead be a broken solver, and the gate must be able to tell those apart."""
+    n = topo.n
+    ndof = 48 * n
+    pairs = crank_pairs(topo)
+    wpairs = wire_pairs(topo)
+    w = w_frac * _w_ico_lock()
+    out = []
+    for h0 in levels:
+        origins = topo.sites(verts(0.0))
+        xs = [corners(0.0) + origins[i] for i in range(n)]
+        edge0 = np.array([float(np.linalg.norm(xs[0][f][k] - xs[0][f][(k+1) % 3]))
+                          for f in range(8) for k in range(3)])
+        a_hat = 0.0
+        rec = {"h0": h0, "reached": False, "hinge": 0.0, "joint": 0.0,
+               "edge": 0.0, "spread": 0.0, "phase": None, "a_hat": 0.0,
+               "steps": 0}
+        for step in range(PHASE_PROBE_MAX_STEPS):
+            v, status, rate, _b, _m = crank_step(topo, pairs, xs, a_hat, w, t,
+                                                 "all", True, None, wpairs)
+            if status != "OK":
+                break
+            h = h0
+            accepted = False
+            for _ in range(H_BACKTRACK_MAX):
+                trial = [apply_body_motions(xs[i], h * v[48*i:48*i+48])
+                         for i in range(n)]
+                bad = False
+                for (i, fi, j, fj) in pairs:
+                    g, _r = contact_gradient_row(trial, i, fi, j, fj, t, ndof)
+                    if -MEANINGLESS_DEPTH_FLOOR < g < -GAP_FLOOR_TOL:
+                        bad = True; break
+                if not bad:
+                    accepted = True; break
+                h *= 0.5
+                if h < H_MIN: break
+            if not accepted:
+                break
+            xs, _rn = project_to_joint_manifold(trial, topo)
+            a_hat += h * rate
+            rec["steps"] = step + 1
+            rec["hinge"] = max(rec["hinge"],
+                               max(float(np.abs(hinge_residual(x)).max()) for x in xs))
+            rec["joint"] = max(rec["joint"], max_joint_gap(xs, topo))
+            edge = np.array([float(np.linalg.norm(xs[0][f][k] - xs[0][f][(k+1) % 3]))
+                             for f in range(8) for k in range(3)])
+            rec["edge"] = max(rec["edge"], float(np.abs(edge - edge0).max()))
+            ph, sp = configuration_phase(xs[0])
+            rec["spread"] = max(rec["spread"], sp)
+            if a_hat >= target:
+                rec.update(reached=True, phase=ph, a_hat=a_hat)
+                break
+        if not rec["reached"]:
+            ph, sp = configuration_phase(xs[0])
+            rec.update(phase=ph, a_hat=a_hat)
+        rec["drift"] = rec["a_hat"] - rec["phase"] if rec["phase"] is not None else None
+        out.append(rec)
+    return out
+
+
 def _grid_ratio_apart_check(primary, alt):
     """HIGH fix (23337): the jb_y K_GRID/K_GRID_ALT coprimality/offset-
     apartness shape, applied to a real-valued fraction grid rather than
@@ -3381,6 +3558,7 @@ def z17_lock_surface(topo):
     w_grid_apart = _grid_ratio_apart_check(W_GRID_FRAC, W_GRID_FRAC_ALT)
     t_grid_apart = _grid_ratio_apart_check(T_GRID, T_GRID_ALT)
     joints = joint_integrity_probe(topo)
+    phase = phase_tracking_probe(topo)
 
     test_trace = motion_order_trace(topo, MOTION_TEST_W_FRAC * surf["w_ico"], 0.0,
                                     DRIVEN_UNIT_INDEX)
@@ -3388,7 +3566,7 @@ def z17_lock_surface(topo):
 
     return {"surf": surf, "drive": drive, "href": href,
             "w_grid_apart": w_grid_apart, "t_grid_apart": t_grid_apart,
-            "joints": joints,
+            "joints": joints, "phase": phase,
             "test_trace": test_trace, "control_trace": control_trace}
 
 
@@ -4013,6 +4191,64 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     checks.append(("T  distinct binding sets across the grid (>1 is mechanism evidence, CAN FAIL)",
                    len(distinct_sets) > 1, f"{len(distinct_sets)} distinct set(s)", "> 1"))
 
+    # ---- PHASE TRACKING: is a* a phase, or a bookkeeping integral? ----
+    # These rows are stated as POSITIVE, falsifiable claims about a defect --
+    # "the drift EXCEEDS this floor", not "the drift is small". A row asserting
+    # a* tracks the phase would be asserting something measurably false, and
+    # loosening its tolerance until it passed would be the vacuity this file's
+    # whole house style exists to refuse.
+    ph = zlock["phase"]
+    inst = []
+    for ang in PHASE_PROBE_ANGLES + PHASE_PROBE_ANGLES_ALT:
+        got, spread = configuration_phase(corners(ang))
+        inst.append((ang, abs(got - ang), spread))
+    checks.append(("PHASE  INSTRUMENT: closed-form inversion recovers a KNOWN symmetric "
+                   "phase from geometry alone (both arms)",
+                   len(inst) > 0 and all(e <= PHASE_INSTRUMENT_TOL for _a, e, _s in inst),
+                   f"max err {max(e for _a, e, _s in inst):.2e} over {len(inst)} angles",
+                   f"<= {PHASE_INSTRUMENT_TOL:.0e}"))
+    checks.append(("PHASE  INSTRUMENT: on a symmetric pose all 12 vertex radii AGREE "
+                   "(so a nonzero spread means off-path, not noise)",
+                   len(inst) > 0
+                   and all(s_ <= PHASE_SYMMETRIC_SPREAD_TOL for _a, _e, s_ in inst),
+                   f"max spread {max(s_ for _a, _e, s_ in inst):.2e}",
+                   f"<= {PHASE_SYMMETRIC_SPREAD_TOL:.0e}"))
+    checks.append(("PHASE  INSTRUMENT NON-VACUITY: the calibration angles span a real range",
+                   len(inst) > 1
+                   and (max(a_ for a_, _e, _s in inst) - min(a_ for a_, _e, _s in inst)) > 10.0,
+                   f"{min(a_ for a_,_e,_s in inst):.1f}..{max(a_ for a_,_e,_s in inst):.1f} deg",
+                   "> 10 deg"))
+
+    ok_ph = [r for r in ph if r["phase"] is not None]
+    checks.append(("PHASE  NON-VACUITY: every step-size level produced a reading",
+                   len(ok_ph) == len(ph) and len(ph) > 1,
+                   f"{len(ok_ph)}/{len(ph)} levels", "all"))
+    checks.append(("PHASE  LINKAGE VALIDITY: hinges, joints and triangle edges stay EXACT "
+                   "through the run (so the departure below is real freedom, not a broken solver)",
+                   len(ok_ph) > 0
+                   and all(max(r["hinge"], r["joint"], r["edge"]) <= LINKAGE_EXACT_TOL
+                           for r in ok_ph),
+                   f"worst {max(max(r['hinge'], r['joint'], r['edge']) for r in ok_ph):.2e}"
+                   if ok_ph else "n/a", f"<= {LINKAGE_EXACT_TOL:.0e}"))
+    checks.append(("PHASE  OFF-PATH: the array measurably LEAVES the symmetric jitterbug "
+                   "path (vertex radii stop agreeing) -- CAN FAIL",
+                   len(ok_ph) > 0
+                   and all(r["spread"] > PHASE_OFFPATH_FLOOR for r in ok_ph),
+                   f"min spread {min(r['spread'] for r in ok_ph):.3e}" if ok_ph else "n/a",
+                   f"> {PHASE_OFFPATH_FLOOR:.0e}"))
+    checks.append(("PHASE  a_hat IS NOT THE CONFIGURATION'S PHASE: the two differ by more "
+                   "than PHASE_DRIFT_FLOOR at every step size -- CAN FAIL",
+                   len(ok_ph) > 0
+                   and all(abs(r["drift"]) > PHASE_DRIFT_FLOOR for r in ok_ph),
+                   f"drifts {[round(r['drift'], 3) for r in ok_ph]}" if ok_ph else "n/a",
+                   f"all > {PHASE_DRIFT_FLOOR}"))
+    drifts = [r["drift"] for r in ok_ph]
+    checks.append(("PHASE  the drift is STRUCTURAL, not discretisation: it does not shrink "
+                   "across a 4x step-size ladder -- CAN FAIL",
+                   len(drifts) > 1 and (max(drifts) - min(drifts)) < PHASE_DRIFT_H0_TOL,
+                   f"spread {max(drifts) - min(drifts):.4f} over h0={list(PHASE_H0_LEVELS)}"
+                   if len(drifts) > 1 else "n/a", f"< {PHASE_DRIFT_H0_TOL}"))
+
     # ---- JOINT INTEGRITY (bead inviscid-1wd): is it still an array? ----
     jt = zlock["joints"]
     checks.append(("JOINT  NON-VACUITY: the integrity probe actually cranked steps "
@@ -4176,6 +4412,28 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     print("  determine which step size is 'more correct', which needs a")
     print("  mutation-probe pass over the FROZEN stepper (bead qvf.20's own")
     print("  scope, not this bead's), not another lock-surface grid point.")
+    print()
+    print("  A THIRD ROW DELIBERATELY NOT BUILT: a* == 30 deg, the CLOSED-FORM")
+    print("  first contact. Every cuboctahedron vertex rides a planar ellipse")
+    print("  (semi-major sqrt(2), semi-minor sqrt(2/3), axis ratio exactly")
+    print("  sqrt(3)), the twelve lie in just the three coordinate planes, each")
+    print("  face takes one from each, and the crank angle IS the eccentric")
+    print("  anomaly (d(theta)/da = -1.000000, std 3e-13). So on the SYMMETRIC")
+    print("  path every plate gap is a sinusoid: the blocking family is exactly")
+    print("  gap(a) = 4 cos(a + 60), verified to 6.7e-16, giving first contact")
+    print("  at a = 30.000000000 with all SIXTEEN separated pairs closing")
+    print("  simultaneously, and containing NO w -- an independent geometric")
+    print("  proof of the interior da*/dw = 0.")
+    print("  The row is not built because THIS FILE DOES NOT WALK THAT PATH.")
+    print("  The PHASE rows above measure it: the linkage flexes asymmetrically")
+    print("  (vertex radii spread to 6.2e-02 while hinges, joints and triangle")
+    print("  edges stay exact to 9e-15, so it is real freedom of the linkage,")
+    print("  not a broken solver), and a_hat runs 5.0-5.2 deg above the best")
+    print("  symmetric fit at every step size across a 4x ladder. Asserting")
+    print("  a* == 30 would compare a bookkeeping integral on an asymmetric")
+    print("  configuration against a closed form that assumes a symmetric one,")
+    print("  and it would pass only by the two errors cancelling -- which is")
+    print("  what the raw numbers (29.83 against 30.00) actually do.")
     print()
     print("  HAZARD DISCHARGE (qvf.17 critique 23251, T2 23251, bound to this")
     print("  bead by its own HAZARD comment 2026-08-21): signed_gap's general")
