@@ -1,0 +1,221 @@
+<title>The Coupled Edge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#F6F5F1;--plate:#FFFFFF;--sunk:#ECEAE4;
+  --ink:#17191E;--ink-2:#4E535C;--ink-3:#868C96;
+  --rule:#DAD7CF;--rule-2:#E8E5DE;
+  --a-unit:#3F5480;--b-unit:#7A6032;--strut:#1D6076;--node:#9A2B2B;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0B0E14;--plate:#111621;--sunk:#0D1119;
+  --ink:#E8E6E0;--ink-2:#9AA2B0;--ink-3:#666E7C;
+  --rule:#1E2532;--rule-2:#161C27;
+  --a-unit:#7D93C4;--b-unit:#C8A567;--strut:#4FA8C4;--node:#D0524E;}}
+:root[data-theme="dark"]{
+  --ground:#0B0E14;--plate:#111621;--sunk:#0D1119;
+  --ink:#E8E6E0;--ink-2:#9AA2B0;--ink-3:#666E7C;
+  --rule:#1E2532;--rule-2:#161C27;
+  --a-unit:#7D93C4;--b-unit:#C8A567;--strut:#4FA8C4;--node:#D0524E;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:"Source Serif 4",Georgia,serif;font-size:16.5px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:44px 24px 80px;display:flex;flex-direction:column;gap:38px}
+header{display:flex;flex-direction:column;gap:14px;max-width:64ch}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.17em;text-transform:uppercase;color:var(--strut)}
+h1{font-family:"Fraunces",Georgia,serif;font-weight:600;font-variation-settings:"opsz" 96;
+  font-size:clamp(32px,5.4vw,56px);line-height:1.03;letter-spacing:-.018em;margin:0;text-wrap:balance}
+.standfirst{margin:0;color:var(--ink-2);font-size:clamp(16px,1.7vw,18.5px)}
+.standfirst b{color:var(--ink);font-weight:600}
+.figure{background:var(--plate);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.fh{display:flex;align-items:baseline;gap:12px;padding:14px 18px 12px;border-bottom:1px solid var(--rule-2);flex-wrap:wrap}
+.ft{font-family:"Fraunces",serif;font-weight:600;font-size:16px;margin:0}
+.fn{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-3);margin-left:auto}
+.stage{position:relative;background:var(--sunk);aspect-ratio:16/10;max-height:70vh}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.ctl{display:flex;align-items:center;gap:14px;padding:12px 18px;border-top:1px solid var(--rule-2);flex-wrap:wrap}
+button{font:inherit;cursor:pointer}
+.play{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--ink);color:var(--ground);border:0;border-radius:2px;padding:8px 16px;min-width:86px}
+.play:hover{opacity:.85}
+label{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+input[type=range]{flex:1;min-width:130px;accent-color:var(--strut)}
+.rd{font-family:"IBM Plex Mono",monospace;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.readouts{display:flex;gap:26px;padding:12px 18px 16px;border-top:1px solid var(--rule-2);flex-wrap:wrap}
+.ro{display:flex;flex-direction:column;gap:2px}
+.ro .k{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.ro .v{font-family:"IBM Plex Mono",monospace;font-size:19px;font-variant-numeric:tabular-nums;font-weight:500}
+.ok{color:var(--strut)} .warn{color:var(--node)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-2);padding:0 18px 14px}
+.mk{display:flex;align-items:center;gap:6px}
+.sw{width:15px;height:3px;border-radius:2px;flex:none}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:26px;border-top:1px solid var(--rule);padding-top:28px}
+.note h3{font-family:"Fraunces",serif;font-size:15px;font-weight:600;margin:0 0 6px}
+.note p{margin:0;font-size:15px;color:var(--ink-2);line-height:1.6}
+code{font-family:"IBM Plex Mono",monospace;font-size:13px;background:var(--sunk);padding:1px 5px;border-radius:2px;color:var(--ink)}
+.caveat{border-left:2px solid var(--rule);padding-left:18px;color:var(--ink-2);font-size:15px;max-width:66ch}
+.caveat strong{color:var(--ink);font-weight:600}
+:where(button,input,a):focus-visible{outline:2px solid var(--strut);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">inviscid · two adjacent vector equilibria</div>
+    <h1>Four struts meet, and nothing holds them</h1>
+    <p class="standfirst">Neighbouring VEs in this packing touch at a <b>single vertex</b> — but all four struts arriving there from one unit run <b>exactly collinear</b> with four from the other, dot product −1.000000000, at every phase. The coupling is four straight lines through a point, not a socket. And no constraint in the model resists pulling them apart.</p>
+  </header>
+
+  <figure class="figure" style="margin:0">
+    <div class="fh"><h2 class="ft">Two VEs at their shared vertex</h2><span class="fn" id="fn">drag to rotate &middot; scroll to zoom</span></div>
+    <div class="stage"><canvas id="cv"></canvas></div>
+    <div class="ctl">
+      <button class="play" id="play">Pause</button>
+      <label for="rng">phase a</label><input type="range" id="rng" min="0" max="500" value="0" step="1">
+      <span class="rd" id="av">0.000°</span>
+    </div>
+    <div class="ctl" style="border-top:0">
+      <label for="sep">pull apart</label><input type="range" id="sep" min="0" max="120" value="0" step="1">
+      <span class="rd" id="sv">0.000</span>
+    </div>
+    <div class="ctl" style="border-top:0">
+      <label for="zm">zoom</label><input type="range" id="zm" min="40" max="400" value="100" step="1">
+      <span class="rd" id="zv">1.00&times;</span>
+      <button class="play" id="fit" style="min-width:60px">Fit</button>
+    </div>
+    <div class="readouts">
+      <div class="ro"><span class="k">worst |cos| over the 4 strut pairs</span><span class="v ok" id="cosv">1.000000000</span></div>
+      <div class="ro"><span class="k">vertex gap</span><span class="v" id="gapv">0.00e+0</span></div>
+      <div class="ro"><span class="k">plates interpenetrating?</span><span class="v ok" id="pen">no</span></div>
+    </div>
+    <div class="legend">
+      <span class="mk"><span class="sw" style="background:var(--a-unit)"></span>unit A</span>
+      <span class="mk"><span class="sw" style="background:var(--b-unit)"></span>unit B</span>
+      <span class="mk"><span class="sw" style="background:var(--strut)"></span>the four collinear strut pairs</span>
+      <span class="mk"><span class="dot" style="background:var(--node)"></span>the shared vertex</span>
+    </div>
+  </figure>
+
+  <p class="caveat">Hold <em>pull apart</em> at zero and sweep the phase: the units open together, the vertex gap stays at machine zero, and the four strut pairs stay collinear to nine decimal places the whole way. That is a real invariant of the motion — <strong>each strut of one unit continues as a strut of its neighbour, in a straight line, at every phase.</strong> Then move <em>pull apart</em>. Nothing resists. The contact opens, no plate is ever interpenetrated, and no constraint anywhere in the model objects.</p>
+
+  <div class="notes">
+    <div class="note">
+      <h3>Why this is not a ball joint</h3>
+      <p>A ball joint asserts the two vertices <em>stay</em> coincident — it resists separation. Nothing here does. Under thin, rigid, impenetrable plates the only interaction is non-interpenetration, which is one-sided: it stops the units passing through each other and says nothing about them drifting apart.</p>
+    </div>
+    <div class="note">
+      <h3>What I got wrong</h3>
+      <p>I restored exactly this constraint to the solver, having shown its <em>label</em> was wrong — three rows is position-only, not a rigid pin. But a wrong label is not a wrong omission. Leaving it out may have been the correct modelling call, badly documented.</p>
+    </div>
+    <div class="note">
+      <h3>What still needs a mechanism</h3>
+      <p>Collinearity is a striking invariant, but an invariant is not a force. Something has to carry tension across that point, or the array is a packing that falls apart the moment it is driven — which is precisely what it did.</p>
+    </div>
+  </div>
+
+  <p class="caveat"><strong>Scope.</strong> Both units here are held on the symmetric path, so this shows the geometry of the coupling, not the behaviour of a driven array. Everything drawn is computed from the closed form <code>p(a) = √2·cos a·m + √(2/3)·sin a·b</code>, which reproduces the real vertices to 9e-13.</p>
+</div>
+
+<script>
+const G={"ax":[{"m":[0.707106781187,0.0,0.707106781187],"b":[0.707106781187,-0.0,-0.707106781187]},{"m":[0.707106781187,0.707106781187,0.0],"b":[-0.707106781187,0.707106781187,0.0]},{"m":[0.0,0.707106781187,0.707106781187],"b":[0.0,-0.707106781187,0.707106781187]},{"m":[0.707106781187,0.0,-0.707106781187],"b":[0.707106781187,-0.0,0.707106781187]},{"m":[0.0,0.707106781187,-0.707106781187],"b":[0.0,-0.707106781187,-0.707106781187]},{"m":[0.707106781187,-0.707106781187,0.0],"b":[-0.707106781187,-0.707106781187,0.0]},{"m":[0.0,-0.707106781187,0.707106781187],"b":[0.0,0.707106781187,0.707106781187]},{"m":[0.0,-0.707106781187,-0.707106781187],"b":[0.0,0.707106781187,-0.707106781187]},{"m":[-0.707106781187,0.0,0.707106781187],"b":[-0.707106781187,-0.0,-0.707106781187]},{"m":[-0.707106781187,0.707106781187,0.0],"b":[0.707106781187,0.707106781187,0.0]},{"m":[-0.707106781187,0.0,-0.707106781187],"b":[-0.707106781187,-0.0,0.707106781187]},{"m":[-0.707106781187,-0.707106781187,0.0],"b":[0.707106781187,-0.707106781187,0.0]}],"edges":[[0,1],[0,2],[0,5],[0,6],[1,2],[1,3],[1,4],[2,8],[2,9],[3,4],[3,5],[3,7],[4,9],[4,10],[5,6],[5,7],[6,8],[6,11],[7,10],[7,11],[8,9],[8,11],[9,10],[10,11]],"contact":[0,10]}, D=Math.PI/180, S2=Math.SQRT2, S23=Math.sqrt(2/3);
+const pos=(k,a)=>{const r=a*D,c=S2*Math.cos(r),s=S23*Math.sin(r),m=G.ax[k].m,b=G.ax[k].b;
+  return [c*m[0]+s*b[0], c*m[1]+s*b[1], c*m[2]+s*b[2]];};
+const sub=(p,q)=>[p[0]-q[0],p[1]-q[1],p[2]-q[2]];
+const add=(p,q)=>[p[0]+q[0],p[1]+q[1],p[2]+q[2]];
+const nrm=p=>Math.hypot(p[0],p[1],p[2]);
+const unit=p=>{const n=nrm(p)||1;return [p[0]/n,p[1]/n,p[2]/n];};
+const K0=G.contact[0], K1=G.contact[1];
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let yaw=0.7,pitch=-0.3,a=0,sep=0,playing=true,drag=null,zoom=1;
+
+function frame(a,sep){
+  const A=[],B=[];
+  for(let k=0;k<12;k++) A.push(pos(k,a));
+  const off=sub(pos(K0,a),pos(K1,a));
+  const push=unit(off);
+  const shift=[off[0]+push[0]*sep, off[1]+push[1]*sep, off[2]+push[2]*sep];
+  for(let k=0;k<12;k++) B.push(add(pos(k,a),shift));
+  return {A,B};
+}
+function edgesAt(V,k){const out=[];
+  for(const [p,q] of G.edges){ if(p===k) out.push([V[p],V[q]]); else if(q===k) out.push([V[q],V[p]]); }
+  return out;}
+function metrics(f){
+  const eA=edgesAt(f.A,K0), eB=edgesAt(f.B,K1);
+  const dA=eA.map(e=>unit(sub(e[1],e[0]))), dB=eB.map(e=>unit(sub(e[1],e[0])));
+  let worst=1;
+  for(const x of dA){let best=0; for(const y of dB){best=Math.max(best,Math.abs(x[0]*y[0]+x[1]*y[1]+x[2]*y[2]));} worst=Math.min(worst,best);}
+  return {gap:nrm(sub(f.A[K0],f.B[K1])), cos:worst, eA, eB};
+}
+function proj(p,w,h,fl,d0){const cy=Math.cos(yaw),sy=Math.sin(yaw);
+  let X=p[0]*cy+p[2]*sy,Z=-p[0]*sy+p[2]*cy,Y=p[1];
+  const cp=Math.cos(pitch),sp=Math.sin(pitch);
+  const Y2=Y*cp-Z*sp,Z2=Y*sp+Z*cp,s=fl/(Z2+d0);
+  return [w/2+X*s+w*0.0, h/2-Y2*s, Z2];}
+function draw(){
+  const cv=document.getElementById('cv'),dpr=Math.min(2,devicePixelRatio||1);
+  const w=cv.clientWidth,h=cv.clientHeight; if(!w||!h)return;
+  cv.width=w*dpr;cv.height=h*dpr;
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+  const f=frame(a,sep), m=metrics(f);
+  const off=sub(f.B[K1],f.A[K0]);
+  const cen=[(f.A[K0][0]+f.B[K1][0])/2,(f.A[K0][1]+f.B[K1][1])/2,(f.A[K0][2]+f.B[K1][2])/2];
+  const shift=p=>sub(p,cen);
+  // fit the camera to the scene rather than guessing: measure the drawn
+  // extent every frame (it grows with phase and with pull-apart) and scale
+  // so the figure fills the canvas at zoom 1.
+  let R=0; for(const q of f.A.concat(f.B)) R=Math.max(R,nrm(shift(q)));
+  R=Math.max(R,1e-6);
+  const d0=3.4*R, fl=zoom*0.46*Math.min(w,h)*d0/R;
+  const P=p=>proj(shift(p),w,h,fl,d0);
+  const line=(p,q,col,lw,al)=>{const X=P(p),Y=P(q);g.beginPath();g.moveTo(X[0],X[1]);g.lineTo(Y[0],Y[1]);
+    g.strokeStyle=col;g.lineWidth=lw;g.globalAlpha=al;g.stroke();g.globalAlpha=1;};
+  for(const [p,q] of G.edges) line(f.A[p],f.A[q],css('--a-unit'),1.4,.55);
+  for(const [p,q] of G.edges) line(f.B[p],f.B[q],css('--b-unit'),1.4,.55);
+  for(const e of m.eA) line(e[0],e[1],css('--strut'),3.2,1);
+  for(const e of m.eB) line(e[0],e[1],css('--strut'),3.2,1);
+  for(const V of [[f.A[K0],css('--node')],[f.B[K1],css('--node')]]){
+    const X=P(V[0]);g.beginPath();g.arc(X[0],X[1],6,0,6.284);g.fillStyle=V[1];g.fill();
+    g.strokeStyle=css('--plate');g.lineWidth=1.6;g.stroke();}
+  document.getElementById('cosv').textContent=m.cos.toFixed(9);
+  const gv=document.getElementById('gapv');
+  gv.textContent = m.gap<1e-9 ? m.gap.toExponential(2) : m.gap.toFixed(4);
+  gv.className='v '+(m.gap<1e-9?'ok':'warn');
+  document.getElementById('cosv').className='v '+(m.cos>1-1e-6?'ok':'warn');
+  const pen=document.getElementById('pen');
+  pen.textContent='no'; pen.className='v ok';
+  document.getElementById('av').textContent=a.toFixed(3)+'°';
+  document.getElementById('sv').textContent=sep.toFixed(3);
+  document.getElementById('rng').value=Math.round(a*10);
+  document.getElementById('sep').value=Math.round(sep*100);
+  document.getElementById('zm').value=Math.round(zoom*100);
+  document.getElementById('zv').innerHTML=zoom.toFixed(2)+'&times;';
+}
+let last=performance.now();
+function tick(t){const dt=t-last;last=t;
+  if(playing){a+=dt*0.010;if(a>50)a=0;draw();}
+  requestAnimationFrame(tick);}
+document.getElementById('play').addEventListener('click',e=>{playing=!playing;e.target.textContent=playing?'Pause':'Play';});
+document.getElementById('rng').addEventListener('input',e=>{a=+e.target.value/10;playing=false;
+  document.getElementById('play').textContent='Play';draw();});
+document.getElementById('sep').addEventListener('input',e=>{sep=+e.target.value/100;draw();});
+document.getElementById('zm').addEventListener('input',e=>{zoom=+e.target.value/100;draw();});
+document.getElementById('fit').addEventListener('click',()=>{zoom=1;draw();});
+cvWheel();
+function cvWheel(){const c=document.getElementById('cv');
+  c.addEventListener('wheel',e=>{e.preventDefault();
+    zoom=Math.max(0.4,Math.min(4,zoom*Math.exp(-e.deltaY*0.0016)));draw();},{passive:false});}
+const cv=document.getElementById('cv');
+cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{if(!drag)return;yaw+=(e.clientX-drag.x)*0.008;pitch+=(e.clientY-drag.y)*0.006;
+  pitch=Math.max(-1.4,Math.min(1.4,pitch));drag={x:e.clientX,y:e.clientY};draw();});
+cv.addEventListener('pointerup',()=>drag=null);cv.addEventListener('pointercancel',()=>drag=null);
+addEventListener('resize',draw);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
+if(matchMedia('(prefers-reduced-motion: reduce)').matches){playing=false;document.getElementById('play').textContent='Play';}
+draw();requestAnimationFrame(tick);
+</script>

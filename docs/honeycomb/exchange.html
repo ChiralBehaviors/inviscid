@@ -1,0 +1,159 @@
+<title>The Cells Change Places</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--ground:#F6F5F1;--plate:#FFF;--sunk:#ECEAE4;--ink:#17191E;--ink-2:#4E535C;--ink-3:#868C96;
+ --rule:#DAD7CF;--rule-2:#E8E5DE;--ve:#2F4C7A;--hole:#8A5A18;--share:#1D6076;--bad:#9A2B2B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+ --ground:#0B0E14;--plate:#111621;--sunk:#0D1119;--ink:#E8E6E0;--ink-2:#9AA2B0;--ink-3:#666E7C;
+ --rule:#1E2532;--rule-2:#161C27;--ve:#6F9BD8;--hole:#D9A441;--share:#4FA8C4;--bad:#D0524E}}
+:root[data-theme="dark"]{--ground:#0B0E14;--plate:#111621;--sunk:#0D1119;--ink:#E8E6E0;--ink-2:#9AA2B0;
+ --ink-3:#666E7C;--rule:#1E2532;--rule-2:#161C27;--ve:#6F9BD8;--hole:#D9A441;--share:#4FA8C4;--bad:#D0524E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:"Source Serif 4",Georgia,serif;
+ font-size:16.5px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:44px 24px 80px;display:flex;flex-direction:column;gap:36px}
+header{display:flex;flex-direction:column;gap:14px;max-width:64ch}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.17em;text-transform:uppercase;color:var(--share)}
+h1{font-family:"Fraunces",Georgia,serif;font-weight:600;font-variation-settings:"opsz" 96;
+ font-size:clamp(32px,5.4vw,56px);line-height:1.03;letter-spacing:-.018em;margin:0;text-wrap:balance}
+.sf{margin:0;color:var(--ink-2);font-size:clamp(16px,1.7vw,18.5px)}.sf b{color:var(--ink);font-weight:600}
+.figure{background:var(--plate);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.fh{display:flex;align-items:baseline;gap:12px;padding:14px 18px 12px;border-bottom:1px solid var(--rule-2);flex-wrap:wrap}
+.ft{font-family:"Fraunces",serif;font-weight:600;font-size:16px;margin:0}
+.fn{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-3);margin-left:auto}
+.stage{position:relative;background:var(--sunk);aspect-ratio:16/10;max-height:68vh}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.ctl{display:flex;align-items:center;gap:14px;padding:12px 18px;border-top:1px solid var(--rule-2);flex-wrap:wrap}
+button{font:inherit;cursor:pointer}
+.play{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+ background:var(--ink);color:var(--ground);border:0;border-radius:2px;padding:8px 16px;min-width:86px}
+.play:hover{opacity:.85}
+label{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+input[type=range]{flex:1;min-width:130px;accent-color:var(--share)}
+.rd{font-family:"IBM Plex Mono",monospace;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:96px}
+.ros{display:flex;gap:26px;padding:12px 18px 16px;border-top:1px solid var(--rule-2);flex-wrap:wrap}
+.ro{display:flex;flex-direction:column;gap:2px}
+.ro .k{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.ro .v{font-family:"IBM Plex Mono",monospace;font-size:19px;font-variant-numeric:tabular-nums;font-weight:500}
+.ok{color:var(--share)}.warn{color:var(--bad)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-2);padding:0 18px 14px}
+.mk{display:flex;align-items:center;gap:6px}.sw{width:15px;height:3px;border-radius:2px;flex:none}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:26px;border-top:1px solid var(--rule);padding-top:28px}
+.note h3{font-family:"Fraunces",serif;font-size:15px;font-weight:600;margin:0 0 6px}
+.note p{margin:0;font-size:15px;color:var(--ink-2);line-height:1.6}
+code{font-family:"IBM Plex Mono",monospace;font-size:13px;background:var(--sunk);padding:1px 5px;border-radius:2px;color:var(--ink)}
+.caveat{border-left:2px solid var(--rule);padding-left:18px;color:var(--ink-2);font-size:15px;max-width:66ch}
+.caveat strong{color:var(--ink);font-weight:600}
+:where(button,input,a):focus-visible{outline:2px solid var(--share);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<div class="wrap">
+ <header>
+  <div class="eyebrow">inviscid · rectified cubic honeycomb</div>
+  <h1>The cells change places, and the lattice returns</h1>
+  <p class="sf">A cuboctahedron cell and the octahedral cell filling the hole beside it, sharing one triangular face. Solving the face constraint gives a single motion: the hole cell's phase runs <b>exactly 60° ahead</b>, neither cell rotates, and running it to <b>a = −60°</b> swaps them — the VE becomes the octahedron, the octahedron becomes the VE, and the lattice comes back to exactly where it began. <b>No overlap at any point.</b></p>
+ </header>
+ <figure class="figure" style="margin:0">
+  <div class="fh"><h2 class="ft">VE cell and hole cell, one shared face</h2><span class="fn">drag to rotate · scroll to zoom</span></div>
+  <div class="stage"><canvas id="cv"></canvas></div>
+  <div class="ctl"><button class="play" id="play">Pause</button>
+   <label for="rng">phase a</label><input type="range" id="rng" min="0" max="600" value="0" step="1">
+   <span class="rd" id="av">a = 0.00°</span></div>
+  <div class="ctl" style="border-top:0"><label for="zm">zoom</label>
+   <input type="range" id="zm" min="40" max="400" value="100" step="1">
+   <span class="rd" id="zv">1.00&times;</span><button class="play" id="fit" style="min-width:60px">Fit</button></div>
+  <div class="ros">
+   <div class="ro"><span class="k">hole phase b</span><span class="v ok" id="bv">60.00°</span></div>
+   <div class="ro"><span class="k">lattice λ = d₁(a)</span><span class="v" id="lv">1.00000</span></div>
+   <div class="ro"><span class="k">cell overlap</span><span class="v ok" id="ov">0.00e+0</span></div>
+   <div class="ro"><span class="k">VE radius</span><span class="v" id="rvv">1.41421</span></div>
+   <div class="ro"><span class="k">hole radius</span><span class="v" id="rhv">1.00000</span></div>
+   <div class="ro"><span class="k">valid packing?</span><span class="v ok" id="pv">yes</span></div>
+  </div>
+  <div class="legend">
+   <span class="mk"><span class="sw" style="background:var(--ve)"></span>VE cell, phase a</span>
+   <span class="mk"><span class="sw" style="background:var(--hole)"></span>hole cell, phase a+60</span>
+   <span class="mk">a runs 0 → −60°</span>
+   <span class="mk"><span class="sw" style="background:var(--share)"></span>the shared face</span>
+  </div>
+ </figure>
+ <p class="caveat">At <code>a = 0</code> the two cells meet on the shared face's plane — a cuboctahedron and an octahedron, the packing Fuller's honeycomb is made of. Drive the phase <em>down</em> and the constraint holds to <strong>1e-16</strong> while the cells trade shape: the VE closes toward the octahedron as the hole cell opens toward the VE. At the halfway point <code>a = −30°</code> the two are <strong>congruent</strong>, both at radius 1.29099, and the lattice reaches its widest at exactly <strong>2/√3</strong>. At <code>a = −60°</code> the exchange completes — VE radius 1, hole radius √2, <code>λ</code> back to 1.00000. <strong>The separation measure is zero at every step.</strong> This is a valid packing throughout, and it returns to itself with the roles swapped.</p>
+ <div class="notes">
+  <div class="note"><h3>The relation is exact</h3><p><code>b = a + 60</code> at every step, and a scan over all hole phases finds <em>no other</em> closure. One motion, not a family — the mechanism has a single degree of freedom.</p></div>
+  <div class="note"><h3>The lattice breathes and returns</h3><p><code>λ</code> rises from 1 to a maximum of <code>2/√3 = 1.154701</code> at the midpoint, then falls back to exactly 1. The medium expands to let the cells pass through each other's roles, and closes again.</p></div>
+  <div class="note"><h3>Through the icosahedron</h3><p>Each cell passes through the icosahedral phase during the swap: the hole cell reads <code>b = 22.2388</code> at <code>a = −37.761</code>, and the VE does the mirror. The icosahedron is a moment in the exchange, not a resting place.</p></div>
+ </div>
+ <p class="caveat"><strong>Scope.</strong> One VE and one hole cell under periodic face-sharing, solved as 8 unknowns against 72 constraints and continued in <code>a</code>. Not a mobility computation for the whole honeycomb, and it assumes the cells stay face-locked. The overlap readout is a separating-plane measure on the shared face, not a full triangle-intersection test. Everything drawn computes from <code>p(a) = √2·cos a·m + √(2/3)·sin a·b</code>, verified to 4.4e-16.</p>
+</div>
+<script>
+const G={"ax":[{"m":[0.7071067812,0.0,0.7071067812],"b":[0.7071067812,-0.0,-0.7071067812]},{"m":[0.7071067812,0.7071067812,0.0],"b":[-0.7071067812,0.7071067812,0.0]},{"m":[0.0,0.7071067812,0.7071067812],"b":[0.0,-0.7071067812,0.7071067812]},{"m":[0.7071067812,0.0,-0.7071067812],"b":[0.7071067812,-0.0,0.7071067812]},{"m":[0.0,0.7071067812,-0.7071067812],"b":[0.0,-0.7071067812,-0.7071067812]},{"m":[0.7071067812,-0.7071067812,0.0],"b":[-0.7071067812,-0.7071067812,0.0]},{"m":[0.0,-0.7071067812,0.7071067812],"b":[0.0,0.7071067812,0.7071067812]},{"m":[0.0,-0.7071067812,-0.7071067812],"b":[0.0,0.7071067812,-0.7071067812]},{"m":[-0.7071067812,0.0,0.7071067812],"b":[-0.7071067812,-0.0,-0.7071067812]},{"m":[-0.7071067812,0.7071067812,0.0],"b":[0.7071067812,0.7071067812,0.0]},{"m":[-0.7071067812,0.0,-0.7071067812],"b":[-0.7071067812,-0.0,0.7071067812]},{"m":[-0.7071067812,-0.7071067812,0.0],"b":[0.7071067812,-0.7071067812,0.0]}],"fc":[[0,1,2],[3,1,4],[0,5,6],[3,5,7],[8,9,2],[10,9,4],[8,11,6],[10,11,7]],"diag":[0,3],"fv":0,"fo":7,"norm":[0.5773502692,0.5773502692,0.5773502692]},D=Math.PI/180,S2=Math.SQRT2,S23=Math.sqrt(2/3);
+const pos=(k,a)=>{const r=a*D,c=S2*Math.cos(r),s=S23*Math.sin(r),m=G.ax[k].m,b=G.ax[k].b;
+ return [c*m[0]+s*b[0],c*m[1]+s*b[1],c*m[2]+s*b[2]];};
+const sub=(p,q)=>[p[0]-q[0],p[1]-q[1],p[2]-q[2]],nrm=p=>Math.hypot(p[0],p[1],p[2]);
+const tri=(a,f)=>[0,1,2].map(c=>pos(G.fc[f][c],a));
+const lam=a=>0.5*nrm(sub(pos(G.diag[0],a),pos(G.diag[1],a)));
+const N=G.norm;
+function cells(a){const L=lam(a),b=a+60,off=[L*1,L*1,L*1];
+ const A=[],B=[];
+ for(let f=0;f<8;f++){A.push(tri(a,f));B.push(tri(b,f).map(p=>[p[0]+off[0],p[1]+off[1],p[2]+off[2]]));}
+ return {A,B,L,b,off};}
+function overlap(c){let mx=-1e9,mn=1e9;
+ for(const T of c.A) for(const p of T) mx=Math.max(mx,p[0]*N[0]+p[1]*N[1]+p[2]*N[2]);
+ for(const T of c.B) for(const p of T) mn=Math.min(mn,p[0]*N[0]+p[1]*N[1]+p[2]*N[2]);
+ return mx-mn;}
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let yaw=0.75,pitch=-0.3,a=0,playing=true,drag=null,zoom=1;
+function proj(p,w,h,fl,d0){const cy=Math.cos(yaw),sy=Math.sin(yaw);
+ let X=p[0]*cy+p[2]*sy,Z=-p[0]*sy+p[2]*cy,Y=p[1];
+ const cp=Math.cos(pitch),sp=Math.sin(pitch);const Y2=Y*cp-Z*sp,Z2=Y*sp+Z*cp,s=fl/(Z2+d0);
+ return [w/2+X*s,h/2-Y2*s,Z2];}
+function draw(){const cv=document.getElementById('cv'),dpr=Math.min(2,devicePixelRatio||1);
+ const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;cv.width=w*dpr;cv.height=h*dpr;
+ const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+ const c=cells(a);const cen=[c.off[0]/2,c.off[1]/2,c.off[2]/2];const sh=p=>sub(p,cen);
+ let R=0;for(const T of c.A.concat(c.B))for(const p of T)R=Math.max(R,nrm(sh(p)));R=Math.max(R,1e-6);
+ const d0=3.4*R,fl=zoom*0.46*Math.min(w,h)*d0/R;const P=p=>proj(sh(p),w,h,fl,d0);
+ const items=[];
+ c.A.forEach((T,f)=>items.push({T,col:f===G.fv?css('--share'):css('--ve'),key:f===G.fv}));
+ c.B.forEach((T,f)=>items.push({T,col:f===G.fo?css('--share'):css('--hole'),key:f===G.fo}));
+ items.forEach(o=>{o.p=o.T.map(P);o.d=(o.p[0][2]+o.p[1][2]+o.p[2][2])/3;});
+ items.sort((x,y)=>y.d-x.d);
+ for(const o of items){g.beginPath();g.moveTo(o.p[0][0],o.p[0][1]);g.lineTo(o.p[1][0],o.p[1][1]);
+  g.lineTo(o.p[2][0],o.p[2][1]);g.closePath();
+  g.fillStyle=o.col;g.globalAlpha=o.key?0.55:0.24;g.fill();g.globalAlpha=1;
+  g.strokeStyle=o.col;g.lineWidth=o.key?2.6:1.5;g.stroke();}
+ const ov=overlap(c);
+ document.getElementById('bv').textContent=c.b.toFixed(2)+'°';
+ document.getElementById('lv').textContent=c.L.toFixed(5);
+ const ove=document.getElementById('ov'),pvv=document.getElementById('pv');
+ ove.textContent=ov<1e-9?ov.toExponential(2):ov.toFixed(4);
+ ove.className='v '+(ov<1e-9?'ok':'warn');
+ pvv.textContent=ov<1e-9?'yes':'no — overlapping';pvv.className='v '+(ov<1e-9?'ok':'warn');
+ const rr=x=>Math.hypot(...pos(0,x));
+ document.getElementById('rvv').textContent=rr(a).toFixed(5);
+ document.getElementById('rhv').textContent=rr(c.b).toFixed(5);
+ document.getElementById('av').textContent='a = '+a.toFixed(2)+'°';
+ document.getElementById('rng').value=Math.round(-a*10);
+ document.getElementById('zm').value=Math.round(zoom*100);
+ document.getElementById('zv').innerHTML=zoom.toFixed(2)+'&times;';}
+let last=performance.now();
+function tick(t){const dt=t-last;last=t;if(playing){a-=dt*0.008;if(a<-60)a=0;draw();}requestAnimationFrame(tick);}
+document.getElementById('play').addEventListener('click',e=>{playing=!playing;e.target.textContent=playing?'Pause':'Play';});
+document.getElementById('rng').addEventListener('input',e=>{a=-(+e.target.value)/10;playing=false;
+ document.getElementById('play').textContent='Play';draw();});
+document.getElementById('zm').addEventListener('input',e=>{zoom=+e.target.value/100;draw();});
+document.getElementById('fit').addEventListener('click',()=>{zoom=1;draw();});
+const cv=document.getElementById('cv');
+cv.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(0.4,Math.min(4,zoom*Math.exp(-e.deltaY*0.0016)));draw();},{passive:false});
+cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{if(!drag)return;yaw+=(e.clientX-drag.x)*0.008;pitch+=(e.clientY-drag.y)*0.006;
+ pitch=Math.max(-1.4,Math.min(1.4,pitch));drag={x:e.clientX,y:e.clientY};draw();});
+cv.addEventListener('pointerup',()=>drag=null);cv.addEventListener('pointercancel',()=>drag=null);
+addEventListener('resize',draw);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
+if(matchMedia('(prefers-reduced-motion: reduce)').matches){playing=false;document.getElementById('play').textContent='Play';}
+draw();requestAnimationFrame(tick);
+</script>

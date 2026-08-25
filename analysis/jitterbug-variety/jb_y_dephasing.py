@@ -207,6 +207,13 @@ with python3.
 import sys
 
 import numpy as np
+
+import jb_cache
+
+#: Importable name of THIS module -- a literal, because `__name__` is
+#: "__main__" under direct execution and a prefetch worker in a fresh
+#: interpreter must be able to re-import it by name.
+_MODULE = "jb_y_dephasing"
 from scipy.optimize import brentq, linprog
 
 from jb_x_array_linkage import (A_ICO, DIAGONALS, STRUT_LEN, Topology, _classes,
@@ -1693,8 +1700,16 @@ def _bloch_residual(k, a=None, gens=(0, 1, 3)):
     return res / nb, nb
 
 
+@jb_cache.memoize(_MODULE)
 def _bloch_scan(grid, offset):
-    """Incommensurate scan of the three-torus. Never raises.
+    """MEMOISED (jb_cache): 62,823 `_bloch_residual` evaluations across two
+    calls, 43.9s of a 37.7s-wall gate -- the whole cost of this file. Pure in
+    (grid, offset) and in the module constants the residual reads, so it is
+    cached on the transitive source closure of all of them and computed in
+    parallel ahead of the serial pass. `--no-cache` bypasses both and must
+    print identically.
+
+    Incommensurate scan of the three-torus. Never raises.
 
     Reports the minimum RELATIVE residual over grid points whose ||b|| is above
     the floor, and separately how many points fell below it -- which must be
@@ -3636,6 +3651,9 @@ def main():
         print("  reader unable to tell a broken build from a measured result.")
         return 1
 
+    # SPECULATIVE PARALLEL PREFETCH: the two scans are independent.
+    jb_cache.prefetch(_bloch_scan)
+
     y0 = y0_control()
     y1 = y1_admissible()
     y2 = y2_tied_orbit(y0)
@@ -3655,5 +3673,13 @@ if __name__ == "__main__":
     # every quantity in the gate is compared against a finite threshold, so a
     # genuine nan reaches the table as a FAIL rather than as a warning nobody
     # reads.
+    # `--no-cache` / `--clear-cache` are consumed here; anything else is a
+    # loud failure rather than a run that silently ignored what was asked.
+    _rest = jb_cache.parse_argv(sys.argv[1:])
+    if _rest:
+        print(f"unrecognised argument(s): {' '.join(_rest)}", file=sys.stderr)
+        print("usage: jb_y_dephasing.py [--no-cache] [--clear-cache]",
+              file=sys.stderr)
+        sys.exit(2)
     with np.errstate(all="ignore"):
         sys.exit(main())

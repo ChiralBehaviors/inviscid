@@ -127,6 +127,12 @@ import itertools as it
 import sys
 
 import numpy as np
+
+import jb_cache
+
+#: Importable name of THIS module -- see jb_y_dephasing for why this is a
+#: literal rather than `__name__`.
+_MODULE = "jb_x_array_linkage"
 from scipy.optimize import brentq
 
 from jb_a_family import corners, cluster, rot, L_EDGE, Z, faces
@@ -460,6 +466,41 @@ ANTIPODAL_PAIRS = (tuple(sorted({tuple(sorted((k, ANTI[k]))) for k in range(12)}
                    if ANTI else ())
 
 
+def lattice_from_verts(v):
+    """The honeycomb's lattice parameter -- the FOLD HALF-DIAGONAL -- read off
+    a 12-vertex array rather than off a phase.
+
+    This is the v-parameterised form, needed because `Topology.sites` receives
+    v and not `a`. It is a third route to the same quantity: `jb_w.lam(a)` is
+    the closed form (2/sqrt(3))*cos(a+30) and `jb_hc.lattice(a)` measures it
+    from `verts(a)`. All three agree to machine zero, and
+    jb_ht_honeycomb_topology gates that agreement rather than leaving three
+    implementations to drift."""
+    return 0.5 * float(np.linalg.norm(np.asarray(v[0]) - np.asarray(v[3])))
+
+
+def unit_corners(a, topo, i):
+    """Unit `i`'s plate corners at drive angle `a`.
+
+    Every array configuration in this project is built through this function
+    (and `unit_verts`), so that a TWO-SUBLATTICE topology cannot be silently
+    driven as though it were one. `topo.phases[i]` is zero for every topology
+    but the honeycomb, where the hole cells run 60 degrees ahead."""
+    return corners(a + topo.phases[i])
+
+
+def unit_verts(a, topo, i):
+    """Unit `i`'s 12-vertex array at drive angle `a`. See `unit_corners`."""
+    return verts(a + topo.phases[i])
+
+
+def unit_dverts(a, topo, i):
+    """d(unit `i`'s vertices)/da at drive angle `a`. The phase offset is a
+    CONSTANT shift, so the derivative is `dverts_exact` at the shifted angle --
+    no chain-rule factor."""
+    return dverts_exact(a + topo.phases[i])
+
+
 class Topology:
     """A contact topology: named sites and a held list of vertex identifications.
 
@@ -470,11 +511,26 @@ class Topology:
     """
 
     def __init__(self, name, kind, gens, box=None, contacts=None, note="",
-                 holes=()):
+                 holes=(), sites_int=None, phases=None):
         self.name, self.kind, self.gens, self.box = name, kind, tuple(gens), box
         self.note = note
         self.holes = tuple(sorted(holes))
-        if kind == "box":
+        if kind == "honeycomb":
+            # The rectified cubic honeycomb (bead inviscid-ia5). Sites are
+            # INTEGER lattice points -- all-even carry the VE, all-odd the hole
+            # cell running exactly 60 degrees ahead -- and origins are
+            # lam(a) * site. Contacts are supplied by the caller
+            # (`jb_w_honeycomb.build_honeycomb_topologies`) because generating
+            # them needs the face machinery, and jb_w imports THIS module.
+            #
+            # The contact list must be read at a = -30 and not at a = 0: the
+            # squares fold, so twelve of the a=0 identifications break during
+            # the exchange, and holding them welds the squares shut. See T2
+            # inviscid/design-honeycomb-topology-rewiring.
+            self.lattice_sites = tuple(tuple(int(x) for x in t)
+                                       for t in sites_int)
+            self.contacts = tuple(contacts)
+        elif kind == "box":
             # `holes` removes lattice sites, giving a cluster with a VACANCY.
             # That is not a cosmetic variation: X5c shows the vacancy, and not
             # the boundary, is what decides whether the array carries an extra
@@ -509,19 +565,58 @@ class Topology:
         elif kind == "explicit":
             self.lattice_sites = None
             self.contacts = tuple(contacts)
-        if kind == "box":
+        if kind in ("box", "honeycomb"):
             self.n = len(self.lattice_sites)
         elif kind == "explicit":
             self.n = max(max(c[0], c[2]) for c in self.contacts) + 1
 
-    def dsites(self, dv):
+        #: Per-unit phase OFFSET in degrees. Zero for every topology built on a
+        #: single sublattice, which is all of them except the honeycomb, where
+        #: the hole cells run exactly 60 degrees ahead of the VEs. Defaulting to
+        #: zero is what keeps every pre-existing topology bit-identical: a unit's
+        #: configuration is read through `unit_corners`/`unit_verts`, and
+        #: `a + 0.0` is `a`.
+        self.phases = (tuple(float(x) for x in phases) if phases is not None
+                       else (0.0,) * self.n)
+
+    def __setstate__(self, state):
+        """Unpickle. `jb_cache`'s argument TRACE outlives a source change by
+        design -- that is what lets a prefetch replay last run's call list --
+        so instances pickled before per-unit phases existed arrive here without
+        `phases`. Any such instance is necessarily a legacy single-sublattice
+        topology, whose offsets are all zero, so filling that in RESTORES the
+        correct value rather than papering over a missing one. A honeycomb
+        topology has never existed without the attribute and cannot reach this
+        branch."""
+        self.__dict__.update(state)
+        if "phases" not in self.__dict__:
+            self.phases = (0.0,) * self.n
+
+    def dsites(self, dv, v=None):
         """d(sites)/da. The lattice BREATHES: the contact vectors 2*v_k are
         functions of the phase, so the unit origins move as `a` moves. This is
         the derivative the in-phase mode of X3b is built from, and it is why
-        the lattice spacing is never fixed by hand anywhere in this file."""
+        the lattice spacing is never fixed by hand anywhere in this file.
+
+        For every kind but the honeycomb `sites` is LINEAR in v, so the
+        derivative is just `sites(dv)` and `v` is not needed. The honeycomb's
+        origins are `lam(v) * site` with `lam = 0.5*|v0 - v3|`, which is NOT
+        linear, so `sites(dv)` would be wrong there and `v` is required."""
+        if self.kind == "honeycomb":
+            if v is None:
+                raise ValueError(
+                    "honeycomb dsites needs v as well as dv: lam is not "
+                    "linear in v, so sites(dv) is not the derivative")
+            d0 = np.asarray(v[0]) - np.asarray(v[3])
+            dd = np.asarray(dv[0]) - np.asarray(dv[3])
+            dlam = 0.5 * float(d0 @ dd) / float(np.linalg.norm(d0))
+            return dlam * np.array(self.lattice_sites, dtype=float)
         return self.sites(dv)
 
     def sites(self, v):
+        if self.kind == "honeycomb":
+            return lattice_from_verts(v) * np.array(self.lattice_sites,
+                                                    dtype=float)
         g = np.array([2.0 * v[k] for k in self.gens])
         if self.kind == "box":
             return np.array([np.array(s, float) @ g for s in self.lattice_sites])
@@ -589,10 +684,10 @@ def assemble_free(a, topo, rots=None):
     (the pure-translate placement).
     """
     n = topo.n
-    x0 = corners(a)
     if rots is None:
         rots = [np.eye(3)] * n
-    xs = [np.einsum("pq,ijq->ijp", rots[i], x0) for i in range(n)]
+    xs = [np.einsum("pq,ijq->ijp", rots[i], unit_corners(a, topo, i))
+          for i in range(n)]
     big = np.zeros((36 * n + 3 * len(topo.contacts), 48 * n))
     for i in range(n):
         big[36 * i:36 * i + 36, 48 * i:48 * i + 48] = hinge_jacobian(xs[i])
@@ -613,18 +708,19 @@ def assemble_doweled(a, topo, rots=None):
     symmetric 1-DOF sector, built in wood.
     """
     n = topo.n
-    v, dv = verts(a), dverts_exact(a)
+    vs = [unit_verts(a, topo, u) for u in range(n)]
+    dvs = [unit_dverts(a, topo, u) for u in range(n)]
     if rots is None:
         rots = [np.eye(3)] * n
     big = np.zeros((3 * len(topo.contacts), 7 * n))
     for e, (i, k, j, l) in enumerate(topo.contacts):
         r = 3 * e
-        big[r:r + 3, 7 * i:7 * i + 3] += -_hat(rots[i] @ v[k])
+        big[r:r + 3, 7 * i:7 * i + 3] += -_hat(rots[i] @ vs[i][k])
         big[r:r + 3, 7 * i + 3:7 * i + 6] += np.eye(3)
-        big[r:r + 3, 7 * i + 6] += rots[i] @ dv[k]
-        big[r:r + 3, 7 * j:7 * j + 3] -= -_hat(rots[j] @ v[l])
+        big[r:r + 3, 7 * i + 6] += rots[i] @ dvs[i][k]
+        big[r:r + 3, 7 * j:7 * j + 3] -= -_hat(rots[j] @ vs[j][l])
         big[r:r + 3, 7 * j + 3:7 * j + 6] -= np.eye(3)
-        big[r:r + 3, 7 * j + 6] -= rots[j] @ dv[l]
+        big[r:r + 3, 7 * j + 6] -= rots[j] @ dvs[j][l]
     return big
 
 
@@ -697,8 +793,13 @@ def solve_inphase(a, topo, seed, maxit=400):
     return float(np.linalg.norm(res)), sep, used
 
 
+@jb_cache.memoize(_MODULE)
 def best_inphase(a, topo, seeds=(None, 0, 1, 2, 3, 4)):
-    """Best over several starts, with the collapse guard applied SEPARATELY.
+    """MEMOISED (jb_cache): 128 calls, 768 `solve_inphase` solves, 30.3s of a
+    34.5s-wall gate. Pure in (a, topo, seeds) and in the constants
+    `solve_inphase` reads. See jb_y_dephasing's `_bloch_scan` for the contract.
+
+    Best over several starts, with the collapse guard applied SEPARATELY.
 
     Reported as two numbers, never one: the best residual found, and the best
     residual found among NON-DEGENERATE configurations. An unguarded solver
@@ -1151,7 +1252,7 @@ def x3_rank(topos, exist):
         br_here = np.inf
         for a in (5.0, A_ICO, 40.0):
             dv = dverts_exact(a)
-            dt = topo.dsites(dv)
+            dt = topo.dsites(dv, verts(a))
             z = np.zeros(7 * topo.n)
             for i in range(topo.n):
                 z[7 * i + 3:7 * i + 6] = dt[i]
@@ -3086,6 +3187,10 @@ def main():
         return 1
 
     topos = build_topologies()
+
+    # SPECULATIVE PARALLEL PREFETCH: every angle's solve is independent.
+    jb_cache.prefetch(best_inphase)
+
     r0 = x0_control()
     r1 = x1_topology()
     x2, guard_fired = x2_existence(topos)
@@ -3110,5 +3215,13 @@ if __name__ == "__main__":
     # every quantity in the gate is compared against a finite threshold, so a
     # genuine nan reaches the table as a FAIL rather than as a warning nobody
     # reads.
+    # `--no-cache` / `--clear-cache` are consumed here; anything else is a
+    # loud failure rather than a run that silently ignored what was asked.
+    _rest = jb_cache.parse_argv(sys.argv[1:])
+    if _rest:
+        print(f"unrecognised argument(s): {' '.join(_rest)}", file=sys.stderr)
+        print("usage: jb_x_array_linkage.py [--no-cache] [--clear-cache]",
+              file=sys.stderr)
+        sys.exit(2)
     with np.errstate(all="ignore"):
         sys.exit(main())

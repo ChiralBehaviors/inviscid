@@ -17,3 +17,7 @@ __pycache__/
 *.db
 .beads-credential-key
 .beads/proxieddb/
+
+# jb_cache memoisation store: derived data, rebuildable from source at any
+# time. Deleting it costs one slow run and nothing else.
+.jbcache/

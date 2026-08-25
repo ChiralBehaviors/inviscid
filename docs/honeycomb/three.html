@@ -1,0 +1,161 @@
+<title>VE, Hole, VE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--ground:#F6F5F1;--plate:#FFF;--sunk:#ECEAE4;--ink:#17191E;--ink-2:#4E535C;--ink-3:#868C96;
+ --rule:#DAD7CF;--rule-2:#E8E5DE;--ve:#2F4C7A;--ve2:#5A7BA8;--hole:#8A5A18;--share:#1D6076;--sq:#8C3A6B;--bad:#9A2B2B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+ --ground:#0B0E14;--plate:#111621;--sunk:#0D1119;--ink:#E8E6E0;--ink-2:#9AA2B0;--ink-3:#666E7C;
+ --rule:#1E2532;--rule-2:#161C27;--ve:#6F9BD8;--ve2:#A8C0E4;--hole:#D9A441;--share:#4FA8C4;--sq:#D08AB8;--bad:#D0524E}}
+:root[data-theme="dark"]{--ground:#0B0E14;--plate:#111621;--sunk:#0D1119;--ink:#E8E6E0;--ink-2:#9AA2B0;
+ --ink-3:#666E7C;--rule:#1E2532;--rule-2:#161C27;--ve:#6F9BD8;--ve2:#A8C0E4;--hole:#D9A441;--share:#4FA8C4;--sq:#D08AB8;--bad:#D0524E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:"Source Serif 4",Georgia,serif;
+ font-size:16.5px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:44px 24px 80px;display:flex;flex-direction:column;gap:36px}
+header{display:flex;flex-direction:column;gap:14px;max-width:64ch}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.17em;text-transform:uppercase;color:var(--share)}
+h1{font-family:"Fraunces",Georgia,serif;font-weight:600;font-variation-settings:"opsz" 96;
+ font-size:clamp(32px,5.4vw,56px);line-height:1.03;letter-spacing:-.018em;margin:0;text-wrap:balance}
+.sf{margin:0;color:var(--ink-2);font-size:clamp(16px,1.7vw,18.5px)}.sf b{color:var(--ink);font-weight:600}
+.figure{background:var(--plate);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.fh{display:flex;align-items:baseline;gap:12px;padding:14px 18px 12px;border-bottom:1px solid var(--rule-2);flex-wrap:wrap}
+.ft{font-family:"Fraunces",serif;font-weight:600;font-size:16px;margin:0}
+.fn{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-3);margin-left:auto}
+.stage{position:relative;background:var(--sunk);aspect-ratio:16/10;max-height:68vh}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.ctl{display:flex;align-items:center;gap:14px;padding:12px 18px;border-top:1px solid var(--rule-2);flex-wrap:wrap}
+button{font:inherit;cursor:pointer}
+.play{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+ background:var(--ink);color:var(--ground);border:0;border-radius:2px;padding:8px 16px;min-width:86px}
+.play:hover{opacity:.85}
+label{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+input[type=range]{flex:1;min-width:130px;accent-color:var(--share)}
+.rd{font-family:"IBM Plex Mono",monospace;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:92px}
+.ros{display:flex;gap:24px;padding:12px 18px 16px;border-top:1px solid var(--rule-2);flex-wrap:wrap}
+.ro{display:flex;flex-direction:column;gap:2px}
+.ro .k{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.ro .v{font-family:"IBM Plex Mono",monospace;font-size:19px;font-variant-numeric:tabular-nums;font-weight:500}
+.ok{color:var(--share)}.sqc{color:var(--sq)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-2);padding:0 18px 14px}
+.mk{display:flex;align-items:center;gap:6px}.sw{width:15px;height:3px;border-radius:2px;flex:none}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:26px;border-top:1px solid var(--rule);padding-top:28px}
+.note h3{font-family:"Fraunces",serif;font-size:15px;font-weight:600;margin:0 0 6px}
+.note p{margin:0;font-size:15px;color:var(--ink-2);line-height:1.6}
+code{font-family:"IBM Plex Mono",monospace;font-size:13px;background:var(--sunk);padding:1px 5px;border-radius:2px;color:var(--ink)}
+.caveat{border-left:2px solid var(--rule);padding-left:18px;color:var(--ink-2);font-size:15px;max-width:66ch}
+.caveat strong{color:var(--ink);font-weight:600}
+:where(button,input,a):focus-visible{outline:2px solid var(--share);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<div class="wrap">
+ <header>
+  <div class="eyebrow">inviscid · three cells of the honeycomb</div>
+  <h1>The triangles hold; the squares let go</h1>
+  <p class="sf">Two cuboctahedron cells with an octahedral hole cell between them. Through the whole exchange each <b>triangular</b> contact keeps all three of its shared vertices — that is what holds the medium together. The <b>square</b> contact between the two VEs does not: it starts with four shared vertices, drops to two, and ends on one.</p>
+ </header>
+ <figure class="figure" style="margin:0">
+  <div class="fh"><h2 class="ft">VE — hole — VE</h2><span class="fn">drag to rotate · scroll to zoom</span></div>
+  <div class="stage"><canvas id="cv"></canvas></div>
+  <div class="ctl"><button class="play" id="play">Pause</button>
+   <label for="rng">phase a</label><input type="range" id="rng" min="0" max="600" value="0" step="1">
+   <span class="rd" id="av">a = 0.00°</span></div>
+  <div class="ctl" style="border-top:0"><label for="zm">zoom</label>
+   <input type="range" id="zm" min="40" max="400" value="100" step="1">
+   <span class="rd" id="zv">1.00&times;</span><button class="play" id="fit" style="min-width:60px">Fit</button></div>
+  <div class="ros">
+   <div class="ro"><span class="k">hole phase b = a+60</span><span class="v ok" id="bv">60.00°</span></div>
+   <div class="ro"><span class="k">lattice λ</span><span class="v" id="lv">1.00000</span></div>
+   <div class="ro"><span class="k">VE₁ ∩ hole</span><span class="v ok" id="s1">3</span></div>
+   <div class="ro"><span class="k">hole ∩ VE₂</span><span class="v ok" id="s2">3</span></div>
+   <div class="ro"><span class="k">VE₁ ∩ VE₂ (square)</span><span class="v sqc" id="s3">4</span></div>
+  </div>
+  <div class="legend">
+   <span class="mk"><span class="sw" style="background:var(--ve)"></span>VE₁, phase a</span>
+   <span class="mk"><span class="sw" style="background:var(--hole)"></span>hole cell, phase a+60</span>
+   <span class="mk"><span class="sw" style="background:var(--ve2)"></span>VE₂, phase a</span>
+   <span class="mk"><span class="sw" style="background:var(--share)"></span>triangular shared faces</span>
+   <span class="mk"><span class="dot" style="background:var(--sq)"></span>vertices still shared by VE₁ and VE₂</span>
+  </div>
+ </figure>
+ <p class="caveat">The reciprocal condition holds. The earlier two-cell result only imposed one VE's eight faces against its eight holes; it never checked that a hole's <em>other</em> faces meet their own VEs. They do — <code>hole ∩ VE₂</code> stays at three shared vertices, exact to <strong>6e-16</strong>, at every phase from 0 to −60°. So the chain closes in both directions and the exchange is consistent along it.</p>
+ <div class="notes">
+  <div class="note"><h3>Two kinds of contact</h3><p>The honeycomb's faces are not equivalent. Triangular faces are rigid — they belong to two cells at once and stay whole. Square faces are the <em>folding</em> squares of the jitterbug: they open as the motion runs, so the contact across them decays.</p></div>
+  <div class="note"><h3>4 → 2 → 1</h3><p>The VE-to-VE square contact loses vertices as the square folds: four at <code>a = 0</code>, two through the middle of the exchange, one at <code>a = −60°</code> where the cell has become an octahedron and only a corner is left.</p></div>
+  <div class="note"><h3>What carries the coupling</h3><p>If anything transmits through this medium it goes by the triangular faces. They are the only contact that survives the motion intact, and each is a whole rigid triangle shared by exactly two cells.</p></div>
+ </div>
+ <p class="caveat"><strong>Scope.</strong> Three cells of the periodic structure with no rotation on any cell (verified zero) and <code>λ</code> taken from the fold half-diagonal. Shared-vertex counts are exact coincidences at 1e-8. This shows the chain is consistent; it is still not a mobility computation for the whole honeycomb.</p>
+</div>
+<script>
+const G={"ax":[{"m":[0.7071067812,0.0,0.7071067812],"b":[0.7071067812,-0.0,-0.7071067812]},{"m":[0.7071067812,0.7071067812,0.0],"b":[-0.7071067812,0.7071067812,0.0]},{"m":[0.0,0.7071067812,0.7071067812],"b":[0.0,-0.7071067812,0.7071067812]},{"m":[0.7071067812,0.0,-0.7071067812],"b":[0.7071067812,-0.0,0.7071067812]},{"m":[0.0,0.7071067812,-0.7071067812],"b":[0.0,-0.7071067812,-0.7071067812]},{"m":[0.7071067812,-0.7071067812,0.0],"b":[-0.7071067812,-0.7071067812,0.0]},{"m":[0.0,-0.7071067812,0.7071067812],"b":[0.0,0.7071067812,0.7071067812]},{"m":[0.0,-0.7071067812,-0.7071067812],"b":[0.0,0.7071067812,-0.7071067812]},{"m":[-0.7071067812,0.0,0.7071067812],"b":[-0.7071067812,-0.0,-0.7071067812]},{"m":[-0.7071067812,0.7071067812,0.0],"b":[0.7071067812,0.7071067812,0.0]},{"m":[-0.7071067812,0.0,-0.7071067812],"b":[-0.7071067812,-0.0,0.7071067812]},{"m":[-0.7071067812,-0.7071067812,0.0],"b":[0.7071067812,-0.7071067812,0.0]}],"fc":[[0,1,2],[3,1,4],[0,5,6],[3,5,7],[8,9,2],[10,9,4],[8,11,6],[10,11,7]],"diag":[0,3],"fv":0,"fo":7,"norm":[0.5773502692,0.5773502692,0.5773502692],"fA":0,"fHa":7,"fHb":3,"fB":4},D=Math.PI/180,S2=Math.SQRT2,S23=Math.sqrt(2/3);
+const pos=(k,a)=>{const r=a*D,c=S2*Math.cos(r),s=S23*Math.sin(r),m=G.ax[k].m,b=G.ax[k].b;
+ return [c*m[0]+s*b[0],c*m[1]+s*b[1],c*m[2]+s*b[2]];};
+const sub=(p,q)=>[p[0]-q[0],p[1]-q[1],p[2]-q[2]],nrm=p=>Math.hypot(p[0],p[1],p[2]);
+const add=(p,o)=>[p[0]+o[0],p[1]+o[1],p[2]+o[2]];
+const tri=(a,f,o)=>[0,1,2].map(c=>add(pos(G.fc[f][c],a),o));
+const lam=a=>0.5*nrm(sub(pos(G.diag[0],a),pos(G.diag[1],a)));
+function build(a){const L=lam(a),b=a+60;
+ const o0=[0,0,0],oh=[L,L,L],o2=[2*L,0,0];
+ const mk=(ph,o)=>({tris:[...Array(8)].map((_,f)=>tri(ph,f,o)),o,ph});
+ return {L,b,A:mk(a,o0),H:mk(b,oh),B:mk(a,o2)};}
+const key=p=>p.map(v=>Math.round(v*1e8)/1e8).join(',');
+function shareCount(c1,c2){const s=new Set();for(const T of c1.tris)for(const p of T)s.add(key(p));
+ let n=0;const seen=new Set();
+ for(const T of c2.tris)for(const p of T){const k=key(p);if(s.has(k)&&!seen.has(k)){seen.add(k);n++;}}
+ return {n,seen};}
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let yaw=0.62,pitch=-0.28,a=0,playing=true,drag=null,zoom=1;
+function proj(p,w,h,fl,d0){const cy=Math.cos(yaw),sy=Math.sin(yaw);
+ let X=p[0]*cy+p[2]*sy,Z=-p[0]*sy+p[2]*cy,Y=p[1];
+ const cp=Math.cos(pitch),sp=Math.sin(pitch);const Y2=Y*cp-Z*sp,Z2=Y*sp+Z*cp,s=fl/(Z2+d0);
+ return [w/2+X*s,h/2-Y2*s,Z2];}
+function draw(){const cv=document.getElementById('cv'),dpr=Math.min(2,devicePixelRatio||1);
+ const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;cv.width=w*dpr;cv.height=h*dpr;
+ const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+ const S=build(a);const cen=[S.L,0,0];const sh=p=>sub(p,cen);
+ let R=0;for(const C of [S.A,S.H,S.B])for(const T of C.tris)for(const p of T)R=Math.max(R,nrm(sh(p)));
+ R=Math.max(R,1e-6);const d0=3.4*R,fl=zoom*0.46*Math.min(w,h)*d0/R;const P=p=>proj(sh(p),w,h,fl,d0);
+ const items=[];
+ S.A.tris.forEach((T,f)=>items.push({T,col:f===G.fA?css('--share'):css('--ve'),key:f===G.fA}));
+ S.H.tris.forEach((T,f)=>items.push({T,col:(f===G.fHa||f===G.fHb)?css('--share'):css('--hole'),key:(f===G.fHa||f===G.fHb)}));
+ S.B.tris.forEach((T,f)=>items.push({T,col:f===G.fB?css('--share'):css('--ve2'),key:f===G.fB}));
+ items.forEach(o=>{o.p=o.T.map(P);o.d=(o.p[0][2]+o.p[1][2]+o.p[2][2])/3;});
+ items.sort((x,y)=>y.d-x.d);
+ for(const o of items){g.beginPath();g.moveTo(o.p[0][0],o.p[0][1]);g.lineTo(o.p[1][0],o.p[1][1]);
+  g.lineTo(o.p[2][0],o.p[2][1]);g.closePath();
+  g.fillStyle=o.col;g.globalAlpha=o.key?0.5:0.2;g.fill();g.globalAlpha=1;
+  g.strokeStyle=o.col;g.lineWidth=o.key?2.6:1.3;g.stroke();}
+ const c1=shareCount(S.A,S.H),c2=shareCount(S.H,S.B),c3=shareCount(S.A,S.B);
+ for(const T of S.B.tris) for(const p of T){ if(c3.seen.has(key(p))){const X=P(p);
+   g.beginPath();g.arc(X[0],X[1],5.5,0,6.284);g.fillStyle=css('--sq');g.fill();
+   g.strokeStyle=css('--plate');g.lineWidth=1.5;g.stroke();} }
+ document.getElementById('bv').textContent=S.b.toFixed(2)+'°';
+ document.getElementById('lv').textContent=S.L.toFixed(5);
+ document.getElementById('s1').textContent=c1.n;
+ document.getElementById('s2').textContent=c2.n;
+ document.getElementById('s3').textContent=c3.n;
+ document.getElementById('av').textContent='a = '+a.toFixed(2)+'°';
+ document.getElementById('rng').value=Math.round(-a*10);
+ document.getElementById('zm').value=Math.round(zoom*100);
+ document.getElementById('zv').innerHTML=zoom.toFixed(2)+'&times;';}
+let last=performance.now();
+function tick(t){const dt=t-last;last=t;if(playing){a-=dt*0.007;if(a<-60)a=0;draw();}requestAnimationFrame(tick);}
+document.getElementById('play').addEventListener('click',e=>{playing=!playing;e.target.textContent=playing?'Pause':'Play';});
+document.getElementById('rng').addEventListener('input',e=>{a=-(+e.target.value)/10;playing=false;
+ document.getElementById('play').textContent='Play';draw();});
+document.getElementById('zm').addEventListener('input',e=>{zoom=+e.target.value/100;draw();});
+document.getElementById('fit').addEventListener('click',()=>{zoom=1;draw();});
+const cv=document.getElementById('cv');
+cv.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(0.4,Math.min(4,zoom*Math.exp(-e.deltaY*0.0016)));draw();},{passive:false});
+cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{if(!drag)return;yaw+=(e.clientX-drag.x)*0.008;pitch+=(e.clientY-drag.y)*0.006;
+ pitch=Math.max(-1.4,Math.min(1.4,pitch));drag={x:e.clientX,y:e.clientY};draw();});
+cv.addEventListener('pointerup',()=>drag=null);cv.addEventListener('pointercancel',()=>drag=null);
+addEventListener('resize',draw);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
+if(matchMedia('(prefers-reduced-motion: reduce)').matches){playing=false;document.getElementById('play').textContent='Play';}
+draw();requestAnimationFrame(tick);
+</script>
