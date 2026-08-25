@@ -60,10 +60,38 @@ WHAT IT MEASURES: THE MOBILITY QUESTION (ia5 scope 2)
   contradict it or replace it. What they establish is the negative: the array
   is not a single-DOF linkage, so the fatal case the bead named is ruled out.
 
-WHAT IS STILL OPEN: global consistency across cells (ia5 scope 3). Everything
-here is built from one cell's neighbour list applied at each site; that the
-local closure conditions are mutually satisfiable is verified by T2 on real
-patches, but no proof is offered that an unbounded array closes.
+GLOBAL CONSISTENCY (ia5 scope 3) IS CLOSED, AND NOT BY GROWING THE PATCH.
+
+  Growing it was never going to settle anything. The array has NO PER-CELL
+  FREEDOM: every cell's origin is lam(a)*site, its phase is a or a+60, and its
+  orientation is the identity because no cell rotates (jb_hc H2 gates that). The
+  whole infinite structure is a function of the single parameter a, so there is
+  nothing that could accumulate or drift with distance. The question is finite,
+  and T10 answers it in three parts:
+      every shared face is recorded IDENTICALLY by both cells that own it
+        -- 84 directed records, 0 disagreements, so no per-face choice can
+           differ between its two owners;
+      the site set is invariant under 2Z^3, so every VE is a translate of
+        (0,0,0) and every octa a translate of (1,1,1);
+      and BOTH of those complete 15-cell neighbourhoods are exact across the
+        whole exchange (9.4e-16 and 1.0e-15).
+  Translation then covers every cell of an unbounded array.
+
+  THE ORIGINAL WORRY WAS REAL AND HAS EXPIRED. Scope 3 was written while b(a)
+  was still being SOLVED, when the constraint system was underdetermined and
+  closed for a whole one-parameter family -- which is exactly how b = 60 + a/2
+  got published. Local closure genuinely did not imply global closure THEN. What
+  removed the question was b = a + 60 with zero rotation, i.e. the thing that
+  made the array a rigid one-parameter placement with no freedom left to be
+  inconsistent about.
+
+  ONE CAVEAT THE CONTROL TURNED UP: `honeycomb_contacts` does not validate that
+  its argument is a site. Its parity test is `sum(abs(c)) % 2`, so it is
+  covariant under any even-SUM shift -- including (1,1,0), whose image is
+  mixed-parity and not a site at all -- and will happily return a structurally
+  identical neighbourhood for a point the lattice does not contain. T10's
+  control separates the two: the neighbourhood test alone passes (1,1,0); the
+  site test is what rejects it.
 
 Canonical prose state: T2 `inviscid/qvf-epic-consolidated-state`.
 """
@@ -294,10 +322,79 @@ def t9_mobility(topos):
 
 
 # ==========================================================================
+# T10: GLOBAL CONSISTENCY over an unbounded array. This closes ia5 scope 3,
+#      and it is NOT closed by growing the patch -- see the module docstring.
+# ==========================================================================
+
+def _is_site(s):
+    """The honeycomb's sites are the ALL-EVEN points (VE) and the ALL-ODD
+    points (octa). Mixed-parity points are not sites at all."""
+    return (all(int(c) % 2 == 0 for c in s) or all(int(c) % 2 != 0 for c in s))
+
+
+def _neighbourhood(centre):
+    c = np.asarray(centre, dtype=int)
+    return sorted((tuple(np.asarray(r[0], dtype=int) - c), r[1], r[2], r[3])
+                  for r in W.honeycomb_contacts(tuple(int(x) for x in c), REF))
+
+
+#: Translations that ARE symmetries of the site set: 2Z^3, including one
+#: absolute, deliberately awkward vector.
+EVEN_SHIFTS = ((2, 0, 0), (0, 2, 0), (0, 0, 2), (4, -2, 6), (-8, 4, 2))
+#: Translations that are NOT. (1,1,0) is the interesting one: its coordinate
+#: SUM is even, so `honeycomb_contacts`' parity test treats the image as a VE
+#: and returns a structurally identical neighbourhood -- while the image is not
+#: a site at all. The neighbourhood test alone would pass it.
+ODD_SHIFTS = ((1, 0, 0), (1, 1, 0), (3, 0, 0), (0, 1, 2))
+
+
+def t10_global():
+    # (a) every shared face is recorded identically by BOTH cells that own it
+    bad, checked = 0, 0
+    for centre in ((0, 0, 0), (1, 1, 1), (2, 0, 0), (-1, 1, -1),
+                   (4, 2, 0), (3, -1, 1)):
+        for (nb, kind, ml, tl) in W.honeycomb_contacts(centre, REF):
+            back = [r for r in W.honeycomb_contacts(tuple(int(c) for c in nb), REF)
+                    if tuple(int(c) for c in r[0]) == centre]
+            checked += 1
+            if len(back) != 1 or back[0][1] != kind \
+                    or set(zip(ml, tl)) != set(zip(back[0][3], back[0][2])):
+                bad += 1
+
+    # (b) the translation group of the SITE SET, and the control that the
+    #     neighbourhood test alone cannot distinguish
+    base = {c: _neighbourhood(c) for c in ((0, 0, 0), (1, 1, 1))}
+    even_ok = all(
+        _is_site(np.array(c) + np.array(t))
+        and _neighbourhood(np.array(c) + np.array(t)) == base[c]
+        for c in base for t in EVEN_SHIFTS)
+    odd_sites = [bool(_is_site(np.array((0, 0, 0)) + np.array(t)))
+                 for t in ODD_SHIFTS]
+    odd_nbhd = [_neighbourhood(np.array((0, 0, 0)) + np.array(t)) == base[(0, 0, 0)]
+                for t in ODD_SHIFTS]
+
+    # (c) the two complete neighbourhoods, one per sublattice
+    shells = {}
+    for label, c in (("VE", (0, 0, 0)), ("OCTA", (1, 1, 1))):
+        tri, sq = W.neighbours(c)
+        sites = [tuple(c)] + [tuple(int(x) for x in t) for t in tri] \
+            + [tuple(int(x) for x in q) for q in sq]
+        t = W._honeycomb(f"{label} shell", sites)
+        shells[label] = (t.n, len(t.contacts),
+                         _held_residual(t, t.contacts,
+                                        tuple(np.linspace(0.0, -60.0, 25))))
+    return dict(pair_bad=bad, pair_n=checked, even_ok=even_ok,
+                n_even=len(EVEN_SHIFTS) * 2,
+                odd_any_site=any(odd_sites), odd_any_nbhd=any(odd_nbhd),
+                shells=shells,
+                shell_worst=max(v[2] for v in shells.values()))
+
+
+# ==========================================================================
 # THE GATE
 # ==========================================================================
 
-def gate(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9):
+def gate(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10):
     checks = []
     R = checks.append
 
@@ -380,6 +477,27 @@ def gate(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9):
        f"rank {one[0]['rank']}, {one[0]['internal']} internal DOF"
        if one else "n/a", "36, 6"))
 
+    R(("T10 every shared face is recorded IDENTICALLY by both cells that own "
+       "it -- no per-face choice can differ between its two owners",
+       t10["pair_n"] > 0 and t10["pair_bad"] == 0,
+       f"{t10['pair_bad']} disagreements over {t10['pair_n']} directed records",
+       "0"))
+    R(("T10 the site set is invariant under 2Z^3, and a cell's neighbourhood "
+       "is the same up to that translation",
+       t10["n_even"] > 0 and t10["even_ok"],
+       f"{t10['n_even']} (centre, shift) pairs", "all invariant"))
+    R(("T10 CONTROL: a shift outside 2Z^3 does NOT map sites to sites, even "
+       "though honeycomb_contacts' parity test is covariant under some of "
+       "them and returns a structurally identical neighbourhood -- CAN FAIL",
+       (not t10["odd_any_site"]) and t10["odd_any_nbhd"],
+       f"site-preserving {t10['odd_any_site']}, "
+       f"neighbourhood-identical {t10['odd_any_nbhd']}", "False, True"))
+    R(("T10 BOTH complete neighbourhoods are exact -- one VE-centred and one "
+       "OCTA-centred, 15 cells each, over the whole exchange",
+       len(t10["shells"]) == 2 and t10["shell_worst"] < TOL_GEOM,
+       f"VE {t10['shells']['VE'][2]:.2e}, "
+       f"OCTA {t10['shells']['OCTA'][2]:.2e}", f"< {TOL_GEOM:.0e}"))
+
     print()
     print("=" * 78)
     print(f"GATE  {len(checks)} rows")
@@ -424,11 +542,26 @@ def gate(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9):
     print("  against columns on a patch and calling the answer the medium's")
     print("  is the mistake memo R2 is about.")
     print()
-    print("  A ROW DELIBERATELY NOT BUILT: global consistency of the contact")
-    print("  list over an unbounded array (ia5 scope 3). Every topology here")
-    print("  is built by applying one cell's neighbour list at each site, and")
-    print("  T2 verifies the result closes on real patches up to fifteen")
-    print("  cells. That is evidence, not proof, and no row here claims more.")
+    print("  GLOBAL CONSISTENCY (ia5 scope 3) IS CLOSED BY T10, AND NOT BY")
+    print("  GROWING THE PATCH. Growing it was never going to settle anything:")
+    print("  the array has no per-cell freedom -- every cell's origin is")
+    print("  lam(a)*site, its phase is a or a+60, its orientation is the")
+    print("  identity (no cell rotates, jb_hc H2) -- so the whole infinite")
+    print("  structure is a function of the single parameter a and there is")
+    print("  nothing that could accumulate or drift with distance. The")
+    print("  question is therefore FINITE, and T10 answers it in three parts:")
+    print("  every shared face is recorded identically by both owners, the")
+    print("  site set is invariant under 2Z^3 so every cell is a translate of")
+    print("  (0,0,0) or (1,1,1), and both of THOSE complete neighbourhoods are")
+    print("  exact across the whole exchange. Together that is every cell of")
+    print("  an unbounded array, by translation.")
+    print()
+    print("  THE ORIGINAL WORRY WAS REAL AND HAS EXPIRED. ia5 scope 3 was")
+    print("  written while b(a) was still being SOLVED, when the constraint")
+    print("  system was underdetermined and closed for a whole family -- which")
+    print("  is exactly how b = 60 + a/2 was published. Local closure genuinely")
+    print("  did not imply global closure THEN. b = a + 60 with zero rotation")
+    print("  removed the freedom that made it a question.")
     print()
     print("  WHAT THIS FILE DOES NOT DO: it does not rewire jb_z's CRANK path")
     print("  onto the honeycomb. jb_z's gate still drives the legacy")
@@ -470,6 +603,7 @@ def main():
     t7 = t7_dsites(topos)
     t8 = t8_shortcut(topos)
     t9 = t9_mobility(topos)
+    t10 = t10_global()
 
     print()
     print("-" * 78)
@@ -483,7 +617,7 @@ def main():
     print("  internal = nullity - 6, and the 6 are measured into the null")
     print("  space by T9, not assumed. Free-surface patches: see the module")
     print("  docstring before reading these as the medium's numbers.")
-    return gate(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9)
+    return gate(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)
 
 
 if __name__ == "__main__":
