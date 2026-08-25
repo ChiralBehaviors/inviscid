@@ -50,6 +50,13 @@ WHAT IT ESTABLISHES
   They do not mix: at M the positional band is 0 while both phase bands sit at
   2/sqrt(3).
 
+  SCOPE OF THE PHASE RESULT, added after jb_bt_band_touching.py: everything in
+  H7 and H8 is computed at a = -30, and the gaplessness is a property of THAT
+  PHASE. At any other reference phase the same projection gaps the phase band
+  by exactly sqrt(6)*|d lambda/d a|, which vanishes at a = -30 because lambda
+  is stationary there. The fixed-lattice assumption is free at the midpoint and
+  nowhere else. c = 2/3 is real, and it is the midpoint's number.
+
 METHOD NOTE THAT COST THE MOST TO LEARN. The corner correspondence across a
 shared face MUST be resolved by permutation search. Pairing corner c to corner c
 leaves a seed residual of 1.0 at a = 0 and the solver then converges happily to a
@@ -605,13 +612,16 @@ def gate(h1, h2, h3, fw, h5, h6, h7, h8):
     print("     energy' could be satisfied by a rigidity matrix that is simply")
     print("     small, and the identification would mean nothing.")
     print()
-    print("  A ROW DELIBERATELY NOT BUILT: the band-touching PLANE family in the")
-    print("  faithful (projected) model. H8 checks M only. The reduced model of")
-    print("  T2 23484 has bands touching wherever any k_i = pi/(2*lambda), which")
-    print("  would give zero group velocity and a localisation mechanism, but")
-    print("  that was derived in the SPLITTING-VERTEX model whose numbers are")
-    print("  wrong by 7-9x. Re-scanning it faithfully is real work and is left")
-    print("  undone rather than asserted.")
+    print("  A ROW THIS FILE DID NOT BUILD, AND NO LONGER OWES: the")
+    print("  band-touching PLANE family in the faithful model. H8 checks M")
+    print("  only. It is now built, in jb_bt_band_touching.py, and the answer")
+    print("  is not the one the reduced model implied: the LOCUS survives")
+    print("  exactly (it is the simple-cubic zone boundary) but the degenerate")
+    print("  value DISPERSES across each plane, from sqrt(2/3) at the face")
+    print("  centre to 2/sqrt(3) at its edges, the bands cross linearly, and")
+    print("  no group velocity vanishes. There is no localisation mechanism")
+    print("  there. jb_bt also finds that the whole structure -- and H8's own")
+    print("  gaplessness -- belongs to a = -30 alone. See below.")
     print()
     print("  WHAT THIS FILE DOES NOT MODEL: anharmonic terms (everything is")
     print("  harmonic about a = -30, so the phase/positional orthogonality is a")
@@ -621,6 +631,15 @@ def gate(h1, h2, h3, fw, h5, h6, h7, h8):
     print("  tracking the phase); and inviscid-l1d, the PARALLEL_TOL branch flip")
     print("  in jb_z's signed_gap, which is a real and still-unfixed code defect")
     print("  that is independent of everything here.")
+    print()
+    print("  AND THE FIRST OF THOSE IS NOT A CAVEAT, IT IS THE LEADING TERM.")
+    print("  jb_bt_band_touching.py measures the Gamma gap of the phase band at")
+    print("  other reference phases and finds gap = sqrt(6)*|d lambda/d a|, to")
+    print("  10 figures, isotropic. lambda is the fold half-diagonal and a =")
+    print("  -30 is its MAXIMUM, so d lambda/d a is zero there and ONLY there.")
+    print("  H8's c = 2/3, its gaplessness and the Goldstone identification are")
+    print("  therefore statements about the exchange MIDPOINT under a fixed")
+    print("  lattice, not about the medium at a general phase.")
 
     failed = [n for n, ok, _v, _c in checks if not ok]
     print()
