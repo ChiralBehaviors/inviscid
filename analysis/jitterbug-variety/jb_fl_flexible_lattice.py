@@ -40,6 +40,35 @@ SO THE CONCLUSION IS SHARPER AND WORSE THAN THE ONE IT REPLACES.
     A MODULATED one is not, and its cost does not vanish with wavelength.
     The phase wave is a propagating GAPLESS mode ONLY at the exchange midpoint.
 
+AND THEN F10 SOFTENS THAT, WHICH IS WHY IT IS HERE AND NOT LEFT AS A CAVEAT.
+A gap is not immobility, and the gapped sector turns out to disperse.
+
+  AT the midpoint the phase spectral peak is CONTINUOUS across the whole [100]
+  line -- zero jumps in 199 steps, biggest step 0.00371 against a median of
+  0.00365 -- with median |d omega/d k| = 0.5344, which is F9's sqrt(8/27) read a
+  completely different way. So it is a genuine branch, not merely a
+  long-wavelength mode.
+
+  AWAY from the midpoint it is PIECEWISE continuous: one handoff at a = -20 and
+  two at a = -10, where the phase character transfers between bands. Between
+  the handoffs it disperses with real group velocity, median 0.381 and 0.111.
+  So the gapped phase sector DOES carry packets over the smooth stretches --
+  a packet whose k-content straddles a handoff will split, but one that does
+  not, propagates. And the velocity falls monotonically as the reference phase
+  leaves the midpoint: 0.534, 0.381, 0.111 at a = -30, -20, -10.
+
+  The response is never smeared: the dominant band always carries at least 0.319
+  of the weight, against 1/18 = 0.056 for an even spread across all eighteen.
+
+  METHOD, and why it is not the obvious one. Eigenvector continuity-following --
+  matching each step's modes to the previous step's -- CANNOT do this here. Its
+  worst matched overlap is 0.21 and REFINING THE SAMPLING EIGHTFOLD DOES NOT
+  MOVE IT (0.2152, 0.2124, 0.2110, 0.2103 at n = 30, 60, 120, 240), so the
+  ambiguity is a genuine degeneracy and not a step-size artifact. Tracking the
+  PEAK FREQUENCY instead sidesteps it: band index hopping is a labelling
+  artifact and harmless, while a jump in the peak is physical. That distinction
+  is the whole content of the method.
+
 THE MECHANISM, offered as an interpretation and labelled as one. Each cell's
 lambda is slaved to its phase, so a modulated phase field demands a local
 dilation proportional to d lambda/d a. Accommodating it needs a displacement
@@ -336,10 +365,87 @@ def f8_spectral_weight():
 
 
 # ==========================================================================
+# F10: the branch's SHAPE across the zone, which this file previously declared
+#      a row deliberately not built. Bead inviscid-46y.
+# ==========================================================================
+
+#: k-path leg used for the shape rows, and the sampling that showed the
+#: continuity-following method cannot be rescued by refinement.
+PEAK_N = 200
+FOLLOW_N = (30, 60, 120, 240)
+
+
+def _peak_track(a0, n=PEAK_N):
+    """omega of the MAX-WEIGHT band along [100], densely sampled.
+
+    Band INDEX hopping is a labelling artifact and harmless; a jump in the PEAK
+    FREQUENCY is not, because a packet needs a locally smooth omega(k). So this
+    tracks the peak and not the label."""
+    fw = HC.h4_framework(a0)
+    P, bars, A, slots = fw["P"], fw["bars"], fw["A"], fw["slots"]
+    G = np.pi / A
+    ts = np.linspace(0.002, 1.0, n)
+    peak, weight = [], []
+    for t in ts:
+        kv = t * G * np.array([1.0, 0.0, 0.0])
+        M = HC.bloch(P, bars, A, kv)
+        D = M.conj().T @ M
+        w, V = np.linalg.eigh(D)
+        w = np.sqrt(np.maximum(w, 0.0))
+        wt = np.abs(V.conj().T @ _phase_vector(P, slots, A, kv)) ** 2
+        wt = wt / wt.sum()
+        i = int(np.argmax(wt))
+        peak.append(w[i])
+        weight.append(float(wt[i]))
+    peak = np.array(peak)
+    step = (ts[1] - ts[0]) * G
+    d = np.abs(np.diff(peak))
+    smooth = d[d < 0.05]
+    return dict(jumps=int((d > 0.05).sum()), biggest=float(d.max()),
+                vel_med=float(np.median(smooth)) / step,
+                lo=float(peak.min()), hi=float(peak.max()),
+                min_weight=min(weight))
+
+
+def _follow_confidence(a0, n):
+    """Worst matched eigenvector overlap along G-X-M-G at sampling `n`."""
+    from scipy.optimize import linear_sum_assignment
+    fw = HC.h4_framework(a0)
+    P, bars, A = fw["P"], fw["bars"], fw["A"]
+    G = np.pi / A
+    path = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 0, 0)]
+    ks = []
+    for i in range(len(path) - 1):
+        s0 = np.array(path[i], dtype=float)
+        e0 = np.array(path[i + 1], dtype=float)
+        for t in np.linspace(0, 1, n, endpoint=(i == len(path) - 2)):
+            ks.append(G * (s0 + t * (e0 - s0)))
+    Vp, worst = None, 1.0
+    for kv in ks:
+        M = HC.bloch(P, bars, A, kv)
+        w, V = np.linalg.eigh(M.conj().T @ M)
+        if Vp is not None:
+            ov = np.abs(Vp.conj().T @ V) ** 2
+            r, c = linear_sum_assignment(-ov)
+            worst = min(worst, float(ov[r, c].min()))
+            V = V[:, c]
+        Vp = V
+    return worst
+
+
+def f10_shape():
+    tracks = {a: _peak_track(a) for a in (A_REF, -20.0, -10.0)}
+    conf = {n: _follow_confidence(A_REF, n) for n in FOLLOW_N}
+    return dict(tracks=tracks, conf=conf,
+                conf_spread=max(conf.values()) - min(conf.values()),
+                conf_worst=max(conf.values()))
+
+
+# ==========================================================================
 # THE GATE
 # ==========================================================================
 
-def gate(f1, f3, f4, f6, f7, f8, f9):
+def gate(f1, f3, f4, f6, f7, f8, f9, f10):
     checks = []
     R = checks.append
 
@@ -411,6 +517,38 @@ def gate(f1, f3, f4, f6, f7, f8, f9):
        f8["mid"] > MID_LOW_WEIGHT and f8["off"] < OFF_LOW_WEIGHT,
        f"midpoint {f8['mid']:.3f}, away {f8['off']:.3f}",
        f"> {MID_LOW_WEIGHT} and < {OFF_LOW_WEIGHT}"))
+
+    mid = f10["tracks"][A_REF]
+    off = [f10["tracks"][a] for a in (-20.0, -10.0)]
+    R(("F10 AT the midpoint the phase peak is CONTINUOUS across the whole "
+       "[100] line -- a genuine branch, not just a long-wavelength mode",
+       mid["jumps"] == 0,
+       f"{mid['jumps']} jumps in {PEAK_N - 1} steps, biggest "
+       f"{mid['biggest']:.5f}", "0 jumps"))
+    R(("F10 and its group velocity is sqrt(8/27), matching F9's speed read a "
+       "different way", abs(mid["vel_med"] - np.sqrt(8 / 27)) < 2e-2,
+       f"median |dw/dk| {mid['vel_med']:.4f}",
+       f"{np.sqrt(8 / 27):.4f}"))
+    R(("F10 AWAY from the midpoint it is only PIECEWISE continuous, so the "
+       "phase sector is NOT a single branch there -- CAN FAIL",
+       all(1 <= t["jumps"] <= 3 for t in off),
+       f"jumps {[t['jumps'] for t in off]}, biggest "
+       f"{max(t['biggest'] for t in off):.4f}", "1..3 each"))
+    R(("F10 BUT IT STILL DISPERSES between the handoffs: a gap is not "
+       "immobility, and this SOFTENS the k != 0 conclusion above",
+       all(t["vel_med"] > 0.05 for t in off),
+       f"median |dw/dk| {[round(t['vel_med'], 4) for t in off]}", "> 0.05"))
+    R(("F10 the phase response is never SMEARED: one band always carries a "
+       "large share, against 1/18 = 0.056 for an even spread",
+       min(t["min_weight"] for t in f10["tracks"].values()) > 0.2,
+       f"min max-weight {min(t['min_weight'] for t in f10['tracks'].values()):.3f}",
+       "> 0.2 (even = 0.056)"))
+    R(("F10 CONTROL: eigenvector continuity-following CANNOT do this, and "
+       "refinement does not rescue it -- which is why the peak is tracked "
+       "instead of the label -- CAN FAIL",
+       f10["conf_worst"] < 0.4 and f10["conf_spread"] < 0.01,
+       f"confidence {[round(v, 4) for v in f10['conf'].values()]} over "
+       f"8x refinement", "< 0.4, flat"))
 
     print()
     print("=" * 78)
@@ -496,6 +634,7 @@ def main():
     f7 = f7_projection_is_not_the_defect()
     f8 = f8_spectral_weight()
     f9 = f9_speed()
+    f10 = f10_shape()
 
     print()
     print("-" * 78)
@@ -512,7 +651,7 @@ def main():
     print(f"    {'a0':>7s}   eps = 0.05, 0.02, 0.01, 0.005, 0.002")
     for a, ser in f8["series"].items():
         print(f"    {a:7.1f}   " + "  ".join(f"{x:.4f}" for x in ser))
-    return gate(f1, f3, f4, f6, f7, f8, f9)
+    return gate(f1, f3, f4, f6, f7, f8, f9, f10)
 
 
 if __name__ == "__main__":
