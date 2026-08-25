@@ -1,0 +1,276 @@
+<title>Orbits of a Jitterbug</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#F6F5F1; --plate:#FFFFFF; --sunk:#ECEAE4;
+  --ink:#17191E; --ink-2:#4E535C; --ink-3:#868C96;
+  --rule:#DAD7CF; --rule-2:#E8E5DE;
+  --o1:#9A6410; --o2:#1D6076; --o3:#96455A;
+  --accent:#3F5480;
+  --wall:#9A2B2B;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B0E14; --plate:#111621; --sunk:#0D1119;
+    --ink:#E8E6E0; --ink-2:#9AA2B0; --ink-3:#666E7C;
+    --rule:#1E2532; --rule-2:#161C27;
+    --o1:#D9A441; --o2:#4FA8C4; --o3:#C77B8B;
+    --accent:#7D93C4;
+    --wall:#D0524E;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B0E14; --plate:#111621; --sunk:#0D1119;
+  --ink:#E8E6E0; --ink-2:#9AA2B0; --ink-3:#666E7C;
+  --rule:#1E2532; --rule-2:#161C27;
+  --o1:#D9A441; --o2:#4FA8C4; --o3:#C77B8B;
+  --accent:#7D93C4;
+  --wall:#D0524E;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:"Source Serif 4",Georgia,serif;font-size:16.5px;line-height:1.65;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:44px 24px 80px;display:flex;flex-direction:column;gap:40px}
+header{display:flex;flex-direction:column;gap:14px;max-width:64ch}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.17em;
+  text-transform:uppercase;color:var(--accent)}
+h1{font-family:"Fraunces",Georgia,serif;font-weight:600;font-variation-settings:"opsz" 96;
+  font-size:clamp(32px,5.4vw,56px);line-height:1.02;letter-spacing:-.018em;margin:0;text-wrap:balance}
+.standfirst{margin:0;color:var(--ink-2);font-size:clamp(16px,1.7vw,18.5px)}
+.standfirst b{color:var(--ink);font-weight:600}
+.figure{background:var(--plate);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.figure-head{display:flex;align-items:baseline;gap:12px;padding:14px 18px 12px;border-bottom:1px solid var(--rule-2);flex-wrap:wrap}
+.figure-title{font-family:"Fraunces",serif;font-weight:600;font-size:16px;margin:0}
+.figure-note{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-3);margin-left:auto}
+.stage{position:relative;background:var(--sunk);aspect-ratio:16/10;max-height:70vh}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.controls{display:flex;align-items:center;gap:16px;padding:14px 18px;border-top:1px solid var(--rule-2);flex-wrap:wrap}
+button{font:inherit;cursor:pointer}
+.play{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--ink);color:var(--ground);border:0;border-radius:2px;padding:8px 16px;min-width:86px}
+.play:hover{opacity:.85}
+input[type=range]{flex:1;min-width:180px;accent-color:var(--accent)}
+.aval{font-family:"IBM Plex Mono",monospace;font-size:13px;font-variant-numeric:tabular-nums;
+  color:var(--ink);min-width:118px;white-space:nowrap}
+.marks{display:flex;gap:14px;flex-wrap:wrap;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-2)}
+.mk{display:flex;align-items:center;gap:6px}
+.sw{width:16px;height:3px;border-radius:2px;flex:none}
+table{width:100%;border-collapse:collapse;font-family:"IBM Plex Mono",monospace;font-size:13.5px;
+  font-variant-numeric:tabular-nums}
+caption{text-align:left;font-family:"Fraunces",serif;font-size:16px;font-weight:600;
+  padding-bottom:10px;color:var(--ink)}
+th,td{text-align:left;padding:8px 14px 8px 0;border-bottom:1px solid var(--rule-2)}
+th{font-weight:500;color:var(--ink-3);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+td.num{text-align:right;padding-right:26px}
+.exact{color:var(--accent)}
+.scroller{overflow-x:auto}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:26px;
+  border-top:1px solid var(--rule);padding-top:28px}
+.note h3{font-family:"Fraunces",serif;font-size:15px;font-weight:600;margin:0 0 6px}
+.note p{margin:0;font-size:15px;color:var(--ink-2);line-height:1.6}
+code{font-family:"IBM Plex Mono",monospace;font-size:13px;background:var(--sunk);padding:1px 5px;border-radius:2px;color:var(--ink)}
+.caveat{border-left:2px solid var(--rule);padding-left:18px;color:var(--ink-2);font-size:15px;max-width:66ch}
+.caveat strong{color:var(--ink);font-weight:600}
+:where(button,input,a):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">inviscid · jitterbug array · exact geometry</div>
+    <h1>Three orbits, and the wall at thirty degrees</h1>
+    <p class="standfirst">Every vertex of a cuboctahedron traces a <b>planar ellipse</b> as the jitterbug opens — verified to 1.4e-16. One triangular face takes one vertex from each of three mutually perpendicular planes, so a face rides three orbits at once. The crank angle is not merely a parameter on those ellipses: it is exactly their <b>eccentric anomaly</b>.</p>
+  </header>
+
+  <figure class="figure" style="margin:0">
+    <div class="figure-head">
+      <h2 class="figure-title">One face on its three orbits</h2>
+      <span class="figure-note" id="note">drag to rotate &middot; scroll to zoom</span>
+    </div>
+    <div class="stage"><canvas id="cv"></canvas></div>
+    <div class="controls">
+      <button class="play" id="play">Pause</button>
+      <input type="range" id="rng" min="0" max="600" value="0" step="1" aria-label="Crank angle">
+      <span class="aval" id="aval">a = 0.000°</span>
+    </div>
+    <div class="controls" style="border-top:0;padding-top:0">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)">zoom</span>
+      <input type="range" id="zm" min="40" max="400" value="100" step="1" aria-label="Zoom">
+      <span class="aval" id="zv" style="min-width:60px">1.00&times;</span>
+      <button class="play" id="fit" style="min-width:60px">Fit</button>
+    </div>
+    <div class="controls" style="border-top:0;padding-top:0">
+      <div class="marks">
+        <span class="mk"><span class="sw" style="background:var(--o1)"></span>vertex 0 · plane y = 0</span>
+        <span class="mk"><span class="sw" style="background:var(--o2)"></span>vertex 1 · plane z = 0</span>
+        <span class="mk"><span class="sw" style="background:var(--o3)"></span>vertex 2 · plane x = 0</span>
+        <span class="mk"><span class="sw" style="background:var(--wall)"></span>a = 30°, the wall</span>
+      </div>
+    </div>
+  </figure>
+
+  <div class="scroller">
+    <table>
+      <caption>The orbit, exactly</caption>
+      <thead><tr><th>quantity</th><th class="num">value</th><th>closed form</th></tr></thead>
+      <tbody>
+        <tr><td>semi-major axis</td><td class="num">1.414213562</td><td class="exact">√2</td></tr>
+        <tr><td>semi-minor axis</td><td class="num">0.816496581</td><td class="exact">√(2/3)</td></tr>
+        <tr><td>axis ratio</td><td class="num">1.732050808</td><td class="exact">√3</td></tr>
+        <tr><td>eccentricity</td><td class="num">0.816496581</td><td class="exact">√(2/3)</td></tr>
+        <tr><td>planarity residual</td><td class="num">1.4e-16</td><td>machine zero</td></tr>
+        <tr><td>conic-fit residual</td><td class="num">4e-15</td><td>machine zero</td></tr>
+        <tr><td>d(anomaly)/d(crank angle)</td><td class="num">−1.000000</td><td>std 3.1e-13, n=3600</td></tr>
+        <tr><td>vertex position</td><td class="num" colspan="2" style="text-align:left">p(a) = √2·cos a·<b>m</b> ∓ √(2/3)·sin a·<b>b</b> &nbsp;<span style="color:var(--ink-3)">(reproduces the real vertices to 3.9e-16)</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure class="figure" style="margin:0">
+    <div class="figure-head">
+      <h2 class="figure-title">Where the array stops</h2>
+      <span class="figure-note">plate gap along the symmetric path</span>
+    </div>
+    <div class="stage" style="aspect-ratio:16/7"><canvas id="cv2"></canvas></div>
+  </figure>
+
+  <p class="caveat">Because every vertex coordinate is a pure sinusoid in <code>a</code>, every plate-to-plate gap along the symmetric path is a sinusoid too. The family that blocks the array comes out as <strong>gap(a) = 4·cos(a + 60°)</strong>, matching the measured gap to <strong>6.7e-16</strong>, so first contact falls at <strong>exactly 30°</strong> — with all sixteen separated plate pairs closing at the same instant rather than in sequence. Past 30° the witness distance stays exactly zero through 45°: the plates touch and remain in contact. It is a boundary of configuration space, not a crossing.</p>
+
+  <div class="notes">
+    <div class="note">
+      <h3>The icosahedron sits inside</h3>
+      <p>a_ico = 22.2388° is interior to the free range, with 7.76° of headroom before the wall. Icosahedral configurations are not at a limit or a singularity — which is why a local group can arrive at that phase and leave again.</p>
+    </div>
+    <div class="note">
+      <h3>The octahedron is unreachable</h3>
+      <p>The VE→octahedron transformation completes at 60°, well past the wall. A packed array of impenetrable plates cannot get there. It stops at half.</p>
+    </div>
+    <div class="note">
+      <h3>The wall belongs to the array</h3>
+      <p>A lone jitterbug does not self-collide at 30° — its own faces are still <code>1.03</code> apart, and only close near 59–60°. The limit appears only once neighbours are present.</p>
+    </div>
+  </div>
+
+  <p class="caveat"><strong>Scope.</strong> Every figure here is a symmetric-path quantity — all units sharing one phase. The simulated array does not stay on that path: it dephases by about 6.7°, the centre unit lagging its neighbours, so the real boundary is softer and arrives earlier than a clean 30°. And none of this speaks to propagation. Rigid impenetrable bodies in unilateral contact form a granular medium, and those carry waves only through collisions, which needs inertia that this quasi-static model does not have.</p>
+</div>
+
+<script>
+const D=Math.PI/180, S2=Math.SQRT2, S23=Math.sqrt(2/3);
+// axes verified against the real verts(a) to 3.85e-16
+const R2=Math.SQRT1_2;
+const ORB=[
+ {n:[0,1,0],  m:[ R2,0, R2], b:[-R2,0, R2], s:-1, c:'--o1'},
+ {n:[0,0,-1], m:[ R2, R2,0], b:[-R2, R2,0], s:+1, c:'--o2'},
+ {n:[1,0,0],  m:[0, R2, R2], b:[0, R2,-R2], s:-1, c:'--o3'}
+];
+const pos=(o,a)=>{const r=a*D,c=S2*Math.cos(r),k=o.s*S23*Math.sin(r);
+  return [c*o.m[0]+k*o.b[0], c*o.m[1]+k*o.b[1], c*o.m[2]+k*o.b[2]];};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let yaw=0.72, pitch=-0.34, a=0, playing=true, drag=null, zoom=1;
+
+function proj(p,w,h,f,D0){const cy=Math.cos(yaw),sy=Math.sin(yaw);
+  let X=p[0]*cy+p[2]*sy, Z=-p[0]*sy+p[2]*cy, Y=p[1];
+  const cp=Math.cos(pitch),sp=Math.sin(pitch);
+  const Y2=Y*cp-Z*sp, Z2=Y*sp+Z*cp;
+  const s=f/(Z2+D0); return [w/2+X*s, h/2-Y2*s, Z2];}
+
+function draw(){
+  const cv=document.getElementById('cv'), dpr=Math.min(2,devicePixelRatio||1);
+  const w=cv.clientWidth,h=cv.clientHeight; if(!w||!h)return;
+  cv.width=w*dpr; cv.height=h*dpr;
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+  // fit to the drawn extent rather than a guessed focal length: the orbits
+  // reach sqrt(2) and the axis marks a little past that.
+  const R=2.45, D0=3.4*R, f=zoom*0.46*Math.min(w,h)*D0/R;
+  // faint axes
+  g.strokeStyle=css('--rule'); g.lineWidth=1;
+  for(const ax of [[2.4,0,0],[0,2.4,0],[0,0,2.4]]){
+    const A=proj([-ax[0],-ax[1],-ax[2]],w,h,f,D0), B=proj(ax,w,h,f,D0);
+    g.beginPath(); g.moveTo(A[0],A[1]); g.lineTo(B[0],B[1]); g.stroke();
+  }
+  // the three orbits
+  ORB.forEach(o=>{
+    g.beginPath();
+    for(let t=0;t<=360;t+=2){const P=proj(pos(o,t),w,h,f,D0); t?g.lineTo(P[0],P[1]):g.moveTo(P[0],P[1]);}
+    g.closePath(); g.strokeStyle=css(o.c); g.lineWidth=1.5; g.globalAlpha=.55; g.stroke(); g.globalAlpha=1;
+  });
+  // travelled arc 0..a, and the wall arc 30..
+  ORB.forEach(o=>{
+    g.beginPath();
+    for(let t=0;t<=a;t+=1){const P=proj(pos(o,t),w,h,f,D0); t?g.lineTo(P[0],P[1]):g.moveTo(P[0],P[1]);}
+    g.strokeStyle=css(o.c); g.lineWidth=3; g.stroke();
+  });
+  // the wall marker at 30
+  ORB.forEach(o=>{const P=proj(pos(o,30),w,h,f,D0);
+    g.beginPath(); g.arc(P[0],P[1],3.2,0,6.284); g.fillStyle=css('--wall'); g.fill();});
+  // the triangle
+  const V=ORB.map(o=>proj(pos(o,a),w,h,f,D0));
+  g.beginPath(); g.moveTo(V[0][0],V[0][1]); g.lineTo(V[1][0],V[1][1]); g.lineTo(V[2][0],V[2][1]); g.closePath();
+  g.fillStyle=css('--accent'); g.globalAlpha=.28; g.fill(); g.globalAlpha=1;
+  g.strokeStyle=css('--accent'); g.lineWidth=2; g.stroke();
+  V.forEach((P,i)=>{g.beginPath(); g.arc(P[0],P[1],5,0,6.284);
+    g.fillStyle=css(ORB[i].c); g.fill();
+    g.strokeStyle=css('--plate'); g.lineWidth=1.5; g.stroke();});
+}
+
+function draw2(){
+  const cv=document.getElementById('cv2'), dpr=Math.min(2,devicePixelRatio||1);
+  const w=cv.clientWidth,h=cv.clientHeight; if(!w||!h)return;
+  cv.width=w*dpr; cv.height=h*dpr;
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+  const L=58,R=22,T=22,B=40, iw=w-L-R, ih=h-T-B;
+  const X=v=>L+(v/60)*iw, Y=v=>T+ih*(1-(v+0.6)/4.6);
+  g.strokeStyle=css('--rule-2'); g.lineWidth=1;
+  for(let v=0;v<=60;v+=10){g.beginPath(); g.moveTo(X(v),T); g.lineTo(X(v),T+ih); g.stroke();}
+  g.strokeStyle=css('--rule'); g.beginPath(); g.moveTo(L,Y(0)); g.lineTo(L+iw,Y(0)); g.stroke();
+  // free region shading
+  g.fillStyle=css('--accent'); g.globalAlpha=.09; g.fillRect(X(0),T,X(30)-X(0),ih); g.globalAlpha=1;
+  // gap curve
+  g.beginPath();
+  for(let v=0;v<=60;v+=0.25){const y=4*Math.cos((v+60)*D); const yy=Math.max(y,0); (v?g.lineTo:g.moveTo).call(g,X(v),Y(v<=30?y:0));}
+  g.strokeStyle=css('--o2'); g.lineWidth=2.4; g.stroke();
+  // wall
+  g.beginPath(); g.moveTo(X(30),T); g.lineTo(X(30),T+ih);
+  g.strokeStyle=css('--wall'); g.lineWidth=2; g.stroke();
+  // a_ico
+  g.setLineDash([4,4]); g.beginPath(); g.moveTo(X(22.238756),T); g.lineTo(X(22.238756),T+ih);
+  g.strokeStyle=css('--accent'); g.lineWidth=1.4; g.stroke(); g.setLineDash([]);
+  g.font='11px "IBM Plex Mono", monospace'; g.fillStyle=css('--ink-3');
+  for(let v=0;v<=60;v+=10){g.fillText(v+'°',X(v)-8,T+ih+18);}
+  g.fillStyle=css('--accent'); g.fillText('a_ico 22.24°',X(22.238756)-38,T-7);
+  g.fillStyle=css('--wall'); g.fillText('wall 30°',X(30)+7,T+14);
+  g.fillStyle=css('--ink-3'); g.fillText('gap(a) = 4 cos(a+60°)',L+6,T+ih-8);
+  g.fillText('octahedron 60° — unreachable',X(60)-172,T+ih-8);
+}
+
+function render(){draw();draw2();
+  document.getElementById('aval').textContent='a = '+a.toFixed(3)+'°';
+  document.getElementById('rng').value=Math.round(a*10);
+  document.getElementById('zm').value=Math.round(zoom*100);
+  document.getElementById('zv').innerHTML=zoom.toFixed(2)+'&times;';}
+let last=performance.now();
+function tick(t){const dt=t-last;last=t;
+  if(playing){a+=dt*0.012; if(a>60)a=0; render();}
+  requestAnimationFrame(tick);}
+document.getElementById('play').addEventListener('click',e=>{playing=!playing;e.target.textContent=playing?'Pause':'Play';});
+document.getElementById('rng').addEventListener('input',e=>{a=+e.target.value/10;playing=false;
+  document.getElementById('play').textContent='Play';render();});
+document.getElementById('zm').addEventListener('input',e=>{zoom=+e.target.value/100;render();});
+document.getElementById('fit').addEventListener('click',()=>{zoom=1;render();});
+document.getElementById('cv').addEventListener('wheel',e=>{e.preventDefault();
+  zoom=Math.max(0.4,Math.min(4,zoom*Math.exp(-e.deltaY*0.0016)));render();},{passive:false});
+const cv=document.getElementById('cv');
+cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{if(!drag)return;
+  yaw+=(e.clientX-drag.x)*0.008; pitch+=(e.clientY-drag.y)*0.006;
+  pitch=Math.max(-1.4,Math.min(1.4,pitch)); drag={x:e.clientX,y:e.clientY}; render();});
+cv.addEventListener('pointerup',()=>drag=null); cv.addEventListener('pointercancel',()=>drag=null);
+addEventListener('resize',render);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
+if(matchMedia('(prefers-reduced-motion: reduce)').matches){playing=false;document.getElementById('play').textContent='Play';}
+render(); requestAnimationFrame(tick);
+</script>
