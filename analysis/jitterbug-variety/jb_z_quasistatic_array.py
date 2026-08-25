@@ -348,7 +348,7 @@ from jb_x_array_linkage import (A_ICO, DIAGONALS, PAIRS, STRUT_LEN, STRUTS,
                                 SQUARE_DIAGONALS, Topology, apply_body_motions,
                                 assemble_doweled, build_topologies, dverts_exact,
                                 hinge_jacobian, path_tangent_48,
-                                position_jacobian_row, rank_of, verts)
+                                position_jacobian_row, rank_of, verts, unit_corners)
 
 # ==========================================================================
 # LOCAL CONSTANTS
@@ -2163,7 +2163,7 @@ def _wire_attachment_pairs(topo, i, k, j, l, a_ref=WIRE_REF_ANGLE):
 
     def xs_at(a):
         origins = topo.sites(verts(a))
-        return [corners(a) + origins[u] for u in range(topo.n)]
+        return [unit_corners(a, topo, u) + origins[u] for u in range(topo.n)]
 
     xs0, xsp, xsm = xs_at(a_ref), xs_at(a_ref + h), xs_at(a_ref - h)
     out = []
@@ -2402,7 +2402,7 @@ def crank_v_cmd(topo, a_hat, driven, ndof):
     expansion) or a unit index (single-crank-handle) -- an INPUT, never
     hardcoded (module constant DRIVEN_UNIT_INDEX supplies the default)."""
     z_phase, _ = path_tangent_48(a_hat)
-    dsites = topo.dsites(dverts_exact(a_hat))
+    dsites = topo.dsites(dverts_exact(a_hat), verts(a_hat))
     v_cmd = np.zeros(ndof)
     units = range(topo.n) if driven == "all" else [driven]
     for i in units:
@@ -2613,7 +2613,7 @@ def crank_run(topo, a_start, a_target, w, t, driven="all",
     wpairs = wire_pairs(topo)
     bp_idx = _pair_index_arrays(pairs)
     origins = topo.sites(verts(a_start))
-    xs = [corners(a_start) + origins[i] for i in range(topo.n)]
+    xs = [unit_corners(a_start, topo, i) + origins[i] for i in range(topo.n)]
     a_hat = a_start
     min_general_gap = float("inf")
     rate_history = []
@@ -2750,7 +2750,7 @@ def _find_general_branch_pair(topo, a):
     with a clean positive gap and a nonzero closing gradient -- the exact
     regime the qvf.17 critique named as uncovered for negative gaps."""
     origins = topo.sites(verts(a))
-    xs = [corners(a) + origins[i] for i in range(topo.n)]
+    xs = [unit_corners(a, topo, i) + origins[i] for i in range(topo.n)]
     best = None
     for (i, fi, j, fj) in crank_pairs(topo):
         triA, triB = xs[i][fi], xs[j][fj]
@@ -2835,7 +2835,7 @@ def z14_two_cell_sanity(topo):
     ndof = 48 * n
     v_cmd, units = crank_v_cmd(topo, 0.0, DRIVEN_UNIT_INDEX, ndof)
     origins = topo.sites(verts(0.0))
-    xs0 = [corners(0.0) + origins[i] for i in range(n)]
+    xs0 = [unit_corners(0.0, topo, i) + origins[i] for i in range(n)]
     v, status, rate, binding, _ = crank_step(topo, crank_pairs(topo), xs0, 0.0,
                                               w=0.0, t=0.0, driven=DRIVEN_UNIT_INDEX)
 
@@ -2855,11 +2855,14 @@ def z14_two_cell_sanity(topo):
     if pair is not None:
         i, fi, j, fj = pair
         lo, hi = 0.0, 5.0
-        g_lo, *_ = signed_gap(xs0[i][fi], (corners(0.0) + topo.sites(verts(0.0))[j])[fj], plate_normal(fi))
+        g_lo, *_ = signed_gap(
+            xs0[i][fi],
+            (unit_corners(0.0, topo, j) + topo.sites(verts(0.0))[j])[fj],
+            plate_normal(fi))
         for _ in range(60):
             mid = 0.5 * (lo + hi)
             origins_m = topo.sites(verts(mid))
-            xm = [corners(mid) + origins_m[u] for u in range(n)]
+            xm = [unit_corners(mid, topo, u) + origins_m[u] for u in range(n)]
             g_mid, *_ = signed_gap(xm[i][fi], xm[j][fj], plate_normal(fi))
             if (g_mid - w_test) * (g_lo - w_test) <= 0:
                 hi = mid
@@ -2948,7 +2951,7 @@ def z15_crank_gates(topo):
     # eps_act decade-insensitivity: rerun G's FIRST step at EPS_ACT_ALT.
     pairs = crank_pairs(topo)
     origins0 = topo.sites(verts(0.0))
-    xs0 = [corners(0.0) + origins0[i] for i in range(topo.n)]
+    xs0 = [unit_corners(0.0, topo, i) + origins0[i] for i in range(topo.n)]
     global EPS_ACT
     saved_eps = EPS_ACT
     EPS_ACT = EPS_ACT_ALT
@@ -3028,7 +3031,7 @@ def z16_qpfail_probe(topo):
     pairs = crank_pairs(topo)
     ndof = 48 * topo.n
     origins0 = topo.sites(verts(0.0))
-    xs0 = [corners(0.0) + origins0[i] for i in range(topo.n)]
+    xs0 = [unit_corners(0.0, topo, i) + origins0[i] for i in range(topo.n)]
     active_rows = []
     for (i, fi, j, fj) in pairs:
         gap, row = contact_gradient_row(xs0, i, fi, j, fj, 0.0, ndof)
@@ -3118,7 +3121,7 @@ def _min_opening_gap(topo, a, wpairs):
     involved), reused here as a pure geometric probe for `compute_a_start_t`."""
     ndof = 48 * topo.n
     origins = topo.sites(verts(a))
-    xs = [corners(a) + origins[i] for i in range(topo.n)]
+    xs = [unit_corners(a, topo, i) + origins[i] for i in range(topo.n)]
     best = float("inf")
     for (u, fi, v, fj) in wpairs:
         g, _ = contact_gradient_row(xs, u, fi, v, fj, 0.0, ndof)
@@ -3321,7 +3324,7 @@ def motion_order_trace(topo, w, t, driven, h0=MOTION_ORDER_H,
     pairs = crank_pairs(topo)
     wpairs = wire_pairs(topo)
     origins = topo.sites(verts(0.0))
-    xs = [corners(0.0) + origins[i] for i in range(n)]
+    xs = [unit_corners(0.0, topo, i) + origins[i] for i in range(n)]
     a_hat = 0.0
     history = []
     statuses = []
@@ -3372,7 +3375,7 @@ def joint_integrity_probe(topo, w=0.0, t=0.0, h0=H_LOCK,
 
     def run(joints_on):
         origins = topo.sites(verts(0.0))
-        xs = [corners(0.0) + origins[i] for i in range(n)]
+        xs = [unit_corners(0.0, topo, i) + origins[i] for i in range(n)]
         a_hat = 0.0
         worst = 0.0
         steps = 0
@@ -3506,7 +3509,7 @@ def phase_tracking_probe(topo, w_frac=PHASE_PROBE_W_FRAC, t=0.0,
     out = []
     for h0 in levels:
         origins = topo.sites(verts(0.0))
-        xs = [corners(0.0) + origins[i] for i in range(n)]
+        xs = [unit_corners(0.0, topo, i) + origins[i] for i in range(n)]
         edge0 = np.array([float(np.linalg.norm(xs[0][f][k] - xs[0][f][(k+1) % 3]))
                           for f in range(8) for k in range(3)])
         a_hat = 0.0

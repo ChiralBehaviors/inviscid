@@ -43,7 +43,7 @@ confirm that they are the right constraints.
 import numpy as np
 
 from jb_a_family import corners  # noqa: F401  (imported for provenance)
-from jb_x_array_linkage import verts, PAIRS
+from jb_x_array_linkage import verts, PAIRS, Topology
 
 # --------------------------------------------------------------------------
 # Cell geometry, derived from this repo's own `verts(a)` -- not re-invented.
@@ -304,6 +304,91 @@ def honeycomb_contacts(cell_index, a, tol=1e-8):
         if mm:
             out.append((nb, "sq", tuple(mm), tuple(tt)))
     return out
+
+
+#: The phase the contact list is READ at, and the whole reason this constant
+#: exists rather than a literal at each call site. The identification COUNT is
+#: phase dependent because the squares fold -- 48 at a = 0, 36 at a = -30, 30 at
+#: a = -60 -- and only the a = -30 list is valid at every phase. Read at a = 0
+#: instead and twelve of the forty-eight break, reaching a separation of 2.0 by
+#: a = -60, which welds the folding squares shut and forbids the exchange.
+#:
+#: This INVERTS `jb_x._fcc13_contacts`' documented idiom ("Read at a = 0 and
+#: never re-read"). That is right for a topology whose contacts do not fold and
+#: wrong here. Row T3 of jb_ht_honeycomb_topology is the control that fails if
+#: anyone changes it back.
+HONEYCOMB_REF_PHASE = -30.0
+
+
+def honeycomb_identifications(sites, a=HONEYCOMB_REF_PHASE):
+    """`Topology.contacts` tuples for a set of integer honeycomb sites.
+
+    Returns (i, k, j, l) records -- unit i's vertex label k is the same point
+    as unit j's vertex label l -- which is EXACTLY the format
+    `jb_x.Topology.contacts` has always had. The format was never wrong;
+    `build_topologies` simply emitted one identification per neighbour where
+    the real packing has three (triangular face) or four/two/one (square face,
+    as it folds).
+
+    Each unordered pair is emitted once, from the lower-indexed cell.
+    """
+    idx = {tuple(int(c) for c in s): i for i, s in enumerate(sites)}
+    out = []
+    for s, i in sorted(idx.items(), key=lambda kv: kv[1]):
+        for (nb, _kind, my_lab, their_lab) in honeycomb_contacts(s, a):
+            j = idx.get(tuple(int(c) for c in nb))
+            if j is None or j <= i:
+                continue
+            for t in range(len(my_lab)):
+                out.append((i, int(my_lab[t]), j, int(their_lab[t])))
+    return tuple(out)
+
+
+def honeycomb_phases(sites):
+    """Per-unit phase OFFSET: 0 for the VE sublattice (all-even sites), 60 for
+    the hole cells (all-odd). This is the b = a + 60 of the exchange, carried
+    as topology data so no caller has to remember it."""
+    return tuple(0.0 if sum(abs(int(c)) for c in s) % 2 == 0 else 60.0
+                 for s in sites)
+
+
+def _honeycomb(name, sites, note=""):
+    sites = tuple(tuple(int(c) for c in s) for s in sites)
+    return Topology(name, "honeycomb", (), note=note, sites_int=sites,
+                    phases=honeycomb_phases(sites),
+                    contacts=honeycomb_identifications(sites))
+
+
+def _shell(centre):
+    tri, sq = neighbours(centre)
+    return [tuple(centre)] + [tuple(t) for t in tri] + [tuple(q) for q in sq]
+
+
+def build_honeycomb_topologies():
+    """The honeycomb replacements for `jb_x.build_topologies`.
+
+    Every one of these places neighbours across a shared FACE. The topologies
+    they replace (SC7, CHAIN5, SQUARE4, CUBE8-M/R, CUBE27-M, FCC13) place them
+    at 2*v[g], where two cuboctahedra touch at ONE VERTEX, and every number
+    computed on them is superseded -- see T2 inviscid/qvf-epic-consolidated-state
+    (c)(3)."""
+    even8 = [(x, y, z) for x in (0, 2) for y in (0, 2) for z in (0, 2)]
+    return (
+        _honeycomb("HC1 (control, one VE)", [(0, 0, 0)],
+                   note="the mandated control: one unit, 6 internal DOF"),
+        _honeycomb("HC2 (VE + one hole)", [(0, 0, 0), (1, 1, 1)],
+                   note="the minimum honeycomb array: one shared triangle"),
+        _honeycomb("HC3 (VE - hole - VE)", [(0, 0, 0), (1, 1, 1), (2, 2, 2)],
+                   note="the reciprocal condition: a hole meeting its own VEs"),
+        _honeycomb("HC9 (one hole + its 8 VEs)", [(1, 1, 1)] + even8,
+                   note="jb_hc's H3 cluster: every contact a shared triangle"),
+        _honeycomb("HC15 (one VE + all 14 face neighbours)", _shell((0, 0, 0)),
+                   note="full coordination for the interior unit"),
+        _honeycomb("HC-2HOLE (two holes)",
+                   [(x, y, z) for x in (0, 2, 4) for y in (0, 2) for z in (0, 2)]
+                   + [(1, 1, 1), (3, 1, 1)],
+                   note="the MULTI-HOLE patch -- ia5 scope 2's decisive case"),
+    )
 
 
 def wrong_packing_shared(a=0.0, g=0):
