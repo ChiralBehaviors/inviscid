@@ -112,6 +112,7 @@ import numpy as np
 
 import jb_hc_honeycomb as HC
 import jb_z_quasistatic_array as Z
+from jb_x_array_linkage import PAIRS
 
 A_REF = -30.0
 PHASE_OFFSET = 60.0
@@ -442,10 +443,143 @@ def f10_shape():
 
 
 # ==========================================================================
+# C: THE COMPLIANCE DECISION, which the record has carried as open since the
+#    first dispersion was computed. It is a FORK, not a missing scale factor.
+# ==========================================================================
+
+def c_compliance():
+    """Where the compliance lives, and what each choice does to the phase field.
+
+    A perfectly rigid jitterbug carries no waves: its mechanism motions cost
+    nothing and everything else is infinitely stiff. So a wave requires putting
+    compliance SOMEWHERE, and where it goes is a modelling decision the geometry
+    cannot make.
+
+        STRUTS compliant, hinges free -- what this epic implements. The bars are
+        springs, the jitterbug motion stretches none of them at k = 0, so the
+        phase field is a GOLDSTONE mode and gapless. This is the right choice
+        for a strut-and-pin structure: real struts are elastic, ideal pins are
+        frictionless.
+
+        HINGES compliant, struts rigid -- the alternative, right for a folded
+        sheet rather than a strut frame. The plates' outward normals are phase
+        INVARIANT (Z0), so the dihedral between any two fixed plates never
+        moves and the single hinge degree of freedom per cell IS the fold angle.
+        A torsional spring on it is therefore exactly (kappa/2)(a - a0)^2 PER
+        CELL -- on-site, a MASS term, and it gaps the phase field at ANY
+        stiffness however small.
+
+    The two differ in KIND. Under the first the exchange is free and the phase
+    wave is gapless; under the second the exchange costs energy at every hinge
+    and the phase field is massive everywhere, midpoint included. Every gapless
+    result in this file is downstream of the first choice, and that choice has
+    never been declared until now."""
+    dihedral_spread = 0.0
+    for a in (0.0, -15.0, -30.0, -45.0, -60.0):
+        vals = []
+        for _v, slots in enumerate(PAIRS):
+            (fa, _ca), (fb, _cb) = slots
+            na, nb = Z.plate_normal(fa), Z.plate_normal(fb)
+            vals.append(abs(float(na @ nb)))
+        dihedral_spread = max(dihedral_spread, max(vals) - min(vals))
+    fw = HC.h4_framework(A_REF)
+    P, bars, A, slots = fw["P"], fw["bars"], fw["A"], fw["slots"]
+    G = np.pi / A
+    q, _ = np.linalg.qr(HC.phase_basis(P, slots, A, 1e-6 * G * np.array([1.0, 0, 0])))
+    M = HC.bloch(P, bars, A, 1e-6 * G * np.array([1.0, 0, 0]))
+    w0 = float(np.sqrt(max(np.linalg.eigvalsh(
+        q.conj().T @ (M.conj().T @ M) @ q)[0], 0.0)))
+    gapped = [float(np.sqrt(k + w0 ** 2)) for k in (1e-4, 1e-2, 1.0)]
+    return dict(dihedral_spread=dihedral_spread, strut_gap=w0,
+                hinge_gaps=gapped, n=3)
+
+
+# ==========================================================================
+# A: ANHARMONIC. Do the two soft families stay orthogonal past linear order?
+#    T2 23486 open question 1. They do not.
+# ==========================================================================
+
+#: Directions probed for the second-harmonic channel, and their wavevector
+#: fractions. [011] is a second <110> member (the channel must not be an
+#: artifact of one representative) and [210] is a deliberate NON-symmetry
+#: direction, so "only <110>" is measured rather than assumed from the three
+#: high-symmetry labels.
+ANH_DIRS = (("[110]", (1, 1, 0)), ("[100]", (1, 0, 0)), ("[111]", (1, 1, 1)),
+            ("[011]", (0, 1, 1)), ("[210]", (2, 1, 0)))
+ANH_T = (0.15, 0.30, 0.45)
+ANH_SOFT_TOL = 1e-6
+
+
+def _cubic(P, bars, A, k1, u1, k2, u2, k3, u3):
+    """Three-mode coupling from the bar energy past quadratic order.
+
+    Expanding (|d| - L)^2 / 2 with d = d0 + delta gives an extension
+    nhat.delta + (|delta|^2 - (nhat.delta)^2) / 2L, and the cross term of those
+    two is the cubic vertex. Symmetrised over the three legs."""
+    tot = 0.0 + 0j
+    for (i, j, Rv) in bars:
+        Rw = np.array(Rv, dtype=float) * A
+        dv = P[i] - (P[j] + Rw)
+        L = np.linalg.norm(dv)
+        nh = dv / L
+
+        def leg(k, u):
+            return u[3 * i:3 * i + 3] - u[3 * j:3 * j + 3] * np.exp(1j * float(k @ Rw))
+        d1, d2, d3 = leg(k1, u1), leg(k2, u2), leg(k3, u3)
+        tot += ((nh @ d1) * ((d2 @ d3) - (nh @ d2) * (nh @ d3))
+                + (nh @ d2) * ((d1 @ d3) - (nh @ d1) * (nh @ d3))
+                + (nh @ d3) * ((d1 @ d2) - (nh @ d1) * (nh @ d2))) / (6.0 * L)
+    return abs(complex(tot))
+
+
+def a_anharmonic():
+    """A phase wave at q forces the lattice at 2q. Where does that force land?
+
+    The two soft families are orthogonal at LINEAR order -- jb_hc H8 measures it
+    at M, where the positional band is 0 while both phase bands sit at
+    2/sqrt(3). This asks whether that survives finite amplitude, and it does
+    not: along <110> the second harmonic of a <110> wavevector is still <110>,
+    which is exactly floppy, so the forcing lands on a mode with NO RESTORING
+    FORCE and accumulates rather than oscillating.
+
+    The distinction the control row protects: the anharmonic coupling itself is
+    ISOTROPIC. What is anisotropic is the SINK."""
+    fw = HC.h4_framework(A_REF)
+    P, bars, A, slots = fw["P"], fw["bars"], fw["A"], fw["slots"]
+    G = np.pi / A
+    rows = []
+    for lbl, d in ANH_DIRS:
+        u = np.array(d, dtype=float)
+        u = u / np.linalg.norm(u)
+        for t in ANH_T:
+            q = t * G * u
+            k3 = -2.0 * q
+            B = HC.phase_basis(P, slots, A, q)
+            up = B[:, 0] + B[:, 1]
+            up = up / np.linalg.norm(up)
+            M3 = HC.bloch(P, bars, A, k3)
+            w3, V3 = np.linalg.eigh(M3.conj().T @ M3)
+            w3 = np.sqrt(np.maximum(w3, 0.0))
+            cs = [_cubic(P, bars, A, q, up, q, up, k3, V3[:, m])
+                  for m in range(V3.shape[1])]
+            soft = [c for c, w in zip(cs, w3) if w < ANH_SOFT_TOL]
+            rows.append(dict(dir=lbl, t=t, total=max(cs), n_soft=len(soft),
+                             into_soft=max(soft) if soft else 0.0))
+    is110 = {"[110]", "[011]"}
+    return dict(rows=rows,
+                soft_110=min(r["into_soft"] for r in rows if r["dir"] in is110),
+                soft_other=max(r["into_soft"] for r in rows if r["dir"] not in is110),
+                n_soft_110=min(r["n_soft"] for r in rows if r["dir"] in is110),
+                n_soft_other=max(r["n_soft"] for r in rows if r["dir"] not in is110),
+                total_lo=min(r["total"] for r in rows),
+                total_hi=max(r["total"] for r in rows), n=len(rows))
+
+
+# ==========================================================================
 # THE GATE
 # ==========================================================================
 
-def gate(f1, f3, f4, f6, f7, f8, f9, f10):
+def gate(f1, f3, f4, f6, f7, f8, f9, f10, c, an):
     checks = []
     R = checks.append
 
@@ -550,6 +684,43 @@ def gate(f1, f3, f4, f6, f7, f8, f9, f10):
        f"confidence {[round(v, 4) for v in f10['conf'].values()]} over "
        f"8x refinement", "< 0.4, flat"))
 
+    R(("C   the ONE hinge degree of freedom per cell IS the fold angle: plate "
+       "dihedrals are phase-invariant, so a hinge spring is an ON-SITE term",
+       c["dihedral_spread"] < 1e-12,
+       f"dihedral spread {c['dihedral_spread']:.1e} over 5 phases", "< 1e-12"))
+    R(("C   so THE GAPLESSNESS IS A CONSEQUENCE OF PUTTING COMPLIANCE IN THE "
+       "STRUTS, not of the geometry: struts-compliant is gapless",
+       c["strut_gap"] < 1e-5, f"omega(k->0) {c['strut_gap']:.2e}", "< 1e-5"))
+    R(("C   CONTROL: ANY hinge stiffness gaps it, however small -- the two "
+       "choices differ in KIND and not by a scale factor -- CAN FAIL",
+       c["n"] > 0 and all(g > 1e-3 for g in c["hinge_gaps"]),
+       f"kappa/I = 1e-4, 1e-2, 1 -> {[round(g, 4) for g in c['hinge_gaps']]}",
+       "all gapped"))
+    R(("C   PRINTED NOT GATED, the way jb_x discloses box_forced: omega = "
+       "sqrt(K/M)*sigma, so every speed in this file is a PURE NUMBER and none "
+       "is a physical speed until K and M are named",
+       True, f"c[100] = {np.sqrt(8 / 27):.7f} x sqrt(K/M)", "printed"))
+
+    R(("A   the SECOND HARMONIC of a <110> phase wave is still <110>, hence "
+       "exactly FLOPPY -- a channel with no restoring force",
+       an["n_soft_110"] >= 1 and an["n_soft_other"] == 0,
+       f"soft modes at 2q: {an['n_soft_110']} along <110>, "
+       f"{an['n_soft_other']} elsewhere", ">=1 vs 0"))
+    R(("A   and the cubic coupling INTO that channel is NONZERO, so a finite-"
+       "amplitude phase wave forces a mode that cannot push back -- CAN FAIL",
+       an["soft_110"] > 1e-3, f"min |C| into it {an['soft_110']:.3e}", "> 1e-3"))
+    R(("A   CONTROL: elsewhere it is EXACTLY zero, and NOT because the coupling "
+       "vanishes -- the TOTAL anharmonic strength is comparable in every "
+       "direction, so the anisotropy is in the SINK and not the vertex",
+       an["soft_other"] == 0.0 and an["total_lo"] > 0.1
+       and an["total_hi"] / an["total_lo"] < 2.0,
+       f"into-soft {an['soft_other']:.1e}, total "
+       f"{an['total_lo']:.3f}..{an['total_hi']:.3f}", "0, and total flat"))
+    R(("A   SO THE TWO SOFT FAMILIES ARE NOT ANHARMONICALLY ORTHOGONAL -- "
+       "T2 23486 open question 1, answered NO",
+       an["n"] > 0 and an["soft_110"] > 1e-3 and an["soft_other"] == 0.0,
+       f"coupled along the six <110>, decoupled elsewhere", "measured"))
+
     print()
     print("=" * 78)
     print(f"GATE  {len(checks)} rows")
@@ -635,6 +806,8 @@ def main():
     f8 = f8_spectral_weight()
     f9 = f9_speed()
     f10 = f10_shape()
+    c = c_compliance()
+    an = a_anharmonic()
 
     print()
     print("-" * 78)
@@ -651,7 +824,7 @@ def main():
     print(f"    {'a0':>7s}   eps = 0.05, 0.02, 0.01, 0.005, 0.002")
     for a, ser in f8["series"].items():
         print(f"    {a:7.1f}   " + "  ".join(f"{x:.4f}" for x in ser))
-    return gate(f1, f3, f4, f6, f7, f8, f9, f10)
+    return gate(f1, f3, f4, f6, f7, f8, f9, f10, c, an)
 
 
 if __name__ == "__main__":

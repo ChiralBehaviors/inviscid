@@ -2473,12 +2473,25 @@ def crank_v_cmd(topo, a_hat, driven, ndof):
     DRIVEN unit; zero elsewhere. `driven` is `"all"` (in-phase / uniform
     expansion) or a unit index (single-crank-handle) -- an INPUT, never
     hardcoded (module constant DRIVEN_UNIT_INDEX supplies the default)."""
-    z_phase, _ = path_tangent_48(a_hat)
     dsites = topo.dsites(dverts_exact(a_hat), verts(a_hat))
     v_cmd = np.zeros(ndof)
     units = range(topo.n) if driven == "all" else [driven]
+    # PER-UNIT PHASE. Revision 34e636c rewrote every configuration site to
+    # `unit_corners(a, topo, i)` so that "a two-sublattice topology cannot be
+    # silently driven as though it were one" -- and missed THIS line, the
+    # VELOCITY command, which kept driving every unit along the tangent at the
+    # bare drive angle. The guarantee that commit stated was therefore false.
+    # Invisible in the gate because main() drives SC7, whose phases are all
+    # zero, so a_hat + 0.0 is a_hat and the two forms are bit-identical; a
+    # honeycomb topology has phases {0, 60} and cos(tangent(a), tangent(a+60))
+    # is 0.809, a 36-degree error. Cached per distinct offset, so the all-zero
+    # case still evaluates the tangent exactly once.
+    tangents = {}
     for i in units:
-        vi = z_phase.copy()
+        off = topo.phases[i]
+        if off not in tangents:
+            tangents[off], _ = path_tangent_48(a_hat + off)
+        vi = tangents[off].copy()
         for p in range(8):
             vi[24 + 3 * p:27 + 3 * p] += dsites[i]
         v_cmd[48 * i:48 * i + 48] = vi
@@ -2769,6 +2782,21 @@ def crank_step(topo, pairs, xs, a_hat, w, t, driven="all",
         for _k, (i, fi, j, fj) in enumerate(pairs):
             _g = _gaps.get(_k)
             if _g is None or _g > EPS_ACT:
+                continue
+            if _g < -MEANINGLESS_DEPTH_FLOOR:
+                # THE ARTIFACT CLASS, filtered where the rows are BUILT and not
+                # only where a step is accepted. `signed_gap`'s parallel branch
+                # tests |nA . nB|, so it fires on ANTIPARALLEL normals too, and
+                # for two plates on opposite sides of one unit -- facing away
+                # from each other, permanently ~2.31 apart, structurally unable
+                # to touch -- it reports gap = -2.309401 and that reads as deep
+                # penetration. 28 such pairs exist on SC7, 9.5% of the active
+                # rows at a = 0. `MEANINGLESS_DEPTH_FLOOR` already names this
+                # class and crank_run's backtrack acceptance already rejects it;
+                # crank_step's active-row construction did not, so the rows were
+                # built and then judged. Deep-penetration accuracy is out of
+                # scope by `signed_gap`'s own docstring, so a genuine overlap
+                # this deep is not a contact this file claims to resolve either.
                 continue
             gap, row = contact_gradient_row(xs, i, fi, j, fj, t, ndof)
             if gap <= EPS_ACT:
@@ -3872,6 +3900,68 @@ def z17_lock_surface(topo):
 # THE GATE
 # ==========================================================================
 
+def z18_phase_threading(topo):
+    """Is a two-sublattice topology actually DRIVEN with per-unit phase?
+
+    The row this file owed itself. Revision 34e636c asserted in a COMMENT that a
+    two-sublattice topology could not be silently driven as one, and left the
+    velocity command driving every unit along the tangent at the bare angle. A
+    guarantee in prose with no row behind it is the exact shape of defect this
+    project keeps paying for, so it is measured here.
+
+    Method needs no honeycomb geometry and adds no import: take the real
+    topology, copy it, and give the copy alternating phase offsets. The two
+    differ ONLY in `phases`, so any difference in the velocity command is the
+    threading and nothing else. Two-sided by construction -- the zero-phase
+    units must come out UNCHANGED while the offset ones must not."""
+    import copy
+    ndof = 48 * topo.n
+    base, _u = crank_v_cmd(topo, 10.0, "all", ndof)
+    alt = copy.copy(topo)
+    alt.phases = tuple(0.0 if k % 2 == 0 else 60.0 for k in range(topo.n))
+    two, _u2 = crank_v_cmd(alt, 10.0, "all", ndof)
+    off_units = [k for k in range(topo.n) if alt.phases[k] != 0.0]
+    zero_units = [k for k in range(topo.n) if alt.phases[k] == 0.0]
+    moved = min(float(np.abs(two[48 * k:48 * k + 48]
+                             - base[48 * k:48 * k + 48]).max())
+                for k in off_units) if off_units else 0.0
+    still = max(float(np.abs(two[48 * k:48 * k + 48]
+                             - base[48 * k:48 * k + 48]).max())
+                for k in zero_units) if zero_units else float("inf")
+    tan_ang = float(path_tangent_48(10.0)[0] @ path_tangent_48(70.0)[0]
+                    / np.linalg.norm(path_tangent_48(10.0)[0])
+                    / np.linalg.norm(path_tangent_48(70.0)[0]))
+    return dict(moved=moved, still=still, cos=tan_ang,
+                n_off=len(off_units), n_zero=len(zero_units))
+
+
+def z19_meaningless_depth(topo, a=0.0):
+    """The antipodal artifact class, and that it no longer reaches the rows.
+
+    `signed_gap`'s parallel branch tests |nA . nB|, so it fires on ANTIPARALLEL
+    normals too. Two plates on opposite sides of one unit face away from each
+    other, sit permanently ~2.31 apart, and cannot touch -- and the branch
+    reports gap = -2.309401 for them, which reads as deep penetration.
+    `MEANINGLESS_DEPTH_FLOOR` already named the class and crank_run's backtrack
+    acceptance already rejected it; crank_step built the rows anyway."""
+    pairs = crank_pairs(topo)
+    origins = topo.sites(verts(a))
+    xs = [unit_corners(a, topo, i) + origins[i] for i in range(topo.n)]
+    deep, antipodal = 0, 0
+    for (i, fi, j, fj) in pairs:
+        nA = plate_normal(fi)
+        g, _wa, _wb, _n = signed_gap(xs[i][fi], xs[j][fj], nA)
+        if g < -MEANINGLESS_DEPTH_FLOOR:
+            deep += 1
+            if i == j and float(nA @ plate_normal(fj)) < -PARALLEL_TOL:
+                antipodal += 1
+    _v, st, _r, binding, _m = crank_step(topo, pairs, xs, a, _w_ico_lock(), 0.0,
+                                         "all", True, None, wire_pairs(topo))
+    worst = min((b[5] for b in binding if b[0] == "contact"), default=0.0)
+    return dict(deep=deep, antipodal=antipodal, status=st,
+                worst_binding=worst, n_binding=len(binding))
+
+
 #: Two-sided bounds on the broad-phase rejection fraction (qvf.23 criterion 2).
 #: Measured 0.6872..0.9888 across the probe set. A prefilter that rejects
 #: NOTHING is pointless and one that rejects EVERYTHING is wrong, and both edges
@@ -4653,6 +4743,38 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock, zbp):
                        "DRIVE-SPECIFIC, reported not gated",
                        True, f"{drv['statuses'][0]} at both w", "printed"))
 
+    # ---- PHASE THREADING (code review, bead qvf.20) ----
+    zpt = zbp["threading"]
+    checks.append(("Z18  a two-sublattice topology IS driven with per-unit phase -- the "
+                   "guarantee revision 34e636c stated in a comment and did not keep "
+                   "-- CAN FAIL",
+                   zpt["n_off"] > 0 and zpt["moved"] > 1e-6,
+                   f"offset units move by >= {zpt['moved']:.6f}", "> 1e-6"))
+    checks.append(("Z18  CONTROL: the ZERO-phase units are bit-identical, so the row "
+                   "above measures threading and not merely a changed topology",
+                   zpt["n_zero"] > 0 and zpt["still"] == 0.0,
+                   f"worst change {zpt['still']:.1e} over {zpt['n_zero']} units",
+                   "exactly 0"))
+    checks.append(("Z18  and the tangents it threads are genuinely different, so the "
+                   "defect was not rounding-level",
+                   abs(zpt["cos"]) < 0.99, f"cos(tangent(a), tangent(a+60)) "
+                   f"{zpt['cos']:.6f}", "< 0.99"))
+
+    # ---- MEANINGLESS DEPTH (critique, bead qvf.20) ----
+    zmd = zbp["depth"]
+    checks.append(("Z19  the ANTIPODAL artifact class EXISTS -- without this the row "
+                   "below is satisfied by a configuration that simply has none "
+                   "-- CAN FAIL",
+                   zmd["antipodal"] > 0,
+                   f"{zmd['antipodal']} antipodal pairs beyond the depth floor",
+                   "> 0"))
+    checks.append(("Z19  and NO active contact row is built from it: every binding "
+                   "contact sits above -MEANINGLESS_DEPTH_FLOOR",
+                   zmd["status"] == "OK"
+                   and zmd["worst_binding"] > -MEANINGLESS_DEPTH_FLOOR,
+                   f"worst binding contact {zmd['worst_binding']:.6f}",
+                   f"> {-MEANINGLESS_DEPTH_FLOOR}"))
+
     # ---- BROAD-PHASE (beads inviscid-0dm, inviscid-qvf.23) ----
     bpr, bpm = zbp["probe"], zbp["mutation"]
     checks.append(("BP  EXACTNESS: the prefiltered active set is IDENTICAL to the "
@@ -5021,7 +5143,9 @@ def main():
     ztwo = z14_two_cell_sanity(topo)
     zqp = z16_qpfail_probe(topo)
     zlock = z17_lock_surface(topo)
-    zbp = {"probe": bp_exactness_probe(topo), "mutation": bp_mutation_probe(topo)}
+    zbp = {"probe": bp_exactness_probe(topo), "mutation": bp_mutation_probe(topo),
+           "threading": z18_phase_threading(topo),
+           "depth": z19_meaningless_depth(topo)}
 
     return gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock, zbp)
 
