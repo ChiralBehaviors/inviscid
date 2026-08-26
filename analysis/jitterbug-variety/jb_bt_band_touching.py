@@ -99,7 +99,7 @@ import sys
 import numpy as np
 
 import jb_hc_honeycomb as HC
-import jb_z_quasistatic_array as Z
+import jb_gp_plate_geometry as Z
 
 # ---------------------------------------------------------------------------
 # CONSTANTS. Thresholds are re-declared locally (house rule) and every one is

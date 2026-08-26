@@ -433,6 +433,12 @@ def _rows():
                  n60 == 6, f"{n60} distinct"))
 
     # W2 -- lambda is the fold half-diagonal, from the repo's own machinery.
+    # THIS IMPORT IS DELIBERATE AND STAYS, and it is the only reference to jb_z
+    # left anywhere on the medium path. The row's whole value is that it checks
+    # lam(a) against an INDEPENDENT implementation; copying fold_halves into
+    # this tree would turn a cross-check into a self-check. It is local rather
+    # than module-level so the medium's runtime path does not carry jb_z, only
+    # this one gate row does.
     from jb_z_quasistatic_array import fold_halves
     dev = 0.0
     for a in (-60, -45, -30, -15, 0, 15, 30):

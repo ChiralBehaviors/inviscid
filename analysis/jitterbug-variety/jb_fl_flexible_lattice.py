@@ -111,7 +111,7 @@ import sys
 import numpy as np
 
 import jb_hc_honeycomb as HC
-import jb_z_quasistatic_array as Z
+import jb_gp_plate_geometry as Z
 from jb_x_array_linkage import PAIRS
 
 A_REF = -30.0
