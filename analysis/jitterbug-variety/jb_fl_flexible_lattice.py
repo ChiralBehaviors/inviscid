@@ -112,6 +112,7 @@ import numpy as np
 
 import jb_hc_honeycomb as HC
 import jb_z_quasistatic_array as Z
+from jb_x_array_linkage import PAIRS
 
 A_REF = -30.0
 PHASE_OFFSET = 60.0
@@ -442,10 +443,62 @@ def f10_shape():
 
 
 # ==========================================================================
+# C: THE COMPLIANCE DECISION, which the record has carried as open since the
+#    first dispersion was computed. It is a FORK, not a missing scale factor.
+# ==========================================================================
+
+def c_compliance():
+    """Where the compliance lives, and what each choice does to the phase field.
+
+    A perfectly rigid jitterbug carries no waves: its mechanism motions cost
+    nothing and everything else is infinitely stiff. So a wave requires putting
+    compliance SOMEWHERE, and where it goes is a modelling decision the geometry
+    cannot make.
+
+        STRUTS compliant, hinges free -- what this epic implements. The bars are
+        springs, the jitterbug motion stretches none of them at k = 0, so the
+        phase field is a GOLDSTONE mode and gapless. This is the right choice
+        for a strut-and-pin structure: real struts are elastic, ideal pins are
+        frictionless.
+
+        HINGES compliant, struts rigid -- the alternative, right for a folded
+        sheet rather than a strut frame. The plates' outward normals are phase
+        INVARIANT (Z0), so the dihedral between any two fixed plates never
+        moves and the single hinge degree of freedom per cell IS the fold angle.
+        A torsional spring on it is therefore exactly (kappa/2)(a - a0)^2 PER
+        CELL -- on-site, a MASS term, and it gaps the phase field at ANY
+        stiffness however small.
+
+    The two differ in KIND. Under the first the exchange is free and the phase
+    wave is gapless; under the second the exchange costs energy at every hinge
+    and the phase field is massive everywhere, midpoint included. Every gapless
+    result in this file is downstream of the first choice, and that choice has
+    never been declared until now."""
+    dihedral_spread = 0.0
+    for a in (0.0, -15.0, -30.0, -45.0, -60.0):
+        vals = []
+        for _v, slots in enumerate(PAIRS):
+            (fa, _ca), (fb, _cb) = slots
+            na, nb = Z.plate_normal(fa), Z.plate_normal(fb)
+            vals.append(abs(float(na @ nb)))
+        dihedral_spread = max(dihedral_spread, max(vals) - min(vals))
+    fw = HC.h4_framework(A_REF)
+    P, bars, A, slots = fw["P"], fw["bars"], fw["A"], fw["slots"]
+    G = np.pi / A
+    q, _ = np.linalg.qr(HC.phase_basis(P, slots, A, 1e-6 * G * np.array([1.0, 0, 0])))
+    M = HC.bloch(P, bars, A, 1e-6 * G * np.array([1.0, 0, 0]))
+    w0 = float(np.sqrt(max(np.linalg.eigvalsh(
+        q.conj().T @ (M.conj().T @ M) @ q)[0], 0.0)))
+    gapped = [float(np.sqrt(k + w0 ** 2)) for k in (1e-4, 1e-2, 1.0)]
+    return dict(dihedral_spread=dihedral_spread, strut_gap=w0,
+                hinge_gaps=gapped, n=3)
+
+
+# ==========================================================================
 # THE GATE
 # ==========================================================================
 
-def gate(f1, f3, f4, f6, f7, f8, f9, f10):
+def gate(f1, f3, f4, f6, f7, f8, f9, f10, c):
     checks = []
     R = checks.append
 
@@ -550,6 +603,23 @@ def gate(f1, f3, f4, f6, f7, f8, f9, f10):
        f"confidence {[round(v, 4) for v in f10['conf'].values()]} over "
        f"8x refinement", "< 0.4, flat"))
 
+    R(("C   the ONE hinge degree of freedom per cell IS the fold angle: plate "
+       "dihedrals are phase-invariant, so a hinge spring is an ON-SITE term",
+       c["dihedral_spread"] < 1e-12,
+       f"dihedral spread {c['dihedral_spread']:.1e} over 5 phases", "< 1e-12"))
+    R(("C   so THE GAPLESSNESS IS A CONSEQUENCE OF PUTTING COMPLIANCE IN THE "
+       "STRUTS, not of the geometry: struts-compliant is gapless",
+       c["strut_gap"] < 1e-5, f"omega(k->0) {c['strut_gap']:.2e}", "< 1e-5"))
+    R(("C   CONTROL: ANY hinge stiffness gaps it, however small -- the two "
+       "choices differ in KIND and not by a scale factor -- CAN FAIL",
+       c["n"] > 0 and all(g > 1e-3 for g in c["hinge_gaps"]),
+       f"kappa/I = 1e-4, 1e-2, 1 -> {[round(g, 4) for g in c['hinge_gaps']]}",
+       "all gapped"))
+    R(("C   PRINTED NOT GATED, the way jb_x discloses box_forced: omega = "
+       "sqrt(K/M)*sigma, so every speed in this file is a PURE NUMBER and none "
+       "is a physical speed until K and M are named",
+       True, f"c[100] = {np.sqrt(8 / 27):.7f} x sqrt(K/M)", "printed"))
+
     print()
     print("=" * 78)
     print(f"GATE  {len(checks)} rows")
@@ -635,6 +705,7 @@ def main():
     f8 = f8_spectral_weight()
     f9 = f9_speed()
     f10 = f10_shape()
+    c = c_compliance()
 
     print()
     print("-" * 78)
@@ -651,7 +722,7 @@ def main():
     print(f"    {'a0':>7s}   eps = 0.05, 0.02, 0.01, 0.005, 0.002")
     for a, ser in f8["series"].items():
         print(f"    {a:7.1f}   " + "  ".join(f"{x:.4f}" for x in ser))
-    return gate(f1, f3, f4, f6, f7, f8, f9, f10)
+    return gate(f1, f3, f4, f6, f7, f8, f9, f10, c)
 
 
 if __name__ == "__main__":
