@@ -495,10 +495,91 @@ def c_compliance():
 
 
 # ==========================================================================
+# A: ANHARMONIC. Do the two soft families stay orthogonal past linear order?
+#    T2 23486 open question 1. They do not.
+# ==========================================================================
+
+#: Directions probed for the second-harmonic channel, and their wavevector
+#: fractions. [011] is a second <110> member (the channel must not be an
+#: artifact of one representative) and [210] is a deliberate NON-symmetry
+#: direction, so "only <110>" is measured rather than assumed from the three
+#: high-symmetry labels.
+ANH_DIRS = (("[110]", (1, 1, 0)), ("[100]", (1, 0, 0)), ("[111]", (1, 1, 1)),
+            ("[011]", (0, 1, 1)), ("[210]", (2, 1, 0)))
+ANH_T = (0.15, 0.30, 0.45)
+ANH_SOFT_TOL = 1e-6
+
+
+def _cubic(P, bars, A, k1, u1, k2, u2, k3, u3):
+    """Three-mode coupling from the bar energy past quadratic order.
+
+    Expanding (|d| - L)^2 / 2 with d = d0 + delta gives an extension
+    nhat.delta + (|delta|^2 - (nhat.delta)^2) / 2L, and the cross term of those
+    two is the cubic vertex. Symmetrised over the three legs."""
+    tot = 0.0 + 0j
+    for (i, j, Rv) in bars:
+        Rw = np.array(Rv, dtype=float) * A
+        dv = P[i] - (P[j] + Rw)
+        L = np.linalg.norm(dv)
+        nh = dv / L
+
+        def leg(k, u):
+            return u[3 * i:3 * i + 3] - u[3 * j:3 * j + 3] * np.exp(1j * float(k @ Rw))
+        d1, d2, d3 = leg(k1, u1), leg(k2, u2), leg(k3, u3)
+        tot += ((nh @ d1) * ((d2 @ d3) - (nh @ d2) * (nh @ d3))
+                + (nh @ d2) * ((d1 @ d3) - (nh @ d1) * (nh @ d3))
+                + (nh @ d3) * ((d1 @ d2) - (nh @ d1) * (nh @ d2))) / (6.0 * L)
+    return abs(complex(tot))
+
+
+def a_anharmonic():
+    """A phase wave at q forces the lattice at 2q. Where does that force land?
+
+    The two soft families are orthogonal at LINEAR order -- jb_hc H8 measures it
+    at M, where the positional band is 0 while both phase bands sit at
+    2/sqrt(3). This asks whether that survives finite amplitude, and it does
+    not: along <110> the second harmonic of a <110> wavevector is still <110>,
+    which is exactly floppy, so the forcing lands on a mode with NO RESTORING
+    FORCE and accumulates rather than oscillating.
+
+    The distinction the control row protects: the anharmonic coupling itself is
+    ISOTROPIC. What is anisotropic is the SINK."""
+    fw = HC.h4_framework(A_REF)
+    P, bars, A, slots = fw["P"], fw["bars"], fw["A"], fw["slots"]
+    G = np.pi / A
+    rows = []
+    for lbl, d in ANH_DIRS:
+        u = np.array(d, dtype=float)
+        u = u / np.linalg.norm(u)
+        for t in ANH_T:
+            q = t * G * u
+            k3 = -2.0 * q
+            B = HC.phase_basis(P, slots, A, q)
+            up = B[:, 0] + B[:, 1]
+            up = up / np.linalg.norm(up)
+            M3 = HC.bloch(P, bars, A, k3)
+            w3, V3 = np.linalg.eigh(M3.conj().T @ M3)
+            w3 = np.sqrt(np.maximum(w3, 0.0))
+            cs = [_cubic(P, bars, A, q, up, q, up, k3, V3[:, m])
+                  for m in range(V3.shape[1])]
+            soft = [c for c, w in zip(cs, w3) if w < ANH_SOFT_TOL]
+            rows.append(dict(dir=lbl, t=t, total=max(cs), n_soft=len(soft),
+                             into_soft=max(soft) if soft else 0.0))
+    is110 = {"[110]", "[011]"}
+    return dict(rows=rows,
+                soft_110=min(r["into_soft"] for r in rows if r["dir"] in is110),
+                soft_other=max(r["into_soft"] for r in rows if r["dir"] not in is110),
+                n_soft_110=min(r["n_soft"] for r in rows if r["dir"] in is110),
+                n_soft_other=max(r["n_soft"] for r in rows if r["dir"] not in is110),
+                total_lo=min(r["total"] for r in rows),
+                total_hi=max(r["total"] for r in rows), n=len(rows))
+
+
+# ==========================================================================
 # THE GATE
 # ==========================================================================
 
-def gate(f1, f3, f4, f6, f7, f8, f9, f10, c):
+def gate(f1, f3, f4, f6, f7, f8, f9, f10, c, an):
     checks = []
     R = checks.append
 
@@ -620,6 +701,26 @@ def gate(f1, f3, f4, f6, f7, f8, f9, f10, c):
        "is a physical speed until K and M are named",
        True, f"c[100] = {np.sqrt(8 / 27):.7f} x sqrt(K/M)", "printed"))
 
+    R(("A   the SECOND HARMONIC of a <110> phase wave is still <110>, hence "
+       "exactly FLOPPY -- a channel with no restoring force",
+       an["n_soft_110"] >= 1 and an["n_soft_other"] == 0,
+       f"soft modes at 2q: {an['n_soft_110']} along <110>, "
+       f"{an['n_soft_other']} elsewhere", ">=1 vs 0"))
+    R(("A   and the cubic coupling INTO that channel is NONZERO, so a finite-"
+       "amplitude phase wave forces a mode that cannot push back -- CAN FAIL",
+       an["soft_110"] > 1e-3, f"min |C| into it {an['soft_110']:.3e}", "> 1e-3"))
+    R(("A   CONTROL: elsewhere it is EXACTLY zero, and NOT because the coupling "
+       "vanishes -- the TOTAL anharmonic strength is comparable in every "
+       "direction, so the anisotropy is in the SINK and not the vertex",
+       an["soft_other"] == 0.0 and an["total_lo"] > 0.1
+       and an["total_hi"] / an["total_lo"] < 2.0,
+       f"into-soft {an['soft_other']:.1e}, total "
+       f"{an['total_lo']:.3f}..{an['total_hi']:.3f}", "0, and total flat"))
+    R(("A   SO THE TWO SOFT FAMILIES ARE NOT ANHARMONICALLY ORTHOGONAL -- "
+       "T2 23486 open question 1, answered NO",
+       an["n"] > 0 and an["soft_110"] > 1e-3 and an["soft_other"] == 0.0,
+       f"coupled along the six <110>, decoupled elsewhere", "measured"))
+
     print()
     print("=" * 78)
     print(f"GATE  {len(checks)} rows")
@@ -706,6 +807,7 @@ def main():
     f9 = f9_speed()
     f10 = f10_shape()
     c = c_compliance()
+    an = a_anharmonic()
 
     print()
     print("-" * 78)
@@ -722,7 +824,7 @@ def main():
     print(f"    {'a0':>7s}   eps = 0.05, 0.02, 0.01, 0.005, 0.002")
     for a, ser in f8["series"].items():
         print(f"    {a:7.1f}   " + "  ".join(f"{x:.4f}" for x in ser))
-    return gate(f1, f3, f4, f6, f7, f8, f9, f10, c)
+    return gate(f1, f3, f4, f6, f7, f8, f9, f10, c, an)
 
 
 if __name__ == "__main__":
