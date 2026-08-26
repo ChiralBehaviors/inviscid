@@ -75,7 +75,7 @@ import sys
 
 import numpy as np
 
-import jb_z_quasistatic_array as Z
+import jb_gp_plate_geometry as Z
 from jb_x_array_linkage import STRUT_LEN, verts
 
 #: Reference phase for the linearised models. Midpoint of the exchange, where
