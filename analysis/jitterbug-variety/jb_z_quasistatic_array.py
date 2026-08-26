@@ -2501,6 +2501,13 @@ def crank_pairs(topo):
 #: their branch is the cheap closed form anyway.
 BROADPHASE_CLASS_PAD = 1e-9
 
+#: Slack allowed between the VECTORISED parallel-branch gap and the scalar one
+#: `signed_gap` computes. Both are (cB - cA) . nA over the same centroids, so
+#: they agree to the last bit or two; a pair is shortcut only when its gap
+#: clears EPS_ACT by more than this, so no last-bit disagreement can move a pair
+#: across the active-set threshold. Pairs inside the band are evaluated.
+BROADPHASE_GAP_PAD = 1e-9
+
 
 def _pair_index_arrays(pairs):
     """Flat plate indices (iA, jB) and face indices fA for each pair --
@@ -2515,11 +2522,31 @@ def _pair_index_arrays(pairs):
 
 
 def _pair_bounds_and_general(pairs, idx, xs, t):
-    """(bound, skippable_general) per pair. bound = |cA-cB| - rA - rB - t
-    <= the reported gap for GENERAL-branch pairs (unpierced: gap is a
-    Euclidean distance >= bound; pierced: triangles overlap, so
-    bound <= -t and the pair is never skipped). skippable_general mirrors
-    signed_gap's own branch condition, padded by BROADPHASE_CLASS_PAD."""
+    """(bound, skippable_general, surely_parallel, par_gap) per pair.
+
+    bound = |cA-cB| - rA - rB - t <= the reported gap for GENERAL-branch pairs
+    (unpierced: gap is a Euclidean distance >= bound; pierced: triangles
+    overlap, so bound <= -t and the pair is never skipped).
+
+    THE CLASSIFICATION IS PADDED IN BOTH DIRECTIONS (bead inviscid-0dm), because
+    the two uses need opposite conservatism and the single-sided pad only served
+    one of them:
+      skippable_general  dots <= PARALLEL_TOL - PAD. Safe to CULL: the scalar
+                         test in `signed_gap` certainly agrees the pair is
+                         general, so the Euclidean bound certainly applies.
+      surely_parallel    dots >= PARALLEL_TOL + PAD. Safe to SHORTCUT: the
+                         scalar test certainly agrees the pair is parallel, so
+                         `par_gap` below is certainly the gap it would report.
+    Pairs in the 2*PAD band between them are neither, and are evaluated exactly
+    as before. That band is 2e-9 wide in the dot product and is expected to be
+    empty; it is handled rather than assumed away.
+
+    par_gap is the PARALLEL branch's own closed form, (cB - cA) . nA - t,
+    computed vectorized. For a surely-parallel pair this IS the gap, so such a
+    pair needs no per-pair geometry call at all unless it turns out active --
+    which is the coverage half of inviscid-0dm. Before this, parallel pairs were
+    never culled and were 352 of the 360 evaluations a sorted cull still had to
+    make on SC7."""
     ia, jb, fa = idx
     X = np.stack(xs)                       # (n, 8, 3, 3)
     Cm4 = X.mean(axis=2)
@@ -2536,7 +2563,138 @@ def _pair_bounds_and_general(pairs, idx, xs, t):
     na = np.stack([plate_normal(f) for f in range(8)])
     dots = np.abs((na[fa] * nb[jb]).sum(-1))
     general = dots <= PARALLEL_TOL - BROADPHASE_CLASS_PAD
-    return bound, general
+    surely_parallel = dots >= PARALLEL_TOL + BROADPHASE_CLASS_PAD
+    par_gap = ((Cm[jb] - Cm[ia]) * na[fa]).sum(-1) - t
+    return bound, general, surely_parallel, par_gap
+
+
+def exhaustive_contact_scan(pairs, xs, t, ndof):
+    """THE REFERENCE INSTRUMENT: every pair evaluated, nothing culled.
+
+    Kept in the file on purpose (bead inviscid-qvf.23 acceptance criterion 1):
+    the broad-phase is only trustworthy against something that does not use it,
+    and a reference that lives only in a reviewer's scratch directory is not a
+    reference. Returns (active, min_general_gap) with `active` a list of
+    (i, fi, j, fj) in the pair list's own order."""
+    active, mgg = [], float("inf")
+    for (i, fi, j, fj) in pairs:
+        gap, _row = contact_gradient_row(xs, i, fi, j, fj, t, ndof)
+        nA = plate_normal(fi)
+        nB = _cross3(xs[j][fj][1] - xs[j][fj][0], xs[j][fj][2] - xs[j][fj][0])
+        nB_norm = np.linalg.norm(nB)
+        if nB_norm > 1e-300 and abs(float(nA @ (nB / nB_norm))) <= PARALLEL_TOL:
+            mgg = min(mgg, gap)
+        if gap <= EPS_ACT:
+            active.append((i, fi, j, fj))
+    return active, mgg
+
+
+def broadphase_contact_scan(pairs, xs, t, ndof, bias=0.0):
+    """The same thing THROUGH the broad-phase, reporting what it evaluated.
+
+    Mirrors `crank_step`'s two passes exactly -- if this and the stepper ever
+    drift apart the exactness row is measuring the wrong code, so they are
+    written adjacent and reviewed together."""
+    idx = _pair_index_arrays(pairs)
+    bnd, gen, par, pgap = _pair_bounds_and_general(pairs, idx, xs, t)
+    # `bias` inflates the bound, making the cull UNSOUND. It exists only for the
+    # mutation probe: a guard nothing has tried to break is not a guard, and the
+    # exactness row must be shown capable of reddening.
+    bnd = bnd + bias
+    pgap = pgap + bias
+    gaps, mgg, evaluated = {}, float("inf"), 0
+    for k in np.argsort(bnd, kind="stable"):
+        k = int(k)
+        if gen[k] and bnd[k] > EPS_ACT and bnd[k] > mgg:
+            continue
+        if par[k] and pgap[k] - EPS_ACT > BROADPHASE_GAP_PAD:
+            continue
+        i, fi, j, fj = pairs[k]
+        nA = plate_normal(fi)
+        gap, _a, _b, _c = signed_gap(xs[i][fi], xs[j][fj], nA)
+        gap -= t
+        gaps[k] = gap
+        evaluated += 1
+        nB = _cross3(xs[j][fj][1] - xs[j][fj][0], xs[j][fj][2] - xs[j][fj][0])
+        nB_norm = np.linalg.norm(nB)
+        if nB_norm > 1e-300 and abs(float(nA @ (nB / nB_norm))) <= PARALLEL_TOL:
+            mgg = min(mgg, gap)
+    active = [pairs[k] for k in range(len(pairs))
+              if gaps.get(k) is not None and gaps[k] <= EPS_ACT]
+    return active, mgg, evaluated
+
+
+#: Configurations the exactness probe runs on: ideal-path angles, and for each
+#: the state one crank step later, which is the mid-integration regime where a
+#: previous prefilter class died. Absolute, not derived from any other grid.
+BP_PROBE_ANGLES = (0.5, 3.0, 8.0, 15.0, A_ICO)
+BP_PROBE_T = (0.0, 0.02)
+
+
+def bp_exactness_probe(topo):
+    """Broad-phase against the exhaustive reference, on real configurations
+    INCLUDING mid-integration states. Returns one record per configuration."""
+    pairs = crank_pairs(topo)
+    ndof = 48 * topo.n
+    wpairs = wire_pairs(topo)
+    out = []
+    for a in BP_PROBE_ANGLES:
+        origins = topo.sites(verts(a))
+        base = [unit_corners(a, topo, i) + origins[i] for i in range(topo.n)]
+        for tag, xs in (("ideal", base), ("stepped", _bp_one_step(topo, pairs, base, a, wpairs))):
+            if xs is None:
+                continue
+            for t in BP_PROBE_T:
+                ex_act, ex_mgg = exhaustive_contact_scan(pairs, xs, t, ndof)
+                bp_act, bp_mgg, ev = broadphase_contact_scan(pairs, xs, t, ndof)
+                out.append(dict(
+                    a=a, tag=tag, t=t, n=len(pairs), evaluated=ev,
+                    reject=1.0 - ev / len(pairs),
+                    same_active=(ex_act == bp_act),
+                    mgg_diff=abs(ex_mgg - bp_mgg)
+                    if np.isfinite(ex_mgg) and np.isfinite(bp_mgg) else 0.0))
+    return out
+
+
+#: How far the mutation probe inflates the broad-phase bound. Chosen from the
+#: measured active-set geometry rather than picked: gaps at the probe
+#: configurations sit within ~0.1 of the threshold, so 0.5 certainly reaches
+#: past real active pairs and the probe certainly bites. If it ever stops
+#: biting, the exactness row above has gone slack and says nothing.
+BP_MUTATION_BIAS = 0.5
+
+
+def bp_mutation_probe(topo):
+    """Deliberately break the cull and confirm exactness NOTICES.
+
+    qvf.23 acceptance criterion 4. Without this the exactness row is satisfied
+    by any prefilter that never rejects anything, and by any bug that happens to
+    reject only inactive pairs at the sampled configurations."""
+    pairs = crank_pairs(topo)
+    ndof = 48 * topo.n
+    caught = 0
+    total = 0
+    for a in BP_PROBE_ANGLES:
+        origins = topo.sites(verts(a))
+        xs = [unit_corners(a, topo, i) + origins[i] for i in range(topo.n)]
+        for t in BP_PROBE_T:
+            ex_act, _ = exhaustive_contact_scan(pairs, xs, t, ndof)
+            bad_act, _m, _e = broadphase_contact_scan(
+                pairs, xs, t, ndof, bias=BP_MUTATION_BIAS)
+            total += 1
+            if bad_act != ex_act:
+                caught += 1
+    return dict(caught=caught, total=total)
+
+
+def _bp_one_step(topo, pairs, xs, a, wpairs):
+    """One crank step from `xs`, giving a mid-integration configuration."""
+    v, status, _r, _b, _m = crank_step(topo, pairs, xs, a, _w_ico_lock(), 0.0,
+                                       "all", True, None, wpairs)
+    if status != "OK" or v is None:
+        return None
+    return [apply_body_motions(xs[u], H_STEP * v[48 * u:48 * u + 48])
+            for u in range(topo.n)]
 
 
 def crank_step(topo, pairs, xs, a_hat, w, t, driven="all",
@@ -2573,17 +2731,46 @@ def crank_step(topo, pairs, xs, a_hat, w, t, driven="all",
         # exactly that class and was corrected to this form).
         if bp_idx is None:
             bp_idx = _pair_index_arrays(pairs)
-        _bnd, _gen = _pair_bounds_and_general(pairs, bp_idx, xs, t)
-        for _k, (i, fi, j, fj) in enumerate(pairs):
+        _bnd, _gen, _par, _pgap = _pair_bounds_and_general(pairs, bp_idx, xs, t)
+
+        # PASS 1, IN ASCENDING BOUND ORDER (bead inviscid-0dm). The cull is
+        # exact either way -- a pair with bound > the running minimum cannot
+        # lower it, and the running minimum only decreases -- but the ORDER
+        # decided how much it culled, and the order was the pair list's. The
+        # first pair scanned was never culled and the rate depended on
+        # enumeration rather than geometry. Ascending bound is the order in
+        # which the running minimum falls fastest, and it depends only on the
+        # configuration: on SC7 it takes general-branch evaluations from 131 of
+        # 1080 to 8.
+        _gaps = {}
+        for _k in np.argsort(_bnd, kind="stable"):
+            _k = int(_k)
             if _gen[_k] and _bnd[_k] > EPS_ACT and _bnd[_k] > min_general_gap:
                 continue
-            gap, row = contact_gradient_row(xs, i, fi, j, fj, t, ndof)
+            if _par[_k] and _pgap[_k] - EPS_ACT > BROADPHASE_GAP_PAD:
+                continue      # surely parallel and surely inactive: par_gap IS
+                              # its gap, and it is clear of the threshold by
+                              # more than the vectorised form's last-bit slack
+            i, fi, j, fj = pairs[_k]
             nA = plate_normal(fi)
+            gap, _wA, _wB, _nrm = signed_gap(xs[i][fi], xs[j][fj], nA)
+            gap -= t
+            _gaps[_k] = gap
             nB = _cross3(xs[j][fj][1] - xs[j][fj][0], xs[j][fj][2] - xs[j][fj][0])
             nB_norm = np.linalg.norm(nB)
             is_general = nB_norm > 1e-300 and abs(float(nA @ (nB / nB_norm))) <= PARALLEL_TOL
             if is_general:
                 min_general_gap = min(min_general_gap, gap)
+
+        # PASS 2, IN THE ORIGINAL PAIR ORDER, so the active set and every row
+        # built from it are assembled exactly as before. Only pairs the first
+        # pass found active reach `contact_gradient_row`, and it recomputes the
+        # gap itself, so the reported value is the same float it always was.
+        for _k, (i, fi, j, fj) in enumerate(pairs):
+            _g = _gaps.get(_k)
+            if _g is None or _g > EPS_ACT:
+                continue
+            gap, row = contact_gradient_row(xs, i, fi, j, fj, t, ndof)
             if gap <= EPS_ACT:
                 active_rows.append(row)
                 active_labels.append(("contact", i, fi, j, fj, gap))
@@ -2695,10 +2882,20 @@ def crank_run(topo, a_start, a_target, w, t, driven="all",
         worst = float("inf")
         if not enforce_contacts:
             return worst
-        _sb, _sg = _pair_bounds_and_general(pairs, _pair_index_arrays(pairs), xs_now, t)
-        for _k, (i, fi, j, fj) in enumerate(pairs):
+        _sb, _sg, _sp, _spg = _pair_bounds_and_general(
+            pairs, _pair_index_arrays(pairs), xs_now, t)
+        # Ascending bound here too (bead inviscid-0dm), for the same reason and
+        # with the same exactness argument: this scan reports only a MINIMUM, so
+        # the order it visits pairs in cannot change the answer, only how many
+        # pairs it has to touch to reach it.
+        for _k in np.argsort(_sb, kind="stable"):
+            _k = int(_k)
+            i, fi, j, fj = pairs[_k]
             if _sg[_k] and _sb[_k] > worst:
                 continue  # general-branch only; bound > running worst >= final worst
+            if _sp[_k]:
+                continue  # surely parallel: excluded from this GENERAL-branch
+                          # minimum by the scalar test below in any case
             g, _ = contact_gradient_row(xs_now, i, fi, j, fj, t, 48 * topo.n)
             nA = plate_normal(fi)
             nB = _cross3(xs_now[j][fj][1] - xs_now[j][fj][0], xs_now[j][fj][2] - xs_now[j][fj][0])
@@ -3675,7 +3872,14 @@ def z17_lock_surface(topo):
 # THE GATE
 # ==========================================================================
 
-def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
+#: Two-sided bounds on the broad-phase rejection fraction (qvf.23 criterion 2).
+#: Measured 0.6872..0.9888 across the probe set. A prefilter that rejects
+#: NOTHING is pointless and one that rejects EVERYTHING is wrong, and both edges
+#: redden rather than only the second.
+BP_REJECT_BAND = (0.30, 0.999)
+
+
+def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock, zbp):
     """Every check's verdict in one table, and this process's exit code."""
     print()
     print("=" * 78)
@@ -4449,6 +4653,38 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
                        "DRIVE-SPECIFIC, reported not gated",
                        True, f"{drv['statuses'][0]} at both w", "printed"))
 
+    # ---- BROAD-PHASE (beads inviscid-0dm, inviscid-qvf.23) ----
+    bpr, bpm = zbp["probe"], zbp["mutation"]
+    checks.append(("BP  EXACTNESS: the prefiltered active set is IDENTICAL to the "
+                   "exhaustive scan's, at every probed configuration",
+                   len(bpr) > 0 and all(r["same_active"] for r in bpr),
+                   f"{sum(r['same_active'] for r in bpr)}/{len(bpr)} configurations",
+                   "all identical"))
+    checks.append(("BP  and the reported minimum general gap is identical too, not "
+                   "merely close",
+                   len(bpr) > 0 and all(r["mgg_diff"] == 0.0 for r in bpr),
+                   f"worst diff {max(r['mgg_diff'] for r in bpr):.3e}" if bpr else "n/a",
+                   "exactly 0"))
+    checks.append(("BP  MUTATION PROBE: a deliberately UNSOUND cull is caught by that "
+                   "exactness row -- without this the row is satisfied by a prefilter "
+                   "that rejects nothing -- CAN FAIL",
+                   bpm["total"] > 0 and bpm["caught"] == bpm["total"],
+                   f"caught {bpm['caught']}/{bpm['total']}", "all caught"))
+    _rej = [r["reject"] for r in bpr]
+    checks.append(("BP  NON-VACUITY, TWO-SIDED: it rejects a real fraction and not all "
+                   "of them -- both edges redden",
+                   len(_rej) > 0
+                   and all(BP_REJECT_BAND[0] < x < BP_REJECT_BAND[1] for x in _rej),
+                   f"{min(_rej):.4f} .. {max(_rej):.4f}" if _rej else "n/a",
+                   f"in {BP_REJECT_BAND}"))
+    _id = [r["reject"] for r in bpr if r["tag"] == "ideal"]
+    _st = [r["reject"] for r in bpr if r["tag"] == "stepped"]
+    checks.append(("BP  and it pays MOST in the mid-integration regime, which is where "
+                   "the stepper actually spends its time -- CAN FAIL",
+                   len(_id) > 0 and len(_st) > 0 and min(_st) > max(_id),
+                   f"ideal {max(_id):.4f} vs mid-integration {min(_st):.4f}"
+                   if _id and _st else "n/a", "mid > ideal"))
+
     print()
     print("=" * 78)
     print(f"GATE  {len(checks)} rows: every check's verdict, and this process's "
@@ -4460,6 +4696,15 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
 
     print()
     print("  ROWS THAT EXIST ONLY TO STOP ANOTHER ROW BEING UNFALSIFIABLE:")
+    print("   * BP's MUTATION PROBE. The exactness row is satisfied by a")
+    print("     prefilter that rejects NOTHING, and by a bug that happens to")
+    print("     reject only inactive pairs at the configurations sampled. The")
+    print("     probe inflates the bound until the cull is unsound and checks")
+    print("     that exactness notices -- 10 of 10. Without it the broad-phase")
+    print("     shipped ungated, which is exactly how it shipped in August.")
+    print("   * BP's TWO-SIDED rejection band. A prefilter that rejects")
+    print("     everything would pass a one-sided 'it rejects things' row while")
+    print("     being catastrophically wrong.")
     print("   * 'fold(a=0) is EXACTLY zero' -- without it, 'the fold table")
     print("     matches to 1e-5' is satisfiable by a constant function that")
     print("     happens to equal the five recorded angles' values.")
@@ -4776,8 +5021,9 @@ def main():
     ztwo = z14_two_cell_sanity(topo)
     zqp = z16_qpfail_probe(topo)
     zlock = z17_lock_surface(topo)
+    zbp = {"probe": bp_exactness_probe(topo), "mutation": bp_mutation_probe(topo)}
 
-    return gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock)
+    return gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock, zbp)
 
 
 if __name__ == "__main__":
