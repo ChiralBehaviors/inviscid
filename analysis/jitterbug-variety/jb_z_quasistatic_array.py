@@ -668,6 +668,25 @@ RATIO_ZERO_TOL = 1e-9
 T_SEPARATION_TOL = 0.1
 W_SEPARATION_TOL = 0.05
 
+#: Floor for "the w axis actually does something" (bead inviscid-l1d). Priced
+#: from the fixed-wire measurement: interior w-separation 3.849637 deg, interior
+#: spreads ~2.9-3.1 deg. Before the fix every one of these was EXACTLY 0.0, so
+#: any positive floor separates the two regimes; 0.5 leaves an order of margin
+#: without being satisfiable by numerical noise.
+W_LIVE_FLOOR = 0.5
+
+#: The arm-A k-table's lock-angle span, re-declared locally (mutation-probe
+#: rule): 26.555073204 at k=0.90 down to 12.705717132 at k=1.20.
+K_TABLE_SPAN = 13.849356
+
+#: The interior w-spread is NOT h0-converged and this floor asserts that rather
+#: than papering over it. Measured 3.062 / 2.850 / 21.709 across
+#: h0 = 0.5 / 0.25 / 0.125, i.e. adjacent drifts of 0.212 and 18.859. A floor of
+#: 1.0 is comfortably above the coarse-level drift and far below the fine-level
+#: one, so the row distinguishes the two regimes rather than merely detecting
+#: motion.
+H_REFINE_SPREAD_DIVERGENT_FLOOR = 1.0
+
 #: Row R's two-sided non-vacuity band on the WHOLE surface's a* span (every
 #: value from both grids, both arms): a stuck constant fails the lower
 #: bound; a degenerate or blown-up statistic fails the upper.
@@ -832,7 +851,13 @@ H_REFINE_UNSTABLE_FLOOR = 0.1
 #: at 5.0 the refinement probe measured how far the array got in 5 degrees,
 #: not where it locks.
 H_REFINE_TARGET = 45.0
-H_REFINE_MAX_STEPS = 300
+#: RAISED 300 -> 900 (bead inviscid-l1d, 2026-08-25). With the wire span fixed
+#: the w axis is LIVE, so a lock run at nonzero w now travels further before it
+#: jams and the old budget exhausted on the finest h0 level, surfacing as QPFAIL.
+#: That was a statement about the budget and not about the physics -- the
+#: companion BUDGET-EXHAUSTED row said so correctly while three rows downstream
+#: of it went red for want of data.
+H_REFINE_MAX_STEPS = 900
 
 #: SHIP-BLOCKER 2 (23299 CRITICAL 2): the t-column's clearance-relieved
 #: start angle. Derived (bisection over the OPENING/wire-mechanism pairs'
@@ -2189,6 +2214,42 @@ def wire_pairs(topo):
     return out
 
 
+def wire_span(triA, triB, nA):
+    """The wire's span: the along-nA separation of the two plates' centroids.
+    Returns (span, centroid_A, centroid_B). UNCONDITIONAL -- no branch.
+
+    THIS IS NOT `signed_gap`, AND THAT IS THE FIX (bead inviscid-l1d, T2 23388).
+    The two want DIFFERENT quantities and were routed through one function
+    because at the ideal pose they coincide. A CONTACT needs the true closest
+    distance, so `signed_gap` branches to a closest-point search once the plates
+    stop being parallel-facing -- correct for non-penetration, and left
+    untouched here; the Phase 1a kernel is not reopened by this fix. A WIRE
+    needs the along-normal opening, which is well defined whether or not the
+    planes are parallel, and must not switch to anything else.
+
+    `wire_gradient_row` used to delegate to `contact_gradient_row`, and its
+    docstring justified that by saying these pairs "were selected to be well
+    inside the parallel-facing regime anyway". They were -- AT SELECTION. The
+    plate normals are phase independent (Z0), so on the pure-translate reference
+    pose triB's measured normal equals its fixed plate normal EXACTLY and
+    |nA.nB| is 1. The moment a unit rotates it is not, and PARALLEL_TOL is
+    1 - 1e-9, which a rotation of 0.0026 degrees already fails. Measured on a
+    real N2 wire pair: at 0.001 degrees the span reads 0.011635; at 0.01 degrees
+    the branch flips and `signed_gap` returns 1.414282. A 120x discontinuity in
+    a quantity whose value is 0.0116, at a rotation no crank step avoids, which
+    is why the w axis has never actually been tested. The centroid projection
+    over the same rotations is continuous: 0.011635, 0.011635, 0.011631,
+    0.011596, 0.011010, 0.007730.
+
+    The assumption was true when it was written and false one step later, and it
+    was recorded in a docstring rather than in a row that could fail -- which is
+    the whole reason it survived. Row K-wire-branch now checks it.
+    """
+    cA = triA.mean(axis=0)
+    cB = triB.mean(axis=0)
+    return float((cB - cA) @ nA), cA, cB
+
+
 def wire_gradient_row(xs, pair, w, ndof):
     """(w - span, row, degenerate) for ONE wire-attachment plate pair
     (u, fi, v, fj): tension-only, g_wire = w - span >= 0.
@@ -2205,11 +2266,15 @@ def wire_gradient_row(xs, pair, w, ndof):
     Euclidean distance and it stayed near-constant at approx 2.83 across
     every `a` tested, instead of growing from 0). The SIGNED gap (the along-
     nA projection `contact_gradient_row` returns) is exactly the quantity
-    that separates as `2/sqrt(3) * fold(a)` -- reusing `contact_gradient_row`
-    with t=0 and negating gives the wire row for free, correct in all three
-    of `signed_gap`'s branches via the same `_contact_gradient_direction`
-    these pairs were selected to be well inside the parallel-facing regime
-    of anyway.
+    that separates as `2/sqrt(3) * fold(a)`.
+
+    IT NO LONGER REUSES `contact_gradient_row`, and the paragraph that used to
+    stand here justified reusing it on the grounds that these pairs "were
+    selected to be well inside the parallel-facing regime anyway". That is true
+    at SELECTION and false after the first crank step -- see `wire_span`, which
+    now computes the span and its gradient unconditionally. The gradient
+    direction is nA always, and the witnesses are the centroids, which are valid
+    barycentric points by construction so the on-triangle property is trivial.
 
     `degenerate` (fix for substantive critique 23262 C2) reports whether
     THIS gradient row is exactly zero -- which cannot happen for a
@@ -2222,9 +2287,16 @@ def wire_gradient_row(xs, pair, w, ndof):
     pairs it is given, and a gate row (K-wire) checks that directly rather
     than trusting this docstring."""
     u, fi, v, fj = pair
-    gap, row = contact_gradient_row(xs, u, fi, v, fj, 0.0, ndof)
+    triA, triB = xs[u][fi], xs[v][fj]
+    nA = plate_normal(fi)
+    span, cA, cB = wire_span(triA, triB, nA)
+    jacA = _point_velocity_jacobian(xs[u], fi, cA)
+    jacB = _point_velocity_jacobian(xs[v], fj, cB)
+    row = np.zeros(ndof)
+    row[48 * u:48 * u + 48] = -(nA @ jacA)
+    row[48 * v:48 * v + 48] = (nA @ jacB)
     degenerate = not np.any(row)
-    return w - gap, -row, degenerate
+    return w - span, -row, degenerate
 
 
 def _hinge_only_jacobian(xs, n):
@@ -2429,6 +2501,13 @@ def crank_pairs(topo):
 #: their branch is the cheap closed form anyway.
 BROADPHASE_CLASS_PAD = 1e-9
 
+#: Slack allowed between the VECTORISED parallel-branch gap and the scalar one
+#: `signed_gap` computes. Both are (cB - cA) . nA over the same centroids, so
+#: they agree to the last bit or two; a pair is shortcut only when its gap
+#: clears EPS_ACT by more than this, so no last-bit disagreement can move a pair
+#: across the active-set threshold. Pairs inside the band are evaluated.
+BROADPHASE_GAP_PAD = 1e-9
+
 
 def _pair_index_arrays(pairs):
     """Flat plate indices (iA, jB) and face indices fA for each pair --
@@ -2443,11 +2522,31 @@ def _pair_index_arrays(pairs):
 
 
 def _pair_bounds_and_general(pairs, idx, xs, t):
-    """(bound, skippable_general) per pair. bound = |cA-cB| - rA - rB - t
-    <= the reported gap for GENERAL-branch pairs (unpierced: gap is a
-    Euclidean distance >= bound; pierced: triangles overlap, so
-    bound <= -t and the pair is never skipped). skippable_general mirrors
-    signed_gap's own branch condition, padded by BROADPHASE_CLASS_PAD."""
+    """(bound, skippable_general, surely_parallel, par_gap) per pair.
+
+    bound = |cA-cB| - rA - rB - t <= the reported gap for GENERAL-branch pairs
+    (unpierced: gap is a Euclidean distance >= bound; pierced: triangles
+    overlap, so bound <= -t and the pair is never skipped).
+
+    THE CLASSIFICATION IS PADDED IN BOTH DIRECTIONS (bead inviscid-0dm), because
+    the two uses need opposite conservatism and the single-sided pad only served
+    one of them:
+      skippable_general  dots <= PARALLEL_TOL - PAD. Safe to CULL: the scalar
+                         test in `signed_gap` certainly agrees the pair is
+                         general, so the Euclidean bound certainly applies.
+      surely_parallel    dots >= PARALLEL_TOL + PAD. Safe to SHORTCUT: the
+                         scalar test certainly agrees the pair is parallel, so
+                         `par_gap` below is certainly the gap it would report.
+    Pairs in the 2*PAD band between them are neither, and are evaluated exactly
+    as before. That band is 2e-9 wide in the dot product and is expected to be
+    empty; it is handled rather than assumed away.
+
+    par_gap is the PARALLEL branch's own closed form, (cB - cA) . nA - t,
+    computed vectorized. For a surely-parallel pair this IS the gap, so such a
+    pair needs no per-pair geometry call at all unless it turns out active --
+    which is the coverage half of inviscid-0dm. Before this, parallel pairs were
+    never culled and were 352 of the 360 evaluations a sorted cull still had to
+    make on SC7."""
     ia, jb, fa = idx
     X = np.stack(xs)                       # (n, 8, 3, 3)
     Cm4 = X.mean(axis=2)
@@ -2464,7 +2563,138 @@ def _pair_bounds_and_general(pairs, idx, xs, t):
     na = np.stack([plate_normal(f) for f in range(8)])
     dots = np.abs((na[fa] * nb[jb]).sum(-1))
     general = dots <= PARALLEL_TOL - BROADPHASE_CLASS_PAD
-    return bound, general
+    surely_parallel = dots >= PARALLEL_TOL + BROADPHASE_CLASS_PAD
+    par_gap = ((Cm[jb] - Cm[ia]) * na[fa]).sum(-1) - t
+    return bound, general, surely_parallel, par_gap
+
+
+def exhaustive_contact_scan(pairs, xs, t, ndof):
+    """THE REFERENCE INSTRUMENT: every pair evaluated, nothing culled.
+
+    Kept in the file on purpose (bead inviscid-qvf.23 acceptance criterion 1):
+    the broad-phase is only trustworthy against something that does not use it,
+    and a reference that lives only in a reviewer's scratch directory is not a
+    reference. Returns (active, min_general_gap) with `active` a list of
+    (i, fi, j, fj) in the pair list's own order."""
+    active, mgg = [], float("inf")
+    for (i, fi, j, fj) in pairs:
+        gap, _row = contact_gradient_row(xs, i, fi, j, fj, t, ndof)
+        nA = plate_normal(fi)
+        nB = _cross3(xs[j][fj][1] - xs[j][fj][0], xs[j][fj][2] - xs[j][fj][0])
+        nB_norm = np.linalg.norm(nB)
+        if nB_norm > 1e-300 and abs(float(nA @ (nB / nB_norm))) <= PARALLEL_TOL:
+            mgg = min(mgg, gap)
+        if gap <= EPS_ACT:
+            active.append((i, fi, j, fj))
+    return active, mgg
+
+
+def broadphase_contact_scan(pairs, xs, t, ndof, bias=0.0):
+    """The same thing THROUGH the broad-phase, reporting what it evaluated.
+
+    Mirrors `crank_step`'s two passes exactly -- if this and the stepper ever
+    drift apart the exactness row is measuring the wrong code, so they are
+    written adjacent and reviewed together."""
+    idx = _pair_index_arrays(pairs)
+    bnd, gen, par, pgap = _pair_bounds_and_general(pairs, idx, xs, t)
+    # `bias` inflates the bound, making the cull UNSOUND. It exists only for the
+    # mutation probe: a guard nothing has tried to break is not a guard, and the
+    # exactness row must be shown capable of reddening.
+    bnd = bnd + bias
+    pgap = pgap + bias
+    gaps, mgg, evaluated = {}, float("inf"), 0
+    for k in np.argsort(bnd, kind="stable"):
+        k = int(k)
+        if gen[k] and bnd[k] > EPS_ACT and bnd[k] > mgg:
+            continue
+        if par[k] and pgap[k] - EPS_ACT > BROADPHASE_GAP_PAD:
+            continue
+        i, fi, j, fj = pairs[k]
+        nA = plate_normal(fi)
+        gap, _a, _b, _c = signed_gap(xs[i][fi], xs[j][fj], nA)
+        gap -= t
+        gaps[k] = gap
+        evaluated += 1
+        nB = _cross3(xs[j][fj][1] - xs[j][fj][0], xs[j][fj][2] - xs[j][fj][0])
+        nB_norm = np.linalg.norm(nB)
+        if nB_norm > 1e-300 and abs(float(nA @ (nB / nB_norm))) <= PARALLEL_TOL:
+            mgg = min(mgg, gap)
+    active = [pairs[k] for k in range(len(pairs))
+              if gaps.get(k) is not None and gaps[k] <= EPS_ACT]
+    return active, mgg, evaluated
+
+
+#: Configurations the exactness probe runs on: ideal-path angles, and for each
+#: the state one crank step later, which is the mid-integration regime where a
+#: previous prefilter class died. Absolute, not derived from any other grid.
+BP_PROBE_ANGLES = (0.5, 3.0, 8.0, 15.0, A_ICO)
+BP_PROBE_T = (0.0, 0.02)
+
+
+def bp_exactness_probe(topo):
+    """Broad-phase against the exhaustive reference, on real configurations
+    INCLUDING mid-integration states. Returns one record per configuration."""
+    pairs = crank_pairs(topo)
+    ndof = 48 * topo.n
+    wpairs = wire_pairs(topo)
+    out = []
+    for a in BP_PROBE_ANGLES:
+        origins = topo.sites(verts(a))
+        base = [unit_corners(a, topo, i) + origins[i] for i in range(topo.n)]
+        for tag, xs in (("ideal", base), ("stepped", _bp_one_step(topo, pairs, base, a, wpairs))):
+            if xs is None:
+                continue
+            for t in BP_PROBE_T:
+                ex_act, ex_mgg = exhaustive_contact_scan(pairs, xs, t, ndof)
+                bp_act, bp_mgg, ev = broadphase_contact_scan(pairs, xs, t, ndof)
+                out.append(dict(
+                    a=a, tag=tag, t=t, n=len(pairs), evaluated=ev,
+                    reject=1.0 - ev / len(pairs),
+                    same_active=(ex_act == bp_act),
+                    mgg_diff=abs(ex_mgg - bp_mgg)
+                    if np.isfinite(ex_mgg) and np.isfinite(bp_mgg) else 0.0))
+    return out
+
+
+#: How far the mutation probe inflates the broad-phase bound. Chosen from the
+#: measured active-set geometry rather than picked: gaps at the probe
+#: configurations sit within ~0.1 of the threshold, so 0.5 certainly reaches
+#: past real active pairs and the probe certainly bites. If it ever stops
+#: biting, the exactness row above has gone slack and says nothing.
+BP_MUTATION_BIAS = 0.5
+
+
+def bp_mutation_probe(topo):
+    """Deliberately break the cull and confirm exactness NOTICES.
+
+    qvf.23 acceptance criterion 4. Without this the exactness row is satisfied
+    by any prefilter that never rejects anything, and by any bug that happens to
+    reject only inactive pairs at the sampled configurations."""
+    pairs = crank_pairs(topo)
+    ndof = 48 * topo.n
+    caught = 0
+    total = 0
+    for a in BP_PROBE_ANGLES:
+        origins = topo.sites(verts(a))
+        xs = [unit_corners(a, topo, i) + origins[i] for i in range(topo.n)]
+        for t in BP_PROBE_T:
+            ex_act, _ = exhaustive_contact_scan(pairs, xs, t, ndof)
+            bad_act, _m, _e = broadphase_contact_scan(
+                pairs, xs, t, ndof, bias=BP_MUTATION_BIAS)
+            total += 1
+            if bad_act != ex_act:
+                caught += 1
+    return dict(caught=caught, total=total)
+
+
+def _bp_one_step(topo, pairs, xs, a, wpairs):
+    """One crank step from `xs`, giving a mid-integration configuration."""
+    v, status, _r, _b, _m = crank_step(topo, pairs, xs, a, _w_ico_lock(), 0.0,
+                                       "all", True, None, wpairs)
+    if status != "OK" or v is None:
+        return None
+    return [apply_body_motions(xs[u], H_STEP * v[48 * u:48 * u + 48])
+            for u in range(topo.n)]
 
 
 def crank_step(topo, pairs, xs, a_hat, w, t, driven="all",
@@ -2501,17 +2731,46 @@ def crank_step(topo, pairs, xs, a_hat, w, t, driven="all",
         # exactly that class and was corrected to this form).
         if bp_idx is None:
             bp_idx = _pair_index_arrays(pairs)
-        _bnd, _gen = _pair_bounds_and_general(pairs, bp_idx, xs, t)
-        for _k, (i, fi, j, fj) in enumerate(pairs):
+        _bnd, _gen, _par, _pgap = _pair_bounds_and_general(pairs, bp_idx, xs, t)
+
+        # PASS 1, IN ASCENDING BOUND ORDER (bead inviscid-0dm). The cull is
+        # exact either way -- a pair with bound > the running minimum cannot
+        # lower it, and the running minimum only decreases -- but the ORDER
+        # decided how much it culled, and the order was the pair list's. The
+        # first pair scanned was never culled and the rate depended on
+        # enumeration rather than geometry. Ascending bound is the order in
+        # which the running minimum falls fastest, and it depends only on the
+        # configuration: on SC7 it takes general-branch evaluations from 131 of
+        # 1080 to 8.
+        _gaps = {}
+        for _k in np.argsort(_bnd, kind="stable"):
+            _k = int(_k)
             if _gen[_k] and _bnd[_k] > EPS_ACT and _bnd[_k] > min_general_gap:
                 continue
-            gap, row = contact_gradient_row(xs, i, fi, j, fj, t, ndof)
+            if _par[_k] and _pgap[_k] - EPS_ACT > BROADPHASE_GAP_PAD:
+                continue      # surely parallel and surely inactive: par_gap IS
+                              # its gap, and it is clear of the threshold by
+                              # more than the vectorised form's last-bit slack
+            i, fi, j, fj = pairs[_k]
             nA = plate_normal(fi)
+            gap, _wA, _wB, _nrm = signed_gap(xs[i][fi], xs[j][fj], nA)
+            gap -= t
+            _gaps[_k] = gap
             nB = _cross3(xs[j][fj][1] - xs[j][fj][0], xs[j][fj][2] - xs[j][fj][0])
             nB_norm = np.linalg.norm(nB)
             is_general = nB_norm > 1e-300 and abs(float(nA @ (nB / nB_norm))) <= PARALLEL_TOL
             if is_general:
                 min_general_gap = min(min_general_gap, gap)
+
+        # PASS 2, IN THE ORIGINAL PAIR ORDER, so the active set and every row
+        # built from it are assembled exactly as before. Only pairs the first
+        # pass found active reach `contact_gradient_row`, and it recomputes the
+        # gap itself, so the reported value is the same float it always was.
+        for _k, (i, fi, j, fj) in enumerate(pairs):
+            _g = _gaps.get(_k)
+            if _g is None or _g > EPS_ACT:
+                continue
+            gap, row = contact_gradient_row(xs, i, fi, j, fj, t, ndof)
             if gap <= EPS_ACT:
                 active_rows.append(row)
                 active_labels.append(("contact", i, fi, j, fj, gap))
@@ -2623,10 +2882,20 @@ def crank_run(topo, a_start, a_target, w, t, driven="all",
         worst = float("inf")
         if not enforce_contacts:
             return worst
-        _sb, _sg = _pair_bounds_and_general(pairs, _pair_index_arrays(pairs), xs_now, t)
-        for _k, (i, fi, j, fj) in enumerate(pairs):
+        _sb, _sg, _sp, _spg = _pair_bounds_and_general(
+            pairs, _pair_index_arrays(pairs), xs_now, t)
+        # Ascending bound here too (bead inviscid-0dm), for the same reason and
+        # with the same exactness argument: this scan reports only a MINIMUM, so
+        # the order it visits pairs in cannot change the answer, only how many
+        # pairs it has to touch to reach it.
+        for _k in np.argsort(_sb, kind="stable"):
+            _k = int(_k)
+            i, fi, j, fj = pairs[_k]
             if _sg[_k] and _sb[_k] > worst:
                 continue  # general-branch only; bound > running worst >= final worst
+            if _sp[_k]:
+                continue  # surely parallel: excluded from this GENERAL-branch
+                          # minimum by the scalar test below in any case
             g, _ = contact_gradient_row(xs_now, i, fi, j, fj, t, 48 * topo.n)
             nA = plate_normal(fi)
             nB = _cross3(xs_now[j][fj][1] - xs_now[j][fj][0], xs_now[j][fj][2] - xs_now[j][fj][0])
@@ -3603,7 +3872,14 @@ def z17_lock_surface(topo):
 # THE GATE
 # ==========================================================================
 
-def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
+#: Two-sided bounds on the broad-phase rejection fraction (qvf.23 criterion 2).
+#: Measured 0.6872..0.9888 across the probe set. A prefilter that rejects
+#: NOTHING is pointless and one that rejects EVERYTHING is wrong, and both edges
+#: redden rather than only the second.
+BP_REJECT_BAND = (0.30, 0.999)
+
+
+def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock, zbp):
     """Every check's verdict in one table, and this process's exit code."""
     print()
     print("=" * 78)
@@ -3976,9 +4252,32 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
                    interior_complete,
                    str([(a["status"], b["status"]) for a, b in
                         zip(href["interior_a"], href["interior_b"])]), "all jammed/reached"))
-    checks.append(("HREF  interior SPREAD (0.3wico vs 0.6wico) stays flat AT EVERY h0 level",
-                   interior_complete and all(s < H_REFINE_STABLE_TOL for s in interior_spreads),
-                   str([f"{s:.2e}" for s in interior_spreads]), f"all < {H_REFINE_STABLE_TOL}"))
+    # RE-SCOPED (bead inviscid-l1d). This row asserted the interior spread
+    # between 0.3wico and 0.6wico "stays flat", and it passed at EXACTLY 0.00e+00
+    # -- because the wire span was pinned and the w axis did nothing at all. It
+    # was asserting the defect. The spread between two DIFFERENT w values is a
+    # w-sensitivity measurement, not an h0-stability one, and those were
+    # conflated. Split into the two questions that were tangled together.
+    spread_stable = ([abs(interior_spreads[i] - interior_spreads[i + 1])
+                      for i in range(len(interior_spreads) - 1)]
+                     if interior_complete else [])
+    checks.append(("HREF  interior spread between two w values is NONZERO -- the w axis "
+                   "is live, which it was not before inviscid-l1d -- CAN FAIL",
+                   interior_complete and all(s > W_LIVE_FLOOR for s in interior_spreads),
+                   str([f"{s:.3f}" for s in interior_spreads]), f"all > {W_LIVE_FLOOR}"))
+    # AND IT IS NOT CONVERGED, which is a finding and not a tolerance to widen.
+    # Measured 3.062 / 2.850 / 21.709 across h0 = 0.5 / 0.25 / 0.125: steady at
+    # the two coarse levels and 7x larger at the finest. So the w axis being
+    # LIVE is robust, and the MAGNITUDE of da*/dw is not quotable. The row
+    # asserts the divergence rather than hiding it, and fails if the spread ever
+    # settles -- at which point the magnitude becomes quotable and this row
+    # should be replaced by one that quotes it.
+    checks.append(("HREF  but the spread's MAGNITUDE is NOT h0-converged, so da*/dw's "
+                   "SIZE is not quotable -- only its non-zero-ness -- CAN FAIL",
+                   len(spread_stable) > 0
+                   and max(spread_stable) > H_REFINE_SPREAD_DIVERGENT_FLOOR,
+                   str([f"{d:.3f}" for d in spread_stable]),
+                   f"max > {H_REFINE_SPREAD_DIVERGENT_FLOOR}"))
     boundary_vals = [b["a_star"] for b in href["boundary"] if b["a_star"] is not None]
     boundary_complete = len(boundary_vals) == len(H_REFINE_LEVELS)
     boundary_diffs = [abs(boundary_vals[i] - boundary_vals[i + 1])
@@ -3986,9 +4285,24 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     checks.append(("HREF  boundary (w=0) a* computable at every H_REFINE_LEVELS h0",
                    boundary_complete, str([b["status"] for b in href["boundary"]]),
                    "all jammed/reached"))
-    checks.append(("HREF  boundary a* is NOT stable across h0 (critique's non-convergence, confirmed)",
-                   boundary_complete and all(d > H_REFINE_UNSTABLE_FLOOR for d in boundary_diffs),
-                   str([f"{d:.3f}" for d in boundary_diffs]), f"all > {H_REFINE_UNSTABLE_FLOOR}"))
+    # RE-SCOPED, AND IT RETIRES A RECORDED FINDING (bead inviscid-l1d). This row
+    # asserted the boundary a* is NOT stable across h0 -- SHIP-BLOCKER 1's
+    # reproduced non-convergence -- and it passed at 0.312 / 3.570. With the
+    # wire span fixed the same ladder gives 0.185 / 0.067: monotonically
+    # DECREASING, i.e. converging. The attribution is clean rather than
+    # confounded with the budget raise that accompanied it: with the wire fixed
+    # and the OLD budget the finest level exhausted and reported QPFAIL, so the
+    # budget only let the run finish; the trajectory that converges is the one
+    # the fixed wire produces. The recorded non-convergence was an artifact of
+    # the span pinning at sqrt(2) from step 1, not a property of the refinement.
+    checks.append(("HREF  boundary a* CONVERGES across h0 -- the recorded "
+                   "non-convergence was the pinned wire span, not the refinement "
+                   "-- CAN FAIL",
+                   boundary_complete and len(boundary_diffs) > 1
+                   and boundary_diffs[-1] < boundary_diffs[0]
+                   and boundary_diffs[-1] < H_REFINE_UNSTABLE_FLOOR,
+                   str([f"{d:.3f}" for d in boundary_diffs]),
+                   f"decreasing, last < {H_REFINE_UNSTABLE_FLOOR}"))
     qpfail_budget = [b for b in (href["interior_a"] + href["interior_b"] + href["boundary"])
                      if b["status"] == "qpfail"]
     budget_classified = all(b["budget_exhausted"] for b in qpfail_budget)
@@ -4093,9 +4407,20 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
         t_sep = float("nan")
     checks.append(("Q  arm-C signature: t-driven opening-range separation exceeds T_SEPARATION_TOL",
                    t_ok and t_sep > T_SEPARATION_TOL, f"{t_sep:.6f}", f"> {T_SEPARATION_TOL}"))
-    checks.append(("Q  arm-C signature: w-only separation (interior points) stays under W_SEPARATION_TOL",
-                   w_ok and w_sep_interior < W_SEPARATION_TOL,
-                   f"{w_sep_interior:.6f}", f"< {W_SEPARATION_TOL}"))
+    # RE-SCOPED (bead inviscid-l1d). This asserted that w-only separation stays
+    # UNDER a tolerance -- the arm-C signature -- and it passed at exactly
+    # 0.000000. Not because the array is arm-C-like, but because the wire span
+    # was pinned at sqrt(2) from the first crank step, so w could not move
+    # anything. It was asserting the defect, and it made the Q2 verdict below
+    # STRUCTURALLY GUARANTEED: a dead numerator puts the discrimination ratio at
+    # zero, always below the band, always ARM-C-LIKE. Q2 could not fail in the
+    # only direction that mattered. Now the separation is real and Q2 is a
+    # measurement.
+    checks.append(("Q  the w axis MOVES the lock angle -- separation is nonzero, where "
+                   "before inviscid-l1d it was exactly 0.000000 -- CAN FAIL",
+                   w_ok and w_sep_interior > W_LIVE_FLOOR,
+                   f"{w_sep_interior:.6f} = {w_sep_interior / K_TABLE_SPAN:.4f} of the "
+                   f"k-table span", f"> {W_LIVE_FLOOR}"))
 
     # ---- Q2: THE DISCRIMINATION-RATIO ROW (the deliverable's headline).
     # USES da_dw_interior (the h0-refinement-validated quantity), NEVER
@@ -4259,12 +4584,6 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
                            for r in ok_ph),
                    f"worst {max(max(r['hinge'], r['joint'], r['edge']) for r in ok_ph):.2e}"
                    if ok_ph else "n/a", f"<= {LINKAGE_EXACT_TOL:.0e}"))
-    checks.append(("PHASE  OFF-PATH: the array measurably LEAVES the symmetric jitterbug "
-                   "path (vertex radii stop agreeing) -- CAN FAIL",
-                   len(ok_ph) > 0
-                   and all(r["spread"] > PHASE_OFFPATH_FLOOR for r in ok_ph),
-                   f"min spread {min(r['spread'] for r in ok_ph):.3e}" if ok_ph else "n/a",
-                   f"> {PHASE_OFFPATH_FLOOR:.0e}"))
     # CORRECTED. These two rows previously asserted that a_hat differs from "the
     # configuration's phase" by more than a degree and that the gap is
     # STRUCTURAL. Both readings came from `configuration_phase(xs[0])` -- unit 0
@@ -4284,12 +4603,6 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
                    len(drifts) > 1 and drifts[-1] < drifts[0],
                    f"{drifts[0]:.4f} -> {drifts[-1]:.4f} over h0={list(PHASE_H0_LEVELS)}"
                    if len(drifts) > 1 else "n/a", "decreasing"))
-    checks.append(("PHASE  DEPHASING: under a UNIFORM in-phase drive the units do NOT share "
-                   "a phase -- the centre lags the corners -- CAN FAIL",
-                   len(ok_ph) > 0
-                   and all(r["dephase"] > PHASE_DEPHASE_FLOOR for r in ok_ph),
-                   f"min spread {min(r['dephase'] for r in ok_ph):.3f} deg" if ok_ph else "n/a",
-                   f"> {PHASE_DEPHASE_FLOOR} deg"))
 
     # ---- JOINT INTEGRITY (bead inviscid-1wd): is it still an array? ----
     jt = zlock["joints"]
@@ -4340,6 +4653,38 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
                        "DRIVE-SPECIFIC, reported not gated",
                        True, f"{drv['statuses'][0]} at both w", "printed"))
 
+    # ---- BROAD-PHASE (beads inviscid-0dm, inviscid-qvf.23) ----
+    bpr, bpm = zbp["probe"], zbp["mutation"]
+    checks.append(("BP  EXACTNESS: the prefiltered active set is IDENTICAL to the "
+                   "exhaustive scan's, at every probed configuration",
+                   len(bpr) > 0 and all(r["same_active"] for r in bpr),
+                   f"{sum(r['same_active'] for r in bpr)}/{len(bpr)} configurations",
+                   "all identical"))
+    checks.append(("BP  and the reported minimum general gap is identical too, not "
+                   "merely close",
+                   len(bpr) > 0 and all(r["mgg_diff"] == 0.0 for r in bpr),
+                   f"worst diff {max(r['mgg_diff'] for r in bpr):.3e}" if bpr else "n/a",
+                   "exactly 0"))
+    checks.append(("BP  MUTATION PROBE: a deliberately UNSOUND cull is caught by that "
+                   "exactness row -- without this the row is satisfied by a prefilter "
+                   "that rejects nothing -- CAN FAIL",
+                   bpm["total"] > 0 and bpm["caught"] == bpm["total"],
+                   f"caught {bpm['caught']}/{bpm['total']}", "all caught"))
+    _rej = [r["reject"] for r in bpr]
+    checks.append(("BP  NON-VACUITY, TWO-SIDED: it rejects a real fraction and not all "
+                   "of them -- both edges redden",
+                   len(_rej) > 0
+                   and all(BP_REJECT_BAND[0] < x < BP_REJECT_BAND[1] for x in _rej),
+                   f"{min(_rej):.4f} .. {max(_rej):.4f}" if _rej else "n/a",
+                   f"in {BP_REJECT_BAND}"))
+    _id = [r["reject"] for r in bpr if r["tag"] == "ideal"]
+    _st = [r["reject"] for r in bpr if r["tag"] == "stepped"]
+    checks.append(("BP  and it pays MOST in the mid-integration regime, which is where "
+                   "the stepper actually spends its time -- CAN FAIL",
+                   len(_id) > 0 and len(_st) > 0 and min(_st) > max(_id),
+                   f"ideal {max(_id):.4f} vs mid-integration {min(_st):.4f}"
+                   if _id and _st else "n/a", "mid > ideal"))
+
     print()
     print("=" * 78)
     print(f"GATE  {len(checks)} rows: every check's verdict, and this process's "
@@ -4351,6 +4696,15 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
 
     print()
     print("  ROWS THAT EXIST ONLY TO STOP ANOTHER ROW BEING UNFALSIFIABLE:")
+    print("   * BP's MUTATION PROBE. The exactness row is satisfied by a")
+    print("     prefilter that rejects NOTHING, and by a bug that happens to")
+    print("     reject only inactive pairs at the configurations sampled. The")
+    print("     probe inflates the bound until the cull is unsound and checks")
+    print("     that exactness notices -- 10 of 10. Without it the broad-phase")
+    print("     shipped ungated, which is exactly how it shipped in August.")
+    print("   * BP's TWO-SIDED rejection band. A prefilter that rejects")
+    print("     everything would pass a one-sided 'it rejects things' row while")
+    print("     being catastrophically wrong.")
     print("   * 'fold(a=0) is EXACTLY zero' -- without it, 'the fold table")
     print("     matches to 1e-5' is satisfiable by a constant function that")
     print("     happens to equal the five recorded angles' values.")
@@ -4402,7 +4756,36 @@ def gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock):
     print("     exact instant) could silently re-enter as false discriminating")
     print("     evidence the next time this file is extended.")
     print()
+    print("  A RECORDED FINDING RETIRED, 2026-08-25, bead inviscid-l1d: the")
+    print("  boundary a*'s NON-CONVERGENCE across h0 (SHIP-BLOCKER 1) was an")
+    print("  artifact of the wire span pinning at sqrt(2) from the first crank")
+    print("  step. With the span computed correctly the same ladder converges")
+    print("  monotonically, 0.185 then 0.067. The attribution is not confounded")
+    print("  with the budget raise that accompanied it: at the old budget the")
+    print("  fixed-wire run merely exhausted and reported QPFAIL, so the budget")
+    print("  let it finish and the wire is what made it converge.")
+    print()
+    print("  AND ONE FINDING THAT IS NOT RETIRED BUT NARROWED: the w axis is")
+    print("  LIVE -- interior separation 3.849637 deg, 0.2780 of the k-table")
+    print("  span, where before it was exactly 0.000000 -- but its MAGNITUDE is")
+    print("  not h0-converged (3.062 / 2.850 / 21.709). Quote that w moves the")
+    print("  lock angle. Do not quote by how much.")
+    print()
     print("  ROWS DELETED RATHER THAN FIXED:")
+    print("   * PHASE OFF-PATH and PHASE DEPHASING, deleted 2026-08-25 with the")
+    print("     inviscid-l1d wire fix, and DELETED rather than re-priced on")
+    print("     purpose. Both asserted a phenomenon exceeds a floor, and both")
+    print("     floors were priced while the wire span was pinned at sqrt(2)")
+    print("     from the first crank step -- a spurious force pushing the array")
+    print("     off its own path. With the wire fixed the array is markedly")
+    print("     MORE coherent: off-path spread 1.58e-03 against a floor of")
+    print("     5e-03, dephasing 0.119 deg against a floor of 1.0. So the")
+    print("     recorded 6.7 degree dephasing was inflated by TWO independent")
+    print("     defects -- the wrong packing (inviscid-ia5) and this wire -- and")
+    print("     re-pricing the floors would only put fresh numbers on a")
+    print("     superseded topology. The phenomenon may or may not be real; it")
+    print("     has not been measured on a correctly packed array, and no row")
+    print("     here claims it either way.")
     print("   * the three CROSS rows ('w=0 JAMS', 'w=w_ico REACHES',")
     print("     'therefore W IS CAUSAL') are deleted, not re-priced. They")
     print("     asserted an outcome DIFFERENCE that the DISASSEMBLED array")
@@ -4638,8 +5021,9 @@ def main():
     ztwo = z14_two_cell_sanity(topo)
     zqp = z16_qpfail_probe(topo)
     zlock = z17_lock_surface(topo)
+    zbp = {"probe": bp_exactness_probe(topo), "mutation": bp_mutation_probe(topo)}
 
-    return gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock)
+    return gate(z0, z2, z3, z4, z5, z6, z7, zg, zhaz, zdow, ztwo, zqp, zlock, zbp)
 
 
 if __name__ == "__main__":
