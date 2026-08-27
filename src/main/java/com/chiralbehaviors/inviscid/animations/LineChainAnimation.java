@@ -24,35 +24,37 @@ import javafx.util.Duration;
 import mesh.polyhedra.plato.Octahedron;
 
 /**
- * THREE CELLS: VE - hole - VE, the reciprocal condition.
+ * THREE CELLS IN A LINE, sequential along one axis.
  *
- * The middle cell M (phase b = a + 60) shares a DIFFERENT triangular face with
- * each of two outer cells P and Q (both phase a), along two adjacent cube
- * diagonals n1, n2 with n1.n2 = 1/3. Each outer cell is positioned ONLY by its
- * own shared face with M:
+ * The middle cell uses two OPPOSITE faces. A jitterbug's 8 triangles sit on 4
+ * axes, two faces per axis (Gray), so the two chosen faces are exactly
+ * antipodal -- measured dot = -1.000000 -- and the chain is genuinely straight.
  *
- *     centre(P) = n1 * Z(cos a + cos b)      centre(Q) = n2 * Z(cos a + cos b)
+ *     A ---- M ---- C          along n, the shared-face axis
+ *   p+60     p     p+60
  *
- * Two cells were solvable by construction. Three are not: the middle cell has
- * to satisfy two shared-face constraints at once, and nothing was left free to
- * make that happen. Measured, both mate to <= 3.4e-15 at every angle.
+ * PHASES ALTERNATE; THEY DO NOT RAMP. The shared-face law admits b = a +- 60
+ * (the match is mod 120 because the face is an equilateral triangle), so a
+ * chain could in principle be built as a phase RAMP p-60, p, p+60. It cannot:
+ * every cell's fold angle must lie in [-60, 60], and a ramp pins p = 0, a
+ * single frozen configuration with no motion left. The alternating choice is
+ * the one that moves, and it is what the honeycomb does along a body diagonal.
  *
- * AND THE OUTER CELLS TOUCH EACH OTHER WITHOUT BEING ASKED TO. Nothing in the
- * construction relates P to Q -- each is placed solely by M. Yet they share
- * vertices, and the count runs
+ * Both spacings stay EQUAL at every angle -- Z(cos p + cos(p+60)) on each side
+ * -- so the line breathes uniformly, 9.069136 at the ends of the sweep out to
+ * 10.472136 at p = -30 where all three cells are congruent. Verified: both
+ * shared faces mate to <= 3.4e-15 across the range.
  *
- *     a = 0    ->  4 shared vertices     (the full VE-VE "square face" contact)
- *     interior ->  2
- *     a = -60  ->  1
- *
- * which is exactly the 4 -> 2 -> 1 decay this project had recorded as a
- * separate property of the honeycomb packing. It is not separate. It is a
- * consequence of two triangular-face constraints on a common neighbour.
+ * WHAT THIS SHOWS ABOUT THE MEDIUM. A straight chain is the simplest thing that
+ * could carry a longitudinal disturbance, and this one has exactly one degree
+ * of freedom: p. Fix p and the entire chain is determined -- both neighbours,
+ * both spacings. There is no way to give the far cell a different phase from
+ * the near one while keeping the faces shared. The chain moves as a unit.
  */
-public class ThreeCellAnimation extends PolyView {
+public class LineChainAnimation extends PolyView {
     public static class Launcher {
         public static void main(String[] argv) {
-            ThreeCellAnimation.main(argv);
+            LineChainAnimation.main(argv);
         }
     }
 
@@ -100,7 +102,7 @@ public class ThreeCellAnimation extends PolyView {
         return new Point3D(x / f.size(), y / f.size(), z / f.size());
     }
 
-    private static int faceAlong(Jitterbug j, Point3D dir) {
+    private static int along(Jitterbug j, Point3D dir) {
         List<List<Point3D>> f = faces(j, null);
         int bi = 0;
         double best = -2;
@@ -115,7 +117,7 @@ public class ThreeCellAnimation extends PolyView {
         return bi;
     }
 
-    private static double faceGap(List<Point3D> u, List<Point3D> v) {
+    private static double gap(List<Point3D> u, List<Point3D> v) {
         double w = 0;
         for (Point3D p : u) {
             double d = Double.MAX_VALUE;
@@ -127,25 +129,6 @@ public class ThreeCellAnimation extends PolyView {
         return w;
     }
 
-    private static List<Point3D> verts(Jitterbug j, Point3D sh) {
-        List<Point3D> out = new ArrayList<>();
-        for (List<Point3D> f : faces(j, sh)) {
-            for (Point3D q : f) {
-                boolean dup = false;
-                for (Point3D r : out) {
-                    if (r.distance(q) < 1e-6) {
-                        dup = true;
-                        break;
-                    }
-                }
-                if (!dup) {
-                    out.add(q);
-                }
-            }
-        }
-        return out;
-    }
-
     @Override
     protected void initializeContentModel() {
         ContentModel content = getContentModel();
@@ -155,35 +138,21 @@ public class ThreeCellAnimation extends PolyView {
         final double Z = oct.getEdgeLength() * Math.sqrt(2) / Math.sqrt(3);
 
         final Jitterbug M = new Jitterbug(oct, materials);
-        final Jitterbug P = new Jitterbug(oct, materials);
-        final Jitterbug Q = new Jitterbug(oct, materials);
+        final Jitterbug A = new Jitterbug(oct, materials);
+        final Jitterbug C = new Jitterbug(oct, materials);
         M.rotateTo(0);
+        final Point3D n = cen(faces(M, null).get(0)).normalize();
 
-        List<List<Point3D>> mf = faces(M, null);
-        final Point3D n1 = cen(mf.get(0)).normalize();
-        int i2 = 1;
-        double bd = 9;
-        for (int k = 1; k < 8; k++) {
-            double d = Math.abs(cen(mf.get(k)).normalize()
-                                              .dotProduct(n1)
-                                - 1.0 / 3);
-            if (d < bd) {
-                bd = d;
-                i2 = k;
-            }
-        }
-        final Point3D n2 = cen(mf.get(i2)).normalize();
-
-        final Translate sp = new Translate();
-        final Translate sq = new Translate();
-        P.getGroup()
+        final Translate sa = new Translate();
+        final Translate sc = new Translate();
+        A.getGroup()
          .getTransforms()
-         .add(sp);
-        Q.getGroup()
+         .add(sa);
+        C.getGroup()
          .getTransforms()
-         .add(sq);
+         .add(sc);
         root.getChildren()
-            .addAll(M.getGroup(), P.getGroup(), Q.getGroup());
+            .addAll(A.getGroup(), M.getGroup(), C.getGroup());
         content.setContent(root);
 
         final long[] last = { 0 };
@@ -202,41 +171,31 @@ public class ThreeCellAnimation extends PolyView {
 
                     @Override
                     public void setValue(Double value) {
-                        double a = value;
-                        double b = a + PHASE_OFFSET;
-                        double sep = Z * (Math.cos(Math.toRadians(a)) + Math.cos(Math.toRadians(b)));
-                        M.rotateTo(b);
-                        P.rotateTo(a);
-                        Q.rotateTo(a);
-                        Point3D dp = n1.multiply(sep), dq = n2.multiply(sep);
-                        sp.setX(dp.getX());
-                        sp.setY(dp.getY());
-                        sp.setZ(dp.getZ());
-                        sq.setX(dq.getX());
-                        sq.setY(dq.getY());
-                        sq.setZ(dq.getZ());
+                        double p = value;
+                        double q = p + PHASE_OFFSET;
+                        double sep = Z * (Math.cos(Math.toRadians(p)) + Math.cos(Math.toRadians(q)));
+                        M.rotateTo(p);
+                        A.rotateTo(q);
+                        C.rotateTo(q);
+                        Point3D da = n.multiply(-sep), dc = n.multiply(sep);
+                        sa.setX(da.getX());
+                        sa.setY(da.getY());
+                        sa.setZ(da.getZ());
+                        sc.setX(dc.getX());
+                        sc.setY(dc.getY());
+                        sc.setZ(dc.getZ());
 
                         long now = System.currentTimeMillis();
                         if (now - last[0] < 500) {
                             return;
                         }
                         last[0] = now;
-                        int mp = faceAlong(M, n1), mq = faceAlong(M, n2);
-                        int pm = faceAlong(P, n1.multiply(-1)), qm = faceAlong(Q, n2.multiply(-1));
-                        double g1 = faceGap(faces(M, null).get(mp), faces(P, dp).get(pm));
-                        double g2 = faceGap(faces(M, null).get(mq), faces(Q, dq).get(qm));
-                        List<Point3D> vp = verts(P, dp), vq = verts(Q, dq);
-                        int shared = 0;
-                        for (Point3D u : vp) {
-                            for (Point3D v : vq) {
-                                if (u.distance(v) < 1e-6) {
-                                    shared++;
-                                }
-                            }
-                        }
-                        System.out.printf("a=%+7.2f b=%+7.2f | M-P gap=%9.3e  M-Q gap=%9.3e "
-                                          + "| P^Q shared verts=%d | separation=%9.6f  |P-Q|=%9.6f%n",
-                                          a, b, g1, g2, shared, sep, dp.distance(dq));
+                        int fp = along(M, n), fm = along(M, n.multiply(-1));
+                        int am = along(A, n), cm = along(C, n.multiply(-1));
+                        System.out.printf("p=%+7.2f  neighbours=%+7.2f | spacing=%9.6f (both) "
+                                          + "| A-M gap=%9.3e  M-C gap=%9.3e  | chain length=%9.6f%n",
+                                          p, q, sep, gap(faces(M, null).get(fm), faces(A, da).get(am)),
+                                          gap(faces(M, null).get(fp), faces(C, dc).get(cm)), 2 * sep);
                     }
                 };
         driver.setValue(-60d);

@@ -79,9 +79,14 @@ public class SharedFaceAnimation extends PolyView {
              .addAll(a.getGroup(), b.getGroup());
         content.setContent(group);
 
-        final Timeline timeline = new Timeline();
-        timeline.getKeyFrames()
-                .add(new KeyFrame(Duration.millis(10_000), new KeyValue(new WritableValue<Double>() {
+        // INITIAL STATE. Jitterbug's constructor bakes every face rotated and
+        // translated to the ORIGIN, so with zero transforms all 8 triangles of a
+        // cell sit piled at its centre and every cell sits at zero separation.
+        // rotateTo and the placement translations are what put them where they
+        // belong, and until this runs the scene is meaningless -- cells heaped
+        // on top of each other. The driver is therefore captured and invoked
+        // ONCE here, so the view is correct before the timeline is ever started.
+        final WritableValue<Double> driver = new WritableValue<Double>() {
                     @Override
                     public Double getValue() {
                         return -60d;
@@ -99,7 +104,12 @@ public class SharedFaceAnimation extends PolyView {
                         bShift.setY(d.getY());
                         bShift.setZ(d.getZ());
                     }
-                }, 0d)));
+                };
+        driver.setValue(-60d);
+
+        final Timeline timeline = new Timeline();
+        timeline.getKeyFrames()
+                .add(new KeyFrame(Duration.millis(10_000), new KeyValue(driver, 0d)));
         timeline.setCycleCount(9000);
         timeline.setAutoReverse(true);
         content.setTimeline(timeline);
