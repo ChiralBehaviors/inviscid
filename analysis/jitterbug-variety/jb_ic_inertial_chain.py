@@ -71,12 +71,36 @@ def cell_verts(g, o):
     return V
 
 
+#: The two mating faces are fixed: cell k presents FP (+n), cell k+1 presents
+#: FM (-n). Only the CORNER PERMUTATION between them varies with the direction
+#: of the 60 degree offset.
+_FM_CORNERS = [SLOT[(FM, c)] for c in range(3)]
+
+
 def weld_for(ga, gb):
-    """Corner correspondence across a shared face. DIRECTION-DEPENDENT."""
+    """Corner correspondence across a shared face. DIRECTION-DEPENDENT.
+
+    The search is restricted to the MATING FACE's three corners. Searching all
+    twelve of the neighbour's vertices -- which is what this did first -- lets a
+    nearer non-corner win: at the (0, 60) pair, where the second cell is the
+    open VE and the first is closed, it returned {4, 5, 8}, which are not the
+    corners of any face. The weld then joined three vertices that do not form a
+    triangle, and nothing caught it, because the doubly-written shared vertices
+    still AGREED IN POSITION to 3e-15. A redundancy check on positions does not
+    validate identity. Geometry was the wrong tool for a bookkeeping problem --
+    the same sentence jb_aa's node mapping already carries."""
     sep = ZC * (np.cos(np.radians(ga)) + np.cos(np.radians(gb)))
     A, B = cell_verts(ga, np.zeros(3)), cell_verts(gb, sep * NH)
-    return [(SLOT[(FP, c)], int(np.argmin(np.linalg.norm(B - A[SLOT[(FP, c)]], axis=1))))
-            for c in range(3)]
+    out = []
+    for c in range(3):
+        a = SLOT[(FP, c)]
+        d = [np.linalg.norm(B[k] - A[a]) for k in _FM_CORNERS]
+        out.append((a, _FM_CORNERS[int(np.argmin(d))]))
+    tgt = {b for _, b in out}
+    if tgt != set(_FM_CORNERS):
+        raise AssertionError(f"weld for ({ga},{gb}) hit {sorted(tgt)}, "
+                             f"not the mating face {sorted(_FM_CORNERS)}")
+    return out
 
 
 def build(gammas):
@@ -250,6 +274,30 @@ def gate():
                  f"write disagreement {built[k][5]:.1e}" for k in cfgs),
        f"all struts {EL:.6f}, disagreement < 1e-9"))
 
+    # R2b -- the weld is FACE TO FACE, in every direction
+    pairs = [(30., -30.), (-30., 30.), (60., 0.), (0., 60.), (45., -15.), (-15., 45.)]
+    welds = {}
+    okw = True
+    for ga, gb in pairs:
+        try:
+            w = weld_for(ga, gb)
+            welds[(ga, gb)] = sorted(b for _, b in w)
+        except AssertionError:
+            okw = False
+            welds[(ga, gb)] = "NOT A FACE"
+    A(("R2b THE WELD JOINS FACE TO FACE, in both offset directions. The corner "
+       "PERMUTATION flips with the direction; the mating FACE does not. "
+       "Searching all twelve of the neighbour's vertices for the nearest match "
+       "-- rather than the mating face's three -- let a non-corner win at the "
+       "(0, 60) pair and welded three vertices that form no triangle. Nothing "
+       "caught it: the doubly-written shared vertices still agreed in POSITION "
+       "to 3e-15, and a redundancy check on positions does not validate "
+       "IDENTITY",
+       okw and all(v == sorted(_FM_CORNERS) for v in welds.values()),
+       f"mating face corners {sorted(_FM_CORNERS)}; targets "
+       + ", ".join(f"{k}->{v}" for k, v in welds.items()),
+       "every direction lands on the mating face"))
+
     # R3 -- all 24 struts and 8 triangles per cell are CARRIED, not deduplicated
     P, bars, tris, tcell, gid, worst = built["octa-VE-octa"]
     dup_b = len(bars) - len({(min(i, j), max(i, j)) for i, j in bars})
@@ -278,13 +326,16 @@ def gate():
     # R5 -- closing a cell to an octahedron costs the chain freedom
     d_oct = 3 * len(built["octa-VE-octa"][0]) - rigidity(*built["octa-VE-octa"][:2]) - 6
     d_gen = 3 * len(built["generic"][0]) - rigidity(*built["generic"][:2]) - 6
-    A(("R5  AND THE OCTAHEDRAL CONFIGURATION IS GENUINELY DIFFERENT, not merely "
-       "a special case of the generic one: closing the two end cells costs the "
-       "chain three freedoms. This is why the configuration has to be built "
-       "with the topology taken from a generic angle -- read off at gamma = 60 "
-       "it would see 6 vertices per cell instead of 12",
-       d_oct == 15 and d_gen == 18,
-       f"octa-VE-octa {d_oct} internal DOF vs generic {d_gen}", "15 against 18"))
+    A(("R5  CLOSING THE END CELLS COSTS NO FREEDOM. octa-VE-octa and the "
+       "generic chain both carry 18 internal DOF -- 6 per cell either way. The "
+       "congruence at the octahedron changes WHICH quanta coincide, not how "
+       "many freedoms there are. An earlier version of this file reported 15 "
+       "against 18 and read it as the octahedral configuration being "
+       "structurally different; that was the weld of R2b searching all twelve "
+       "of the neighbour's vertices and joining three that form no triangle. "
+       "The number was an artifact of a bug, not a property of the medium",
+       d_oct == d_gen == 18,
+       f"octa-VE-octa {d_oct} internal DOF, generic {d_gen}", "both 18"))
 
     # R6 -- THE MEASUREMENT: impulse one triangle, integrate, energy audited
     P, bars, tris, tcell, gid, worst = built["octa-VE-octa"]
@@ -302,18 +353,31 @@ def gate():
     # R7 -- the onset is INSTANTANEOUS; only the transfer takes time
     ke0 = hist[0][1] / hist[0][1].sum()
     kel = hist[-1][1] / hist[-1][1].sum()
-    A(("R7  THE ONSET IS INSTANTANEOUS AND THE TRANSFER IS NOT. Every cell has "
-       "kinetic energy at t = 0, because a rigid constraint has infinite signal "
-       "speed and the projection that makes the impulse admissible reaches the "
-       "whole chain at once. What takes time is the AMPLITUDE: the far cell's "
-       "share grows by an order of magnitude. So this medium has no wavefront "
-       "-- any apparent front is mode superposition, and a finite signal speed "
-       "would need compliant constraints, which is the fork this programme "
-       "already rejected",
-       ke0[0] > 0 and kel[0] > 5 * ke0[0],
+    A(("R7  THE ONSET IS INSTANTANEOUS. Every cell has kinetic energy at "
+       "t = 0: a rigid constraint has infinite signal speed, so the projection "
+       "that makes the impulse admissible reaches the whole chain at once and "
+       "there is no onset lag to measure anywhere. This medium therefore has "
+       "NO WAVEFRONT; any apparent front is mode superposition, and a finite "
+       "signal speed would need compliant constraints -- the fork this "
+       "programme has already rejected. TWO-SIDED: a lag would show as a zero "
+       "here, and it never does",
+       ke0[0] > 1e-6 and kel[0] > ke0[0],
        f"far cell's share of the kinetic energy: {ke0[0]:.2e} at t=0 -> "
-       f"{kel[0]:.2e} at t={hist[-1][0]:.1f}, a factor {kel[0] / ke0[0]:.1f}",
-       "nonzero at t=0, and growing"))
+       f"{kel[0]:.2e} at t={hist[-1][0]:.1f}, a factor {kel[0] / ke0[0]:.2f}",
+       "nonzero at t=0 (no lag), and rising"))
+
+    A(("R7b PRINTED NOT GATED: the SIZE of the transfer, which is small over "
+       "this window and is NOT quoted as a rate. An earlier version of this "
+       "file reported a factor of 11.8 here; that came from the R2b weld bug "
+       "and is withdrawn. Three cells with free ends is also the wrong object "
+       "to read transport from -- every one of its 30 vertices lies on an "
+       "outward-facing face, so it has no interior at all, and embedding it in "
+       "the array by pinning what the array holds leaves ZERO degrees of "
+       "freedom. A transport number needs a patch with cells to spare",
+       True,
+       f"far cell {ke0[0]:.2e} -> {kel[0]:.2e} over t={hist[-1][0]:.1f} "
+       f"(factor {kel[0] / ke0[0]:.2f})", "printed"))
+
     return checks, hist
 
 
