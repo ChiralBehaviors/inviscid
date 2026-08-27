@@ -1,5 +1,44 @@
 # Jitterbug configuration-variety derivation record
 
+> ## VOID IN PART — OWNER DECISION, 2026-08-27
+>
+> **The strut-compliance fork is REJECTED.** The model of record is a
+> **rigid-strut linkage**. A run of work from roughly 2026-08-24 onward models
+> the honeycomb as an *elastic network* — bars carrying springs of unit
+> stiffness — and every wave result in it (dispersion, sound speeds, phase-wave
+> speeds, band gaps, band touching, the anharmonic cubic vertex) is a property
+> of that network rather than of the medium.
+>
+> **The framing error underneath it**, owner's words, 2026-08-27: *"the problem
+> is that you're focussing on the rods as the wave medium. The jitterbug
+> transformation **is** the wave medium. Not vibration modes in the struts."*
+> The medium's state is each cell's jitterbug **phase**; a wave is a propagating
+> disturbance in that phase field. Strut vibration is not the phenomenon.
+>
+> The fork was never declared and never authorised. T2 `inviscid` 23533 §2,
+> written 2026-08-26, admits it in its own words: *"Every gapless result in this
+> epic is downstream of the first choice, which had never been declared."*
+>
+> **Void files** (bannered at the top of each): `jb_aa_inertial_array.py`,
+> `jb_fl_flexible_lattice.py`, `jb_bt_band_touching.py`.
+> **Void in part**: `jb_cal_calibration.py` and `jb_hc_honeycomb.py` — their
+> rigidity and kinematics stand (zero-mode counts do not depend on stiffness);
+> anything read as a *frequency* does not.
+>
+> **What stands:** all the geometry and kinematics — the vertex ellipses, the
+> exchange (`b = a + 60`, the role swap), the Bloch zero-mode counts and the six
+> `<110>` floppy lines, the freeze closed form, the arm-A/arm-C crossover.
+>
+> **The live problem** is the one this README already states below: *"there is no
+> potential energy anywhere in the model, so its six DOF are six zero-frequency
+> modes and no dispersion relation can exist yet."* Finding **V** for the rigid
+> linkage. Resume at the `jb_h`…`jb_q` V survey and bead `inviscid-qvf.21`
+> (declared mass model, **V=0**, contact — not springs).
+>
+> Full record: T2 `inviscid` [23562] *"OWNER DECISION 2026-08-27 — the
+> strut-compliance fork is REJECTED"*.
+
+
 Bead `inviscid-qvf.1`, 2026-08-11.
 
 **This is a derivation record, not part of the build.** Maven never sees it. It exists because
