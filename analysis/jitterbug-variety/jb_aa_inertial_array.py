@@ -36,25 +36,55 @@ The house style exists for exactly this and it was not applied, because the
 experiment was being treated as scaffolding rather than as the deliverable. It
 is the deliverable.
 
-WHAT IT ESTABLISHES, AND IT IS NOT WHAT IT WAS BUILT TO ESTABLISH. The file was
-written to check that a phase disturbance travels at the speed the dispersion
-predicts. With a correct initial condition -- 584 of 584 nodes, matched by
-construction -- it does not, and the reason is a property of the medium rather
-than a defect in the experiment.
+WHAT IT ESTABLISHES. One thing, and it is spectral rather than dynamical.
 
 THE PHASE DEGREE OF FREEDOM IS NOT A NORMAL MODE. Its spectral weight is
 dominant on one band but not concentrated there: 0.588 and 0.644 at the two
 wavevectors probed, consistent with jb_fl's independent measurement that the
-maximum weight on any single band is about 0.5. So THERE IS NO PURE PHASE WAVE
-TO LAUNCH. A phase disturbance is a superposition by construction, and in the
-time domain it DISPERSES -- at k = 0.20 G its centroid advances at 0.31 against
-the branch's own 0.54, and at k = 0.35 G it does not advance at all.
+maximum weight on any single band is about 0.5. So there is no pure phase wave
+to launch; a phase disturbance is a superposition by construction. This is
+computed entirely in the PERIODIC UNIT CELL, never touches the patch, and
+stands.
 
-The linearised medium and the running medium do NOT disagree. jb_fl's F10 found
-the phase spectral PEAK is a continuous branch with group velocity 0.534, and
-that stays true. It simply does not follow that a phase DISTURBANCE travels at
-that speed, because the peak carries about 60% of the weight and the rest goes
-elsewhere. Those are two different questions and only the first had been asked.
+WHAT IT NO LONGER CLAIMS, AND WHY -- retracted 2026-08-26. This file previously
+concluded that a phase disturbance DISPERSES in the time domain, at 0.31
+against the branch's own 0.54 at k = 0.20 G and not advancing at all at
+k = 0.35 G. Both numbers were real and neither meant what was claimed. Two
+independent defects, either of which is sufficient on its own:
+
+    THE INITIAL CONDITION WAS NOT THE EIGENMODE. The loop discarded the slot's
+    Bravais translation nn. A corner of this honeycomb is shared between 2 and
+    8 cells, so each node was written a mean of 3.66 times with a DIFFERENT
+    unit cell's amplitude each time -- disagreeing by up to 0.252 against a
+    mode amplitude of 0.408 -- and the last write won by the order of
+    med.cells. E2 passed throughout, because E2 counts how many nodes the loop
+    REACHED and a node written eight times is reached eight times. Coverage was
+    gated; single-valuedness was assumed and enforced nowhere. Now gated as
+    E2c, which is free: the same redundancy that corrupted the field proves it
+    correct once the writes agree, and they now agree to 8e-16. Fixing this
+    also dropped the energy drift by a factor of ten, from 2e-05 to 3e-06,
+    which is what a genuine eigenmode should do.
+
+    THE LAUNCH IS A STANDING WAVE. A velocity-only kick of Re(ev e^{ikR})
+    excites +k and -k equally, and the centroid of two counter-propagating
+    packets sits still no matter what the medium transports. Measured
+    directionality 0.03 and 0.12 on a scale where 1 is one-way, using a
+    statistic calibrated against synthetic packets rather than argued from a
+    sign convention. E6 now states this, and CAN FAIL: make the launch one-way
+    and it goes red.
+
+AND THE PATCH CANNOT MEASURE A GROUP VELOCITY REGARDLESS. At k = 0.20 G one
+wavelength is 23.1 against a 39.3 span and a 4.7 envelope. A packet narrower
+than its own wavelength has no meaningful centre velocity, so no repair to the
+initial condition would have rescued the measurement. Transport needs a patch
+several wavelengths long, or a method that does not use a packet at all.
+
+The linearised medium and the running medium are therefore NOT in conflict, and
+never were shown to be. jb_fl's F10 found the phase spectral peak is a
+continuous branch with group velocity 0.534, and that stands. What a phase
+DISTURBANCE does in time is a separate question, and this file does not answer
+it -- which is a smaller claim than the one it used to make, and the only one
+its measurements support.
 """
 
 from __future__ import annotations
@@ -188,13 +218,6 @@ def launch(med, kfrac, direction=(1.0, 0.0, 0.0)):
     m = int(np.argmax(np.abs(V.conj().T @ up) ** 2))
     ev = V[:, m]
 
-    # node -> (unit-cell representative, lattice translation). By NEAREST
-    # representative rather than by an exact rounded key: a node sitting on a
-    # cell boundary reduces to either side depending on the last bit, and an
-    # exact-key lookup simply drops it. The first version of this function used
-    # a key and silently missed 48 of 584 nodes; the one before it, in the
-    # scratch prototypes, missed 414. The distance to the chosen representative
-    # is returned so E2 can assert the match is real and not merely nearest.
     # Map patch node -> unit-cell node BY CONSTRUCTION rather than by reducing
     # coordinates. Both the patch and the unit cell place a corner as
     # (cell parity, face, corner), so that triple IS the identity of the node
@@ -203,37 +226,57 @@ def launch(med, kfrac, direction=(1.0, 0.0, 0.0)):
     # and then 48 and then 80 nodes respectively, because a node on a cell
     # boundary reduces to either side on the last bit. Geometry was the wrong
     # tool for a bookkeeping problem.
-    slot_of = {}
-    for (ci, _ph, _off, f, c, i, _nn) in slots:
-        slot_of.setdefault((ci, f, c), i)
+    # AND THE SLOT'S OWN BRAVAIS TRANSLATION nn, which the first version of
+    # this loop unpacked as _nn and threw away. That is not a detail. A corner
+    # of this honeycomb is SHARED between 2 and 8 cells, so the loop reaches
+    # each physical node several times -- mean 3.66, max 8 -- and every visit
+    # wrote the amplitude of a DIFFERENT unit cell to the same node. The writes
+    # disagreed by up to 0.252 against a mode amplitude of 0.408, i.e. 62%, and
+    # the last one won by iteration order. The launched field was therefore
+    # never the eigenmode; it was a scramble selected by the order of
+    # med.cells. With nn included, every visit computes the same unit cell
+    # R_cell + nn and the writes agree to 4e-16.
+    #
+    # The redundancy that was corrupting the initial condition IS the check
+    # that it is now right, so it is measured here and gated as E2c. Nothing
+    # gated it before: E2 counts how many nodes the loop REACHED, and a node
+    # written eight times with eight different values is reached eight times.
+    # Coverage was enforced; single-valuedness was assumed and enforced
+    # nowhere.
     covered = 0
     worst = 0.0
     x0 = med.cx.max() * 0.18
     wd = med.cx.max() * 0.12
     vel = np.zeros((med.n, 3))
     Lc = med.L
+    seen = {}
     for cell in med.cells:
         ci = 0 if cell["even"] else 1
         base = cell["origin"] - (0.0 if ci == 0 else Lc) * np.ones(3)
         ph_ref = A_REF if ci == 0 else A_REF + PHASE_OFFSET
         X = Z.corners(ph_ref) + cell["origin"]
-        for f in range(8):
-            for c in range(3):
-                j = slot_of.get((ci, f, c))
-                if j is None:
-                    continue
-                p = X[f][c]
-                node = med.index_of(p)
-                if node is None:
-                    continue
-                R = base
-                phase = np.exp(1j * float(kv @ R))
-                env = np.exp(-((p[0] - x0) / wd) ** 2)
-                vel[node] = KICK * env * np.real(ev[3 * j:3 * j + 3] * phase)
-    covered = int(np.sum(np.any(vel != 0.0, axis=1)))
-    # a node legitimately gets zero velocity where the envelope has decayed, so
-    # count REACHED rather than nonzero: every node the loop assigned
-    reached = int(np.sum(np.any(np.isfinite(vel), axis=1)))
+        for (sci, _ph, _off, f, c, j, nn) in slots:
+            if sci != ci:
+                continue
+            p = X[f][c]
+            node = med.index_of(p)
+            if node is None:
+                continue
+            R = base + Au * np.asarray(nn, dtype=float)
+            z = ev[3 * j:3 * j + 3] * np.exp(1j * float(kv @ R))
+            if node in seen:
+                worst = max(worst, float(np.abs(z - seen[node]).max()))
+            seen[node] = z
+            env = np.exp(-((p[0] - x0) / wd) ** 2)
+            vel[node] = KICK * env * np.real(z)
+    covered = len(seen)
+    # A node legitimately gets zero velocity where the envelope has decayed, so
+    # counting nonzero rows understates the coverage. The fix for that was
+    # `np.any(np.isfinite(vel))` -- which is True for every row of an array
+    # initialised to zeros, so it returned med.n unconditionally and E2 could
+    # not fail. Count the nodes the loop actually ASSIGNED, which is what
+    # `seen` holds.
+    reached = len(seen)
     purity = float(np.abs(np.vdot(ev, up)) ** 2)
     return vel, reached, float(w[m]), G, kv, purity, worst
 
@@ -276,6 +319,37 @@ def run(med, vel0, steps, sample=25):
     return np.array(T), np.array(U), np.array(E)
 
 
+def directionality(T, U, cx, nx=128):
+    """Signed one-way-ness of the phase field in [-1, 1]. +1 right, 0 standing.
+
+    Needed because a velocity-only kick of Re(ev e^{ikR}) excites +k and -k
+    EQUALLY -- it is a standing wave, and a standing wave's centroid does not
+    advance no matter what the medium transports. Nothing in this file
+    measured that, so E6 read a launch artefact as a property of the medium.
+
+    NOT the spatial spectrum of a single frame: for a REAL field |FFT|^2 is
+    symmetric in k by construction, so a +k/-k comparison there is identically
+    zero. It returned exactly 0.000 on four different runs, which is how that
+    was caught. The (k, omega) spectrum obeys P(k,w) = P(-k,-w) instead, so
+    right-going content sits at (k>0, w>0) and left-going at (k<0, w>0), and
+    THOSE two quadrants do differ for a real field.
+
+    SIGN CALIBRATED, not argued. np.fft uses e^{-i...}, so a physical e^{+ikx}
+    lands at a negative FFT index. Rather than reason about that, the statistic
+    was run on synthetic packets with known answers: right-going gave -0.950,
+    left-going +0.945, standing -0.062. Hence the flip below."""
+    order = np.argsort(cx)
+    xs = np.linspace(cx.min(), cx.max(), nx)
+    G = np.array([np.interp(xs, cx[order], fr[order]) for fr in U])
+    G = G - G.mean()
+    P = np.abs(np.fft.fft2(G)) ** 2
+    nt, nxx = P.shape
+    ht, hx = nt // 2, nxx // 2
+    rgt = P[1:ht, 1:hx].sum()
+    lft = P[1:ht, hx + 1:].sum()
+    return float((lft - rgt) / (rgt + lft + 1e-30))
+
+
 def experiment(med, kfrac):
     vel0, covered, omega, G, kv, purity, mapdist = launch(med, kfrac)
     span = med.cx.max()
@@ -302,7 +376,8 @@ def experiment(med, kfrac):
     speed = float(np.polyfit(tg[m], cen[m], 1)[0]) if m.sum() > 4 else float("nan")
     vg = group_velocity(kfrac)
     return dict(k=kfrac, covered=covered, n=med.n, omega=omega, purity=purity,
-                mapdist=mapdist,
+                mapdist=mapdist, oneway=directionality(T, U, med.cx),
+                G=G, span=span, wd=span * 0.12,
                 drift=abs(E[-1] - E[0]) / E[0], steps=steps,
                 t_window=T[-1], t_reflect=t_reflect,
                 speed=speed, vg=vg,
@@ -324,10 +399,15 @@ def gate(med, runs):
        "silently reached 29% of them and its answer meant nothing",
        all(r["covered"] == r["n"] for r in runs),
        f"{min(r['covered'] for r in runs)}/{med.n} nodes", "all of them"))
-    R(("E2  and each node matched a REAL unit-cell representative, not merely "
-       "the nearest one",
-       all(r["mapdist"] < 1e-7 for r in runs),
-       f"worst match distance {max(r['mapdist'] for r in runs):.2e}", "< 1e-7"))
+    R(("E2c EVERY SHARED NODE GETS THE SAME VALUE from all 2-8 cells that "
+       "reach it. A corner is shared, so the loop writes each node a mean of "
+       "3.66 times; before nn was included those writes disagreed by 0.252 "
+       "against a mode amplitude of 0.408 and the last won by iteration "
+       "order. The redundancy that was corrupting the IC is the check that "
+       "it is right",
+       all(r["mapdist"] < 1e-9 for r in runs),
+       f"worst disagreement between writes "
+       f"{max(r['mapdist'] for r in runs):.2e}", "< 1e-9"))
     R(("E3  THE PHASE DEGREE OF FREEDOM IS NOT A NORMAL MODE: dominant on one "
        "band, not concentrated there, so there is no pure phase wave to launch "
        "-- TWO-SIDED, and both edges would be findings",
@@ -342,20 +422,24 @@ def gate(med, runs):
        all(r["drift"] < ENERGY_TOL for r in runs),
        f"worst relative drift {max(r['drift'] for r in runs):.2e}",
        f"< {ENERGY_TOL:.0e}"))
-    R(("E6  AND THE TIME-DOMAIN CONSEQUENCE: a launched phase disturbance "
-       "DISPERSES instead of travelling as a packet -- at the shorter "
-       "wavelength its centroid does not advance at all -- CAN FAIL",
-       any(abs(r["speed"]) < 0.1 for r in runs)
-       and any(r["speed"] > 0.2 for r in runs),
-       f"centroid speeds {[round(r['speed'], 4) for r in runs]}",
-       "one advances, one does not"))
-    R(("E7  and what does advance is SLOWER than the phase branch's own group "
-       "velocity, since the rest of the weight sits on other bands. The "
-       "linearised and running media do not disagree -- they answer different "
-       "questions",
-       all(abs(r["speed"]) < abs(r["vg"]) for r in runs),
-       f"|measured| {[round(abs(r['speed']), 4) for r in runs]} vs branch "
-       f"{runs[0]['vg']:.4f}", "all below the branch"))
+    R(("E6  THIS LAUNCH IS A STANDING WAVE, so its centroid speed is NOT a "
+       "transport measurement. A velocity-only kick of Re(ev e^{ikR}) "
+       "excites +k and -k equally; the centroid of two counter-propagating "
+       "packets sits still whatever the medium does. CAN FAIL -- if the "
+       "launch were one-way this row goes red and E7 becomes readable",
+       all(abs(r["oneway"]) < 0.25 for r in runs),
+       f"directionality {[round(r['oneway'], 3) for r in runs]} "
+       f"(+1 right, 0 standing)", "|dir| < 0.25, i.e. standing"))
+    R(("E7  AND THE PATCH CANNOT MEASURE A GROUP VELOCITY ANYWAY: the packet "
+       "is narrower than its own wavelength, so it has no meaningful centre "
+       "velocity. At k = 0.20 G one wavelength is 23.1 against a 39.3 span "
+       "and a 4.7 envelope. PRINTED NOT GATED -- the centroid speeds below "
+       "are recorded, and they are not transport speeds",
+       True,
+       f"lambda {[round(2 * np.pi / (r['k'] * r['G']), 1) for r in runs]} vs "
+       f"envelope {runs[0]['wd']:.1f} and span {runs[0]['span']:.1f}; "
+       f"centroid {[round(r['speed'], 4) for r in runs]} vs branch "
+       f"{runs[0]['vg']:.4f}", "recorded, not gated"))
     R(("E8  PRINTED NOT GATED: every speed here is a pure number. omega = "
        "sqrt(K/M)*sigma and this file sets K = M = 1, exactly as jb_fl's C "
        "rows declare", True,
