@@ -1,5 +1,19 @@
 """jb_hc -- the VE/octa rectified cubic honeycomb, and the two waves it carries.
 
+*** VOID IN PART -- OWNER DECISION 2026-08-27. ***
+The strut-compliance fork is REJECTED (T2 inviscid [23562]); the model of record
+is a RIGID-STRUT LINKAGE, not an elastic network.
+
+WHAT STANDS HERE: everything that is rigidity or kinematics. The unit cell, the
+bar list with its lattice offsets, the Bloch phase convention, the reciprocal
+lattice, and every ZERO-MODE COUNT. Nullity of a rigidity matrix does not depend
+on stiffness, so the mechanism counts and the six <110> floppy lines are
+statements about the rigid linkage and are exactly the right model.
+
+WHAT IS VOID: anything read as a FREQUENCY -- elastic bands, sound speeds, phase
+speeds, gaps, dispersion. Those exist only once the bars are springs.
+
+
 THE PACKING THIS EPIC IS ACTUALLY ABOUT. `jb_x_array_linkage.build_topologies`
 places neighbours at 2*v[g], |offset| = 2*sqrt(2), where two cuboctahedra touch
 at ONE VERTEX. That is not how these cells pack. The real structure is the

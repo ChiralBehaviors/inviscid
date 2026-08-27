@@ -1,5 +1,29 @@
 """jb_aa -- the medium, running. A time-domain honeycomb, and what it transports.
 
+*** VOID -- OWNER DECISION 2026-08-27. ***
+The strut-compliance fork is REJECTED. This file models the jitterbug honeycomb
+as an ELASTIC NETWORK -- bars carrying springs of unit stiffness -- and the
+model of record is a RIGID-STRUT LINKAGE. Rigid struts are what make a jitterbug
+a jitterbug; putting a spring on every strut does not add compliance to the
+linkage, it replaces the linkage. Every number here is a property of the spring
+network, not of the medium.
+
+The fork was never declared and never authorised. T2 inviscid 23533 section 2,
+written 2026-08-26, admits it: "Every gapless result in this epic is downstream
+of the first choice, which had never been declared."
+
+Kept, not deleted, because this repo's README is explicit that these scripts are
+the evidence base for its retractions and "a retraction whose evidence has
+evaporated is just folklore."
+
+Read T2 inviscid [23562] "OWNER DECISION 2026-08-27 -- the strut-compliance fork
+is REJECTED" before using anything below. The live problem is finding a
+potential energy V for the RIGID linkage: this repo's README states "there is no
+potential energy anywhere in the model, so its six DOF are six zero-frequency
+modes and no dispersion relation can exist yet." Resume at the jb_h..jb_q V
+survey and bead inviscid-qvf.21 (V=0, contact).
+
+
 Everything before this file is STATIC: packing, exchange, dispersion relations,
 one order of anharmonic coupling. All of it linearised about a fixed
 configuration. Nothing took an initial condition and evolved it, and a medium

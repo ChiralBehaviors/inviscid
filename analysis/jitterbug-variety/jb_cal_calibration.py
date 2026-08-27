@@ -1,5 +1,19 @@
 """jb_cal -- calibrate the model before trusting anything the medium says.
 
+*** VOID IN PART -- OWNER DECISION 2026-08-27. ***
+The strut-compliance fork is REJECTED (T2 inviscid [23562]); the model of record
+is a RIGID-STRUT LINKAGE, not an elastic network.
+
+WHAT STANDS HERE: everything that is rigidity or kinematics. The unit cell, the
+bar list with its lattice offsets, the Bloch phase convention, the reciprocal
+lattice, and every ZERO-MODE COUNT. Nullity of a rigidity matrix does not depend
+on stiffness, so the mechanism counts and the six <110> floppy lines are
+statements about the rigid linkage and are exactly the right model.
+
+WHAT IS VOID: anything read as a FREQUENCY -- elastic bands, sound speeds, phase
+speeds, gaps, dispersion. Those exist only once the bars are springs.
+
+
 Three transport measurements in a row failed their own validity checks, and the
 common feature of all three was that NONE of them had a known answer. A number
 came out, nothing could say whether it was right, and the argument moved on to
