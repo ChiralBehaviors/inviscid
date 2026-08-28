@@ -34,12 +34,26 @@ import org.apache.commons.math3.linear.RealVector;
  *
  * <p>
  * <b>CHOICE-FREE SCAFFOLDING</b> (bead inviscid-6dp). {@code H} is supplied by
- * the caller -- in the intended use it will eventually be a potential's
- * Hessian, restricted to the same internal tangent space as
- * {@link InternalMassMetric#metric}, once bead inviscid-qvf.2 chooses a
- * potential. This class chooses no potential and no mass model: it accepts an
- * arbitrary symmetric {@code H} and turns it, together with a metric, into
- * frequencies.
+ * the caller -- in the intended use a potential's Hessian, restricted to the
+ * same internal tangent space as {@link InternalMassMetric#metric}. This class
+ * chooses no potential and no mass model: it accepts an arbitrary symmetric
+ * {@code H} and turns it, together with a metric, into frequencies.
+ *
+ * <p>
+ * <b>STATUS, corrected 2026-08-28 (bead inviscid-qvf.30).</b> This javadoc used
+ * to say "once bead inviscid-qvf.2 chooses a potential". qvf.2 closed on
+ * 2026-08-15 having chosen one -- DECISION 17, the raw all-pairs kernel, six
+ * real frequencies at the vector equilibrium -- so that clause was stale for a
+ * fortnight and read as though no potential existed. Two things are true
+ * instead. Those frequencies were computed in Python
+ * ({@code analysis/jitterbug-variety/attic/jb_s_frequency_spectrum.py} and the
+ * jb_o / jb_t / jb_u family), never through this class, which still has no
+ * caller outside its own tests. And DECISION 17's potential is a SINGLE-UNIT
+ * one: the ARRAY's coupling is contact, whose effective potential is measured
+ * in {@code jb_cp_contact_potential.py} to be an infinite square well -- flat
+ * inside, infinite at the stop -- which has no Hessian anywhere and therefore
+ * nothing this class can consume. That is a result about the medium, not a gap
+ * in this scaffolding.
  *
  * <p>
  * <b>Method.</b> {@code M = L L^T} (Cholesky); {@code A = L^-1 H L^-T} is
