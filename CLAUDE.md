@@ -13,7 +13,8 @@ Inviscid — cellular automata based on "jitterbugs" (Buckminster Fuller's jitte
 - Single test: `mvn test -Dtest=AutomataTest`
 
 No exec/javafx Maven plugin is configured — the animation apps are launched by running their `main` methods directly (IDE or classpath invocation). Runnable entry points:
-- `com.chiralbehaviors.inviscid.animations.ThreeCellPhaseAnimation` (three cells, each with its own phase, integrated in reduced coordinates)
+- `com.chiralbehaviors.inviscid.animations.HoneycombBreatheAnimation` (a compact honeycomb patch doing the medium's one motion, bounded by elastic contact)
+- `com.chiralbehaviors.inviscid.animations.ThreeCellPhaseAnimation` (three cells, each with its own phase, integrated in reduced coordinates) — a free tree fragment, so it tumbles and winds; see `inviscid-qvf.26`
 - `com.chiralbehaviors.inviscid.animations.JitterbugAnimation`
 - `com.chiralbehaviors.inviscid.animations.NecronomataAnimation`
 - `com.javafx.experiments.jfx3dviewer.Jfx3dViewerApp` (generic 3D viewer)
