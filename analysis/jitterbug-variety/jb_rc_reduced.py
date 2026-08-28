@@ -33,13 +33,23 @@ which exactly SIX are independent: both mating triangles are equilateral of edge
 EL at every g, so their shapes always agree and three rows are dependent. R5
 measures that rank rather than assuming it.
 
-WHAT THE COUNT THEN SAYS. For a tree of welds, 7N - 6(N-1) = N + 6, and taking
-out the six global rigid motions leaves N. One fold angle per cell survives, at
-every size. That is the field claim, and it is now a measurement in the
-coordinates the model is written in. Freeze the orientations and the same
+WHAT THE COUNT SAYS, AND THE SIZE OF WHAT IT DOES NOT. For a TREE of welds,
+7N - 6(N-1) = N + 6, and taking out the six global rigid motions leaves N: one
+fold angle per cell, at every size. Freeze the orientations and the same
 Jacobian -- restricted to its centre and fold columns -- has rank 4 per weld
-instead of 6, leaving 4N - 4(N-1) - 3 = 1 at every size: a single coordinate, and
-nowhere for a disturbance to be.
+instead of 6, leaving 4N - 4(N-1) - 3 = 1: a single coordinate, and nowhere for
+a disturbance to be.
+
+    THE FIRST OF THOSE IS A TREE RESULT AND IS NOT TRUE OF THE HONEYCOMB.
+    Read the qualifier in the first sentence as load bearing, because for a
+    while it was not read at all. Chains have no cycles and the 9-cluster is a
+    star, so BOTH patches the field claim was measured on are trees. The
+    rectified cubic honeycomb is not: brick 5x5x5 is 35 cells, 64 welds and 30
+    independent cycles. With cycles the count does not grow with N. It is
+    1 + (number of degree-1 cells), so a COMPACT patch of 113 cells has ONE
+    internal degree of freedom -- coherent breathing -- and a disturbance has
+    nowhere to be in the interior after all. R5e measures it. Bead
+    inviscid-qvf.26 and T2 inviscid [23595] carry the finding and the audit.
 
 THE CARRIED-FORWARD DEFECT IS RESOLVED HERE. An earlier fold-map-rank run
 projected out a six-dimensional "global motion" space built with an identity
@@ -432,6 +442,63 @@ def cluster(gc=0.0, sites=None, drop=()):
     return Assembly(gam, ctr, welds)
 
 
+def honeycomb(sites, gc=-30.0):
+    """A patch of the rectified cubic honeycomb, with its CYCLES.
+
+    Integer `sites` scaled by the breathing lattice constant L: all-EVEN sites
+    carry fold angle `gc`, all-ODD sites carry `gc + 60`, and two cells are
+    welded exactly when their integer difference is (+-1, +-1, +-1) -- the eight
+    triangular-face neighbours. (The other six of the 6+8 census are SQUARE-face
+    contacts, which are open at every angle but 0 and are not welds.)
+
+    `cluster` builds a star and `chain` builds a line; both are TREES, and the
+    difference is not cosmetic. This builder is the one that closes cycles, and
+    closing them is what takes the internal freedom away.
+    """
+    gn = gc + 60.0
+    sep = IC.ZC * (np.cos(np.radians(gc)) + np.cos(np.radians(gn)))
+    L = sep / np.sqrt(3)
+    gam = [gc if all(c % 2 == 0 for c in s) else gn for s in sites]
+    ctr = [L * np.array(s, float) for s in sites]
+    welds, deg = [], [0] * len(sites)
+    for i in range(len(sites)):
+        for j in range(i + 1, len(sites)):
+            d = tuple(sites[j][t] - sites[i][t] for t in range(3))
+            if sorted(map(abs, d)) != [1, 1, 1]:
+                continue
+            deg[i] += 1
+            deg[j] += 1
+            A = IC.cell_verts(gam[i], ctr[i])
+            B = IC.cell_verts(gam[j], ctr[j])
+            dv = np.array(d, float)
+            fa, fb = CL.face_along(dv), CL.face_along(-dv)
+            bc = [SLOT[(fb, c)] for c in range(3)]
+            used, pairs = set(), []
+            for c in range(3):
+                a = SLOT[(fa, c)]
+                k = min([b for b in bc if b not in used],
+                        key=lambda b: float(np.linalg.norm(B[b] - A[a])))
+                used.add(k)
+                pairs.append((a, k))
+            welds.append((i, j, pairs))
+    return Assembly(gam, ctr, welds), deg
+
+
+def brick(nx, ny, nz):
+    return [(x, y, z) for x in range(nx) for y in range(ny) for z in range(nz)
+            if all(c % 2 == 0 for c in (x, y, z))
+            or all(c % 2 == 1 for c in (x, y, z))]
+
+
+def ball(radius):
+    n = int(radius) + 2
+    return [(x, y, z) for x in range(-n, n + 1) for y in range(-n, n + 1)
+            for z in range(-n, n + 1)
+            if (all(c % 2 == 0 for c in (x, y, z))
+                or all(c % 2 == 1 for c in (x, y, z)))
+            and x * x + y * y + z * z <= radius * radius]
+
+
 def rank_of(M, tol=1e-8):
     if M.size == 0:
         return 0, 0.0
@@ -591,14 +658,17 @@ def gate():
     rf9, _ = rank_of(C9[:, keep9])
     free9, fixed9 = 63 - r9 - 6, 36 - rf9 - 3
     out["dof"] = (free, fixed, free9, fixed9)
-    A(("R5b THE DOF TABLE, REPRODUCED FROM THE REDUCED COORDINATES. With cells "
-       "free to turn the array has ONE internal degree of freedom PER CELL at "
-       "every size -- a fold angle each, which is what makes the medium a "
-       "FIELD. Freeze the orientations and the SAME Jacobian, restricted to "
+    A(("R5b THE DOF TABLE FOR A TREE OF WELDS -- WHICH IS WHAT A CHAIN AND A "
+       "SINGLE-SHELL CLUSTER ARE, AND WHICH THE HONEYCOMB IS NOT. Read with "
+       "R5e or not at all: with cells free to turn a TREE has one internal "
+       "degree of freedom per cell at every size, and this was recorded as the "
+       "field claim before anyone counted the cycles in the real lattice. "
+       "Freeze the orientations and the SAME Jacobian, restricted to "
        "its centre and fold columns, has rank 4 per weld instead of 6 and "
-       "leaves a SINGLE coordinate at every size, so a disturbance has nowhere "
-       "to be. Both rows are column subsets of one matrix, which is a stronger "
-       "statement than two separate measurements",
+       "leaves a SINGLE coordinate at every size. Both rows are column subsets "
+       "of one matrix, which is a stronger statement than two separate "
+       "measurements -- and R5e reaches the frozen column's answer WITHOUT "
+       "freezing anything, just by closing the cycles",
        free == [1, 2, 3, 4, 5, 6, 7] and fixed == [1] * 7
        and free9 == 9 and fixed9 == 1
        and all(abs(a - 6.0) < 1e-9 and abs(b - 4.0) < 1e-9 for a, b in ranks),
@@ -665,6 +735,71 @@ def gate():
        f"far cell {shv[0, 2]:.5f} at t=0, peaks {shv[far, 2]:.5f} at "
        f"t={tsv[far]:.2f}",
        "both the middle and the far cell more than treble their t=0 share"))
+
+    # R5e -- and what happens when the welds close a cycle
+    hc = {}
+    for nm, sites in (("4-cycle", [(0, 0, 0), (1, 1, 1), (2, 0, 0), (1, 1, -1)]),
+                      ("brick 5x5x5", brick(5, 5, 5)),
+                      ("brick 6x6x6", brick(6, 6, 6)),
+                      ("ball r=3.5", ball(3.5)),
+                      ("ball r=4.5", ball(4.5))):
+        asm, deg = honeycomb(sites)
+        cq = asm.q0()
+        cc, cR, cg, cB = asm.frames(cq)
+        rhc, gaphc = rank_of(asm.constraint_jacobian(
+                asm.cell_jacobians(cc, cR, cB)))
+        hc[nm] = (asm.N, len(asm.welds), 7 * asm.N - rhc - 6,
+                  sum(1 for d in deg if d == 1), gaphc,
+                  float(np.abs(asm.weld_residual(cq)).max()))
+    trimmed = brick(5, 5, 5)
+    for _ in range(5):
+        asm, deg = honeycomb(trimmed)
+        keep = [i for i, d in enumerate(deg) if d > 1]
+        if len(keep) == len(trimmed):
+            break
+        trimmed = [trimmed[i] for i in keep]
+    asm, deg = honeycomb(trimmed)
+    tq = asm.q0()
+    tc, tR, tg, tB = asm.frames(tq)
+    rt, gapt = rank_of(asm.constraint_jacobian(asm.cell_jacobians(tc, tR, tB)))
+    hc["5x5x5 trimmed"] = (asm.N, len(asm.welds), 7 * asm.N - rt - 6, 0, gapt,
+                           float(np.abs(asm.weld_residual(tq)).max()))
+
+    #: the 4-cycle's single surviving mode, read as a fold-rate pattern
+    a4, _ = honeycomb([(0, 0, 0), (1, 1, 1), (2, 0, 0), (1, 1, -1)])
+    q4 = a4.q0()
+    c4, R4, g4, B4 = a4.frames(q4)
+    M4 = np.vstack([a4.constraint_jacobian(a4.cell_jacobians(c4, R4, B4)),
+                    a4.globals(c4)])
+    r4, _ = rank_of(M4)
+    fold4 = np.linalg.svd(M4)[2][r4:][0][[7 * k + 6 for k in range(4)]]
+    spread = float(fold4.max() - fold4.min()) / float(np.abs(fold4).max())
+    out["honeycomb"] = hc
+    A(("R5e CLOSE THE CYCLES AND THE FIELD GOES AWAY. R5b's per-cell count is a "
+       "TREE result -- a chain has no cycles and the 9-cluster is a star, so "
+       "BOTH patches it was measured on are trees, and the honeycomb is not: "
+       "brick 5x5x5 is 35 cells, 64 welds, 30 independent cycles. With cycles "
+       "the count is 1 + (number of DEGREE-1 cells), which is why odd-sided "
+       "bricks all report 9 whatever their size -- they carry eight dangling "
+       "corner cells at every size, and that constancy is a property of the "
+       "SHAPE, not of the lattice. A COMPACT patch has ONE internal degree of "
+       "freedom, coherent breathing, at 59 cells and at 113 alike, and the "
+       "minimal 4-cycle locks all four cells to the same fold rate. So a "
+       "disturbance has nowhere to be in the interior after all -- which is "
+       "R5b's orientation-FIXED answer, reached without freezing anything",
+       all(v[2] == 1 + v[3] for v in hc.values())
+       and hc["ball r=4.5"][2] == 1 and hc["ball r=3.5"][2] == 1
+       and hc["5x5x5 trimmed"][2] == 1 and hc["4-cycle"][2] == 1
+       and hc["brick 5x5x5"][2] == 9 and hc["brick 6x6x6"][2] == 3
+       and spread < 1e-9
+       and max(v[5] for v in hc.values()) < 1e-14,
+       "; ".join(f"{k}: N={v[0]} welds={v[1]} dangling={v[3]} -> DOF {v[2]}"
+                 for k, v in hc.items())
+       + f"; the 4-cycle's one mode locks all four fold rates together, spread "
+         f"{spread:.1e}; worst weld residual "
+         f"{max(v[5] for v in hc.values()):.1e}; smallest rank gap "
+         f"{min(v[4] for v in hc.values()):.1e}",
+       "DOF = 1 + dangling cells; compact patches give 1 at any size"))
 
     # R6 -- the five spurious DOF per cell, measured rather than asserted
     Pb, bb, _, _, _, _ = IC.build(list(ch6.gam0))
@@ -898,6 +1033,13 @@ def main():
     print(f"    {'cells':<22}" + "".join(f"{n:>4}" for n in range(1, 8)) + "   9-cluster")
     print(f"    {'orientation FIXED':<22}" + "".join(f"{n:>4}" for n in fixed) + f"{fixed9:>12}")
     print(f"    {'cells MAY ROTATE':<22}" + "".join(f"{n:>4}" for n in free) + f"{free9:>12}")
+
+    print("\n  THE HONEYCOMB, WITH ITS CYCLES -- read this before the tree table:")
+    print(f"    {'patch':<18}{'cells':>7}{'welds':>7}{'dangling':>10}{'internal DOF':>14}")
+    for k, v in out["honeycomb"].items():
+        print(f"    {k:<18}{v[0]:>7}{v[1]:>7}{v[3]:>10}{v[2]:>14}")
+    print("    A COMPACT patch has ONE internal degree of freedom at any size.")
+    print("    The 9 that odd-sided bricks report is eight dangling corner cells.")
 
     gdc, gdo, ev, mp, mt, fp, ft = out["vee"]
     print("\n  THREE-CELL V -- the configuration ThreeCellAnimation builds, and")

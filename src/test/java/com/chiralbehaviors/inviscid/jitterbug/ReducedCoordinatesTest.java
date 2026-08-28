@@ -427,6 +427,105 @@ public class ReducedCoordinatesTest {
         assertTrue("energy drift over t=30 was " + drift, drift < 1e-8);
     }
 
+    /**
+     * Close the cycles and the per-cell count goes away.
+     *
+     * <p>
+     * {@link ReducedCoordinates#chain} is a line and
+     * {@link ReducedCoordinates#cluster} is a star — both TREES — and the field
+     * claim was recorded from exactly those two. The rectified cubic honeycomb
+     * is richly cyclic, and with cycles the internal DOF is
+     * {@code 1 + (number of degree-1 cells)}: a COMPACT patch has ONE, coherent
+     * breathing, at any size, and the minimal four-cycle locks all four cells to
+     * the same fold rate.
+     *
+     * <p>
+     * The 9 that odd-sided bricks report is eight dangling corner cells, which
+     * is why every odd brick reports it whatever its size — that constancy is a
+     * property of the shape, not of the lattice. Bead {@code inviscid-qvf.26}.
+     */
+    @Test
+    public void closingTheCyclesLeavesOneDegreeOfFreedom() {
+        int[][] ring = { { 0, 0, 0 }, { 1, 1, 1 }, { 2, 0, 0 }, { 1, 1, -1 } };
+        int[] deg = new int[4];
+        Assembly r = ReducedCoordinates.honeycomb(-30.0, ring, deg);
+        double[] q = r.initialState();
+        assertTrue("the ring must close: " + r.weldResidual(q),
+                   r.weldResidual(q) < 1e-14);
+        assertEquals("four cells, four welds", 4, r.constraintJacobian(q).length / 9);
+        assertEquals("the minimal cycle has ONE internal degree of freedom", 1,
+                     28 - rank(r.constraintJacobian(q)) - 6);
+        for (int k = 0; k < 4; k++) {
+            assertEquals("no dangling cells in a ring", 2, deg[k]);
+        }
+
+        // ... and that one mode folds every cell at the same rate.
+        double[] u = r.foldImpulse(0);
+        for (int k = 1; k < 4; k++) {
+            assertEquals("cell " + k + " is locked to cell 0's fold rate", u[6],
+                         u[NU * k + 6], 1e-9);
+        }
+
+        for (Object[] c : new Object[][] { { "brick 3x3x3", brick(3), 9 },
+                                           { "brick 4x4x4", brick(4), 3 },
+                                           { "ball r=2.0", ball(2.0), 1 } }) {
+            int[][] sites = (int[][]) c[1];
+            int[] d = new int[sites.length];
+            Assembly a = ReducedCoordinates.honeycomb(-30.0, sites, d);
+            double[] aq = a.initialState();
+            assertTrue(c[0] + " must close: " + a.weldResidual(aq),
+                       a.weldResidual(aq) < 1e-13);
+            int dangling = 0;
+            for (int x : d) {
+                if (x == 1) {
+                    dangling++;
+                }
+            }
+            int dof = 7 * sites.length - rank(a.constraintJacobian(aq)) - 6;
+            assertEquals(c[0] + " internal DOF", ((Integer) c[2]).intValue(), dof);
+            assertEquals(c[0] + ": DOF is 1 + the dangling cells", 1 + dangling, dof);
+        }
+    }
+
+    /** Sites of an {@code n x n x n} brick of the honeycomb: all-even and
+     *  all-odd integer points. Odd {@code n} leaves eight dangling corners. */
+    private static int[][] brick(int n) {
+        List<int[]> out = new ArrayList<>();
+        for (int x = 0; x < n; x++) {
+            for (int y = 0; y < n; y++) {
+                for (int z = 0; z < n; z++) {
+                    boolean even = x % 2 == 0 && y % 2 == 0 && z % 2 == 0;
+                    boolean odd = x % 2 == 1 && y % 2 == 1 && z % 2 == 1;
+                    if (even || odd) {
+                        out.add(new int[] { x, y, z });
+                    }
+                }
+            }
+        }
+        return out.toArray(new int[0][]);
+    }
+
+    /** A compact patch: every lattice site inside {@code radius}. No dangling
+     *  cells, and therefore one internal degree of freedom at any size. */
+    private static int[][] ball(double radius) {
+        int n = (int) radius + 2;
+        List<int[]> out = new ArrayList<>();
+        for (int x = -n; x <= n; x++) {
+            for (int y = -n; y <= n; y++) {
+                for (int z = -n; z <= n; z++) {
+                    boolean even = Math.floorMod(x, 2) == 0 && Math.floorMod(y, 2) == 0
+                                   && Math.floorMod(z, 2) == 0;
+                    boolean odd = Math.floorMod(x, 2) == 1 && Math.floorMod(y, 2) == 1
+                                  && Math.floorMod(z, 2) == 1;
+                    if ((even || odd) && x * x + y * y + z * z <= radius * radius) {
+                        out.add(new int[] { x, y, z });
+                    }
+                }
+            }
+        }
+        return out.toArray(new int[0][]);
+    }
+
     private static double dist(double[] a, double[] b) {
         double s = 0;
         for (int i = 0; i < a.length; i++) {

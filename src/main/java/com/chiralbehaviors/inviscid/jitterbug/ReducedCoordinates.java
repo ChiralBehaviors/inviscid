@@ -61,13 +61,25 @@ import java.util.List;
  * reason, not out of caution.
  *
  * <p>
- * <b>What the count then says.</b> For a tree of welds the array has
- * {@code 7N - 6(N-1) = N + 6} dimensions, so <b>N internal degrees of freedom
- * for N cells</b> — one fold angle each. Freeze the orientations and the same
- * Jacobian, restricted to its centre and fold columns, has rank 4 per weld
- * instead of 6 and leaves <b>one</b> coordinate at any size. That contrast is
- * why the medium is a field: with orientations fixed a disturbance has nowhere
- * to be. {@code ReducedCoordinatesTest} measures both columns.
+ * <b>What the count says, and how far it reaches.</b> For a <b>tree</b> of welds
+ * the array has {@code 7N - 6(N-1) = N + 6} dimensions, so N internal degrees of
+ * freedom for N cells — one fold angle each. Freeze the orientations and the
+ * same Jacobian, restricted to its centre and fold columns, has rank 4 per weld
+ * instead of 6 and leaves <b>one</b> coordinate at any size.
+ *
+ * <p>
+ * <b>THE FIRST OF THOSE IS A TREE RESULT AND IS NOT TRUE OF THE HONEYCOMB.</b>
+ * Treat the qualifier as load bearing, because for a while it was not read at
+ * all: {@link #chain} builds a line and {@link #cluster} builds a star, both
+ * trees, and the field claim was recorded from exactly those two. The rectified
+ * cubic honeycomb is richly cyclic — a 5x5x5 brick is 35 cells, 64 welds and 30
+ * independent cycles — and with cycles the count does not grow with N. It is
+ * {@code 1 + (number of degree-1 cells)}, so a COMPACT patch of 113 cells has
+ * <b>one</b> internal degree of freedom, coherent breathing, and a disturbance
+ * has nowhere to be in the interior after all. The minimal four-cycle locks all
+ * four cells to the same fold rate. Measured in {@code jb_rc_reduced.py}'s R5e
+ * and pinned by {@code ReducedCoordinatesTest}; bead {@code inviscid-qvf.26} and
+ * T2 {@code inviscid} [23595] carry the finding and its audit.
  *
  * <p>
  * <b>Congruence is not identity</b> (Fuller 1977). A cell carries 24 corner
@@ -788,6 +800,62 @@ public final class ReducedCoordinates {
             welds[m] = weld(0, m + 1, gammaCentre, gn, ctr[0], ctr[m + 1]);
         }
         return new Assembly(gam, ctr, welds);
+    }
+
+    /**
+     * A patch of the rectified cubic honeycomb, <b>with its cycles</b>.
+     *
+     * <p>
+     * Integer {@code sites} scaled by the breathing lattice constant: all-EVEN
+     * sites carry fold angle {@code gc}, all-ODD sites carry {@code gc + 60},
+     * and two cells are welded exactly when their integer difference is
+     * {@code (+-1, +-1, +-1)} — the eight triangular-face neighbours. The other
+     * six of the {@code 6 + 8} census are SQUARE-face contacts, which are open
+     * at every fold angle but zero and are not welds.
+     *
+     * <p>
+     * {@link #chain} builds a line and {@link #cluster} builds a star. Both are
+     * trees, and the difference from this is not cosmetic: closing the cycles is
+     * what takes the internal freedom away.
+     *
+     * @param degree filled with each cell's weld count, if non-null — the
+     *               degree-1 cells are the dangling ones, and the internal DOF
+     *               of a patch is one plus how many of them it has
+     */
+    public static Assembly honeycomb(double gc, int[][] sites, int[] degree) {
+        double gn = gc + 60.0;
+        double zc = JitterbugGeometry.L_EDGE * Math.sqrt(2.0 / 3.0);
+        double side = zc * (Math.cos(Math.toRadians(gc)) + Math.cos(Math.toRadians(gn)))
+                      / Math.sqrt(3.0);
+        int n = sites.length;
+        double[] gam = new double[n];
+        double[][] ctr = new double[n][3];
+        for (int k = 0; k < n; k++) {
+            boolean even = true;
+            for (int t = 0; t < 3; t++) {
+                even &= Math.floorMod(sites[k][t], 2) == 0;
+                ctr[k][t] = side * sites[k][t];
+            }
+            gam[k] = even ? gc : gn;
+        }
+        List<Weld> welds = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            for (int j = i + 1; j < n; j++) {
+                boolean adjacent = true;
+                for (int t = 0; t < 3; t++) {
+                    adjacent &= Math.abs(sites[j][t] - sites[i][t]) == 1;
+                }
+                if (!adjacent) {
+                    continue;
+                }
+                if (degree != null) {
+                    degree[i]++;
+                    degree[j]++;
+                }
+                welds.add(weld(i, j, gam[i], gam[j], ctr[i], ctr[j]));
+            }
+        }
+        return new Assembly(gam, ctr, welds.toArray(new Weld[0]));
     }
 
     /** The index of the face pointing most nearly along {@code dir}. */

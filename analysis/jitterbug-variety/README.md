@@ -547,10 +547,30 @@ What `jb_rc` establishes:
   checks an ellipse residual against a tolerance means the coordinates are wrong.
 - **The DOF table, with a correct global-rigid-motion basis** (translations `δc = t`; rotations
   `δc = ω × c`, `ω_k = ω` — the `ω × c` term is what an earlier fold-map-rank run omitted, reporting
-  a column two too high). Cells free to turn: **N internal DOF for N cells**, 1…7 for chains and 9
-  for the cluster. Orientations frozen: the *same* Jacobian restricted to its centre and fold columns
-  has rank 4 per weld instead of 6 and leaves **1 at every size** — a single coordinate, so a
-  disturbance has nowhere to be. That contrast is the field claim.
+  a column two too high). For a **tree** of welds, cells free to turn: N internal DOF for N cells,
+  1…7 for chains and 9 for the cluster. Orientations frozen: the *same* Jacobian restricted to its
+  centre and fold columns has rank 4 per weld instead of 6 and leaves **1 at every size**.
+
+  > **The first of those is a TREE result and is not true of the honeycomb** (R5e, bead
+  > `inviscid-qvf.26`). A chain is a line and the 9-cluster is a star — both trees — and the field
+  > claim was recorded from exactly those two. The rectified cubic honeycomb is richly cyclic (a
+  > 5×5×5 brick is 35 cells, 64 welds, **30 independent cycles**), and with cycles the count is
+  > `1 + (number of degree-1 cells)`:
+  >
+  > | patch | cells | welds | dangling | internal DOF |
+  > |---|---|---|---|---|
+  > | 4-cycle | 4 | 4 | 0 | **1** |
+  > | brick 5×5×5 | 35 | 64 | 8 | 9 |
+  > | brick 6×6×6 | 54 | 125 | 2 | 3 |
+  > | ball r=3.5 | 59 | 160 | 0 | **1** |
+  > | ball r=4.5 | 113 | 328 | 0 | **1** |
+  > | 5×5×5 trimmed | 27 | 56 | 0 | **1** |
+  >
+  > A **compact** patch has ONE internal degree of freedom — coherent breathing — at 59 cells and at
+  > 113 alike, and the minimal four-cycle locks all four cells to the same fold rate. The 9 that
+  > odd-sided bricks report is eight dangling corner cells; that constancy is a property of the
+  > *shape*, not of the lattice. So a disturbance has nowhere to be in the interior after all, which
+  > is the orientation-frozen answer reached **without freezing anything**.
 - **Energy audits clean with V = 0** — relative drift `1.8e-11` over t = 0…40, weld residual
   `4.9e-11` *unprojected*. The integrator is deliberately **not** symplectic: a symplectic scheme
   conserves a shadow Hamiltonian and would make the row nearly vacuous.
