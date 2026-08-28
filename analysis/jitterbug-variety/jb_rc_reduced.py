@@ -608,6 +608,64 @@ def gate():
        f"{gap9:.1e}",
        "[1..7] and 9 free, 1 everywhere with orientation fixed"))
 
+    # R5c -- the three-cell V, which is what the animation builds
+    vee = cluster(sites=[(1, 1, 1), (1, 1, -1)])
+    ctrv, Rv, gv, Bv = vee.frames(vee.q0())
+    Jv = vee.cell_jacobians(ctrv, Rv, Bv)
+    Cv = vee.constraint_jacobian(Jv)
+    rv, _ = rank_of(Cv)
+    keepv = [i for i in range(21) if i % 7 not in (3, 4, 5)]
+    rvf, _ = rank_of(Cv[:, keepv])
+    n1 = ctrv[1] / np.linalg.norm(ctrv[1])
+    n2 = ctrv[2] / np.linalg.norm(ctrv[2])
+    uv, _ = fold_impulse(vee, 0)
+    Ev = vee.energy(vee.q0(), uv)
+    uvo, _ = fold_impulse(vee, 1)
+    recv = vee.run(uvo, 30.0, 300)
+    shv = np.array([r[1] / r[1].sum() for r in recv])
+    tsv = np.array([r[0] for r in recv])
+    mid, far = int(shv[:, 0].argmax()), int(shv[:, 2].argmax())
+    out["vee"] = (float(uv[0, 6]), float(uv[1, 6]), float(Ev.sum()),
+                  float(shv[mid, 0]), float(tsv[mid]),
+                  float(shv[far, 2]), float(tsv[far]))
+    A(("R5c THE THREE-CELL V, and its numbers are the reference the JAVA port is "
+       "checked against. It is the configuration ThreeCellAnimation builds -- a "
+       "centre cell and two neighbours down ADJACENT diagonals, so the outer "
+       "cells sit at n1.n2 = 1/3 -- and in these coordinates it has THREE "
+       "internal degrees of freedom where that animation's single coherent "
+       "angle had one. A phase kick on the centre projects to EXACTLY RATIONAL "
+       "fold rates, 57/137 and 12/137 at E = 152/137, and an exact rational is "
+       "worth more than a decimal as a cross-implementation check: a wrong port "
+       "does not land near a different rational, it lands on one",
+       abs(float(np.dot(n1, n2)) - 1 / 3) < 1e-14
+       and 21 - rv - 6 == 3 and 12 - rvf - 3 == 1
+       and abs(float(uv[0, 6]) - 57 / 137) < 1e-12
+       and abs(float(uv[1, 6]) - 12 / 137) < 1e-12
+       and abs(float(uv[2, 6]) - 12 / 137) < 1e-12
+       and abs(float(Ev.sum()) - 152 / 137) < 1e-12
+       and float(np.abs(vee.weld_residual(vee.q0())).max()) < 1e-14,
+       f"n1.n2 = {float(np.dot(n1, n2)):.15f}; internal DOF {21 - rv - 6} free, "
+       f"{12 - rvf - 3} with orientation fixed; centre-kick fold rates "
+       f"{uv[0, 6]:.9f} and {uv[1, 6]:.9f} against 57/137 = {57 / 137:.9f} and "
+       f"12/137 = {12 / 137:.9f}; E = {Ev.sum():.9f} against 152/137 = "
+       f"{152 / 137:.9f}; shares {Ev[0] / Ev.sum():.6f} / {Ev[1] / Ev.sum():.6f} "
+       f"/ {Ev[2] / Ev.sum():.6f}",
+       "n1.n2 = 1/3, 3 free and 1 fixed, rates 57/137 and 12/137 at 152/137"))
+
+    A(("R5d TRANSPORT ACROSS THE V, which is what the animation shows and what "
+       "the Java test pins. Kick ONE OUTER cell instead of the centre and the "
+       "disturbance reaches the far one THROUGH the middle. Two-sided on the far "
+       "cell: it has to end up with several times the share the projection gave "
+       "it at t = 0, or there is no transport to look at. Still NOT a front -- "
+       "R10's onset is simultaneous, so no time on this trajectory is an "
+       "arrival time",
+       shv[mid, 0] > 3 * shv[0, 0] and shv[far, 2] > 3 * shv[0, 2],
+       f"driven outer cell fold rate {uvo[1, 6]:.9f}; middle cell "
+       f"{shv[0, 0]:.5f} at t=0, peaks {shv[mid, 0]:.5f} at t={tsv[mid]:.2f}; "
+       f"far cell {shv[0, 2]:.5f} at t=0, peaks {shv[far, 2]:.5f} at "
+       f"t={tsv[far]:.2f}",
+       "both the middle and the far cell more than treble their t=0 share"))
+
     # R6 -- the five spurious DOF per cell, measured rather than asserted
     Pb, bb, _, _, _, _ = IC.build(list(ch6.gam0))
     bar_dof = 3 * len(Pb) - IC.rigidity(Pb, bb) - 6
@@ -840,6 +898,15 @@ def main():
     print(f"    {'cells':<22}" + "".join(f"{n:>4}" for n in range(1, 8)) + "   9-cluster")
     print(f"    {'orientation FIXED':<22}" + "".join(f"{n:>4}" for n in fixed) + f"{fixed9:>12}")
     print(f"    {'cells MAY ROTATE':<22}" + "".join(f"{n:>4}" for n in free) + f"{free9:>12}")
+
+    gdc, gdo, ev, mp, mt, fp, ft = out["vee"]
+    print("\n  THREE-CELL V -- the configuration ThreeCellAnimation builds, and")
+    print("  the reference for the Java port in "
+          "com.chiralbehaviors.inviscid.jitterbug:")
+    print(f"    centre-kick fold rates {gdc:.9f} = 57/137 and {gdo:.9f} = 12/137,")
+    print(f"    total energy {ev:.9f} = 152/137")
+    print(f"    outer kick: middle peaks {mp:.5f} at t={mt:.2f}, "
+          f"far peaks {fp:.5f} at t={ft:.2f}")
 
     print("\n  6-cell chain, phase-rate kick on cell 0 -- share of kinetic energy:")
     rec = out["chain"]
