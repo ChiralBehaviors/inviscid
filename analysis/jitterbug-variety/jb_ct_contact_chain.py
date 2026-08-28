@@ -54,6 +54,15 @@ two edges they collide. That is a BACKLASH chain, and a backlash chain has no
 linear sound speed at all -- only solitary waves whose speed depends on
 amplitude.
 
+AND THAT MODEL IS A PROJECTION, WHICH jb_pr MEASURES THE COST OF. Reducing the
+joint to the scalar c_k keeps the RADIAL channel and drops the TWIST one: two
+cells sharing a triangular face must also agree on how the face is turned about
+its own normal. Measured on the honeycomb's real placement, the joint's
+mismatch grows at EL/sqrt(2) per radian of relative phase where this file's
+|V'(a0)| = Z sin(30) gives 0.5774 -- so every SCALING below is right (they are
+ratios) and the CONSTANT is low by exactly sqrt(3). Read the speeds here as
+sqrt(3) under the joint's own, and see jb_pr R7.
+
 23575 also reaches this file's starting point and stops one step short: "shared
 vertex, rigid -> constraint propagates instantly -> rigidity, NOT waves". True,
 for rigid joints. Give the SAME permanent joints clearance and the propagation
@@ -127,18 +136,28 @@ def _rk4(g, gd, h):
             gd + h / 6 * (k1v + 2 * k2v + 2 * k3v + k4v))
 
 
-def chain(a0=FOLD_REF, n=14, play=0.02, kick=0.30, tmax=12.0, dt=1e-3):
+def chain(a0=FOLD_REF, n=14, play=0.02, kick=0.30, tmax=12.0, dt=1e-3,
+          ramp=0.0):
     """A chain of cells on one dowel, coupled ONLY by contact through the play.
 
     EVENT DRIVEN: integrate to the exact crossing by bisection, apply an elastic
     impulse along the constraint gradient, resume. Nothing is ever projected, so
     energy is conserved to machine precision and the audit means something.
+
+    `ramp` (degrees per cell, default 0) PRE-STRESSES the chain: cell k starts at
+    a phase deviation of k*ramp from its own sublattice reference, so the joints
+    begin part-way across their play instead of centred in it. `sep0` is taken
+    from the UNRAMPED reference pair, which is the whole point -- computing it
+    from the ramped g[0], g[1] would absorb the ramp and leave every joint
+    centred again. Default 0.0 reproduces the earlier behaviour exactly, and R2
+    through R6 all run on it.
     """
-    g = np.array([np.radians(a0) if k % 2 == 0 else np.radians(a0 + 60.0)
-                  for k in range(n)])
+    base = np.array([np.radians(a0) if k % 2 == 0 else np.radians(a0 + 60.0)
+                     for k in range(n)])
+    sep0 = radial(base[0]) + radial(base[1])
+    g = base + np.radians(ramp) * np.arange(n)
     gd = np.zeros(n)
     gd[0] = kick
-    sep0 = radial(g[0]) + radial(g[1])
     e0 = 0.5 * float(np.sum(inertia(g) * gd ** 2))
     arrive = [None] * n
     arrive[0] = 0.0
@@ -284,7 +303,11 @@ def gate():
        "it, both to within 1%. A medium whose signal speed depends on AMPLITUDE "
        "has no linear regime at all -- it is a sonic vacuum, carrying solitary "
        "waves and nothing else. That is a different object from anything this "
-       "programme has looked for so far",
+       "programme has looked for so far. SCOPE, added 2026-08-28: |dV/dgamma| "
+       "is this file's SCALAR reduction of the joint, and jb_pr measures the "
+       "real coefficient at EL/sqrt(2), which is sqrt(3) times larger, because "
+       "the twist channel binds too. The scalings in this row are ratios and "
+       "are unaffected; the absolute speed is low by exactly that factor",
        abs(ratios["2x kick"] - 2.0) < 0.05
        and abs(ratios["2x play"] - 0.5) < 0.05
        and abs(ratios["half play"] - 2.0) < 0.05

@@ -357,10 +357,15 @@ def gate():
        "t = 0: a rigid constraint has infinite signal speed, so the projection "
        "that makes the impulse admissible reaches the whole chain at once and "
        "there is no onset lag to measure anywhere. This medium therefore has "
-       "NO WAVEFRONT; any apparent front is mode superposition, and a finite "
-       "signal speed would need compliant constraints -- the fork this "
-       "programme has already rejected. TWO-SIDED: a lag would show as a zero "
-       "here, and it never does",
+       "NO WAVEFRONT; any apparent front is mode superposition. CORRECTED "
+       "2026-08-28: this row used to add 'and a finite signal speed would need "
+       "compliant constraints -- the fork this programme has already "
+       "rejected', which is FALSE and was the sentence that kept the wave "
+       "programme looking in the wrong place. It needs CLEARANCE, which is "
+       "compatible with perfectly rigid struts, and jb_ct measures it. The "
+       "measurement in this row is untouched: it is the PLAY-FREE LIMIT of "
+       "jb_ct's finite speed, which diverges as the joint tightens. "
+       "TWO-SIDED: a lag would show as a zero here, and it never does",
        ke0[0] > 1e-6 and kel[0] > ke0[0],
        f"far cell's share of the kinetic energy: {ke0[0]:.2e} at t=0 -> "
        f"{kel[0]:.2e} at t={hist[-1][0]:.1f}, a factor {kel[0] / ke0[0]:.2f}",
