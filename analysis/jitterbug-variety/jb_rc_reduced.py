@@ -499,6 +499,40 @@ def ball(radius):
             and x * x + y * y + z * z <= radius * radius]
 
 
+def shared_vertices(asm, q=None):
+    """Vertex INSTANCES that coincide, grouped into classes.
+
+    The honeycomb shares vertices between cells that do not share a FACE: in the
+    bulk a vertex is met by four cells, and a face-weld identifies only the three
+    corners of one triangle. What is left over is not a numerical coincidence --
+    R5f checks the class structure is identical at five fold angles -- but it is
+    only ever imposed here, never by `honeycomb`'s welds.
+    """
+    X = asm.positions(asm.q0() if q is None else q)
+    buck = {}
+    for k in range(asm.N):
+        for i in range(NV):
+            buck.setdefault(tuple(np.round(X[k, i], 6)), []).append((k, i))
+    return sorted(tuple(sorted(v)) for v in buck.values() if len(v) > 1)
+
+
+def identification_rows(asm, classes):
+    """Constraint rows forcing every instance in a class to stay coincident:
+    3(m-1) rows for a class of m, spanning it rather than over-specifying it."""
+    ctr, R, gam, B = asm.frames(asm.q0())
+    J = asm.cell_jacobians(ctr, R, B)
+    rows = []
+    for cls in classes:
+        ka, ia = cls[0]
+        for kb, ib in cls[1:]:
+            for t in range(3):
+                r = np.zeros(7 * asm.N)
+                r[7 * ka:7 * ka + 7] = J[ka][3 * ia + t]
+                r[7 * kb:7 * kb + 7] -= J[kb][3 * ib + t]
+                rows.append(r)
+    return np.array(rows)
+
+
 def rank_of(M, tol=1e-8):
     if M.size == 0:
         return 0, 0.0
@@ -801,6 +835,62 @@ def gate():
          f"{min(v[4] for v in hc.values()):.1e}",
        "DOF = 1 + dangling cells; compact patches give 1 at any size"))
 
+    # R5f -- and the sharing the face-welds never imposed
+    sv = {}
+    for nm, sites in (("9-cluster", brick(3, 3, 3)),
+                      ("brick 5x5x5", brick(5, 5, 5)),
+                      ("ball r=3.5", ball(3.5))):
+        struct = True
+        ref = None
+        for ang in (-45.0, -30.0, -10.0, -52.3, -7.7):
+            asm_a, _ = honeycomb(sites, ang)
+            cls_a = shared_vertices(asm_a)
+            if ref is None:
+                ref = cls_a
+            elif cls_a != ref:
+                struct = False
+        asm_s, _ = honeycomb(sites)
+        cls = shared_vertices(asm_s)
+        hist = {}
+        for c in cls:
+            hist[len(c)] = hist.get(len(c), 0) + 1
+        weld_ids = 3 * len(asm_s.welds)
+        span_ids = sum(len(c) - 1 for c in cls)
+        Cf = identification_rows(asm_s, cls)
+        rf2, gapf = rank_of(Cf)
+        ctr_s = asm_s.frames(asm_s.q0())[0]
+        Mf = np.vstack([Cf, asm_s.globals(ctr_s)])
+        rM, _ = rank_of(Mf)
+        null = np.linalg.svd(Mf)[2][rM:]
+        fold = null[0][[7 * k + 6 for k in range(asm_s.N)]]
+        sv[nm] = (asm_s.N, dict(sorted(hist.items())), struct, weld_ids, span_ids,
+                  7 * asm_s.N - rf2 - 6,
+                  float(fold.max() - fold.min()) / float(np.abs(fold).max()),
+                  float(np.abs(np.dot(Cf, asm_s.globals(ctr_s).T)).max()), gapf)
+    out["shared"] = sv
+    A(("R5f THE HONEYCOMB SHARES VERTICES THE FACE-WELDS NEVER IMPOSE, and "
+       "imposing them leaves ONE degree of freedom EVERYWHERE -- the tree-shaped "
+       "9-cluster included, 9 -> 1. In the bulk a vertex is met by FOUR cells, "
+       "while a face-weld identifies only the three corners of one triangle, so "
+       "the 9-cluster leaves 12 coincidences un-imposed. This is not numerical "
+       "luck: the class structure is BIT-IDENTICAL at five fold angles, so it is "
+       "structural. The surviving mode is exactly uniform -- every cell folds at "
+       "one rate, both sublattices together. CAVEAT, and it is the owner's call: "
+       "a vertex contact is UNILATERAL in a real build, so imposing it as a "
+       "bilateral joint is a modelling choice. The BULK answer does not depend "
+       "on that choice -- R5e already gets 1 for a compact patch from welds "
+       "alone -- only the dangling-corner modes at a cut boundary do",
+       all(v[2] for v in sv.values())
+       and all(v[5] == 1 for v in sv.values())
+       and all(v[6] < 1e-9 for v in sv.values())
+       and all(v[7] < 1e-12 for v in sv.values())
+       and sv["9-cluster"][4] - sv["9-cluster"][3] == 12
+       and max(sv["brick 5x5x5"][1]) == 4,
+       "; ".join(f"{k}: N={v[0]} classes {v[1]} structural={v[2]} "
+                 f"weld-imposed {v[3]} of {v[4]} spanning -> DOF {v[5]} "
+                 f"(fold spread {v[6]:.0e})" for k, v in sv.items()),
+       "structural at 5 angles, DOF 1 everywhere, one uniform fold rate"))
+
     # R6 -- the five spurious DOF per cell, measured rather than asserted
     Pb, bb, _, _, _, _ = IC.build(list(ch6.gam0))
     bar_dof = 3 * len(Pb) - IC.rigidity(Pb, bb) - 6
@@ -1040,6 +1130,11 @@ def main():
         print(f"    {k:<18}{v[0]:>7}{v[1]:>7}{v[3]:>10}{v[2]:>14}")
     print("    A COMPACT patch has ONE internal degree of freedom at any size.")
     print("    The 9 that odd-sided bricks report is eight dangling corner cells.")
+    print("\n  ...and imposing the vertex sharing the face-welds never did:")
+    for k, v in out["shared"].items():
+        print(f"    {k:<14} N={v[0]:<4} vertex classes {str(v[1]):<24} "
+              f"-> DOF {v[5]}  (one uniform fold rate)")
+    print("    ONE degree of freedom EVERYWHERE, the tree-shaped cluster included.")
 
     gdc, gdo, ev, mp, mt, fp, ft = out["vee"]
     print("\n  THREE-CELL V -- the configuration ThreeCellAnimation builds, and")
