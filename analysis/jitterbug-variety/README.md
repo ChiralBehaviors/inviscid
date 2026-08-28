@@ -572,7 +572,32 @@ Withdrawn, not carried over: the bar-space "6 internal DOF per cell" for the cha
 cluster's 54, the 80/20 split at t = 0 and the drain factor of eleven. Runtime ~18 s, 15 gate rows,
 4 mutation probes.
 
-> **`np.dot`, not `@`, in the multiplier solves.** On numpy 1.26 against Apple's Accelerate BLAS the
+**Ported to Java, and the port is checked rather than trusted.**
+`src/main/java/com/chiralbehaviors/inviscid/jitterbug/ReducedCoordinates.java` is an independent
+implementation of the same model — plain arithmetic, no commons-math3 (that boundary is `Linear`'s,
+and it holds: the multiplier solve is how the dynamics is *defined*, so it lives in `src/main` as a
+Jacobi pseudo-inverse; rank and nullity are how it is *measured*, so they stay in the test).
+`ReducedCoordinatesTest` pins the agreement, and the load-bearing checks are the ones that land on
+**exact rationals**, because a wrong port does not land near a different rational — it lands on one:
+
+| | harness (`jb_rc`, DOP853 at rtol 1e-11) | Java (fixed-step RK4 + projection) |
+|---|---|---|
+| 9-cluster centre kick, fold rates | 5/37, 1/37 | 5/37, 1/37 |
+| 9-cluster t=0 shares | 5/37, 4/37 × 8 | 5/37, 4/37 × 8 |
+| 3-cell V centre kick, fold rates | 57/137, 12/137 | 57/137, 12/137 |
+| 3-cell V total energy | 152/137 | 152/137 |
+| 3-cell V outer kick, middle peaks | 0.31264 at t=21.60 | 0.31277 at t=21.55 |
+| 3-cell V outer kick, far peaks | 0.15751 at t=26.40 | 0.15751 at t=26.40 |
+
+The last two rows are the ones that cost something: they agree on the **motion** through roughly
+three full turns of the driven cell's fold angle, not merely on the initial condition, across two
+different integrators in two languages.
+
+`animations.ThreeCellPhaseAnimation` runs that V live. `animations.ThreeCellAnimation` is unchanged
+and still sweeps one coherent angle — that is kinematics, it is how the reciprocal condition and the
+`4 → 2 → 1` shared-vertex decay were found, and none of those findings depend on the dynamics.
+
+> > **`np.dot`, not `@`, in the multiplier solves.** On numpy 1.26 against Apple's Accelerate BLAS the
 > `@` operator's small-matrix SIMD path raises spurious divide-by-zero / overflow / invalid
 > `RuntimeWarning`s on these operands while returning a bit-identical, finite result (verified with
 > `np.array_equal`). The comment on `_solve` says so; do not "simplify" it back.

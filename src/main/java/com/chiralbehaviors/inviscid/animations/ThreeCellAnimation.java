@@ -48,6 +48,16 @@ import mesh.polyhedra.plato.Octahedron;
  * which is exactly the 4 -> 2 -> 1 decay this project had recorded as a
  * separate property of the honeycomb packing. It is not separate. It is a
  * consequence of two triangular-face constraints on a common neighbour.
+ *
+ * <p>
+ * <b>THIS IS KINEMATICS. It drives ONE coherent angle</b>, which is what makes
+ * the geometry above legible and is also its limit: a single angle cannot
+ * represent a state in which one cell differs from another, so this array has
+ * exactly one degree of freedom by construction and nothing can propagate
+ * through it. For the same V with each cell carrying its own phase — three
+ * internal degrees of freedom, integrated rather than swept — see
+ * {@link ThreeCellPhaseAnimation}. Nothing in the findings above depends on the
+ * dynamics, so they stand unchanged.
  */
 public class ThreeCellAnimation extends PolyView {
     public static class Launcher {
