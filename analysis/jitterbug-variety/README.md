@@ -35,6 +35,11 @@
 > linkage. Resume at the `jb_h`…`jb_q` V survey and bead `inviscid-qvf.21`
 > (declared mass model, **V=0**, contact — not springs).
 >
+> **Dynamics has since moved to reduced coordinates** — `jb_rc_reduced.py`, bead
+> `inviscid-qvf.25`. Every integration before it, this void notice's included, ran in
+> the bar-only constraint space, which admits five spurious degrees of freedom per
+> cell. See *The medium with mass* below.
+>
 > Full record: T2 `inviscid` [23562] *"OWNER DECISION 2026-08-27 — the
 > strut-compliance fork is REJECTED"*.
 
@@ -513,6 +518,64 @@ Prior headline: `Vol_hull` is **not differentiable** at the vector equilibrium. 
 `V/V_tet = 20 + 4√3·|a_rad| − …` along the path, and a strictly positive first-order rise in
 *all six* internal directions. So `V = −k·Vol_hull` has no Hessian at the VE and cannot yield a
 frequency there. Details and verdicts in T2 `inviscid/V-candidate-ground-state-measurements.md`.
+
+### The medium with mass (`jb_ic`, `jb_cl`, `jb_rc`)
+
+Three modules on the free medium — the rectified cubic honeycomb, no dowels, no plate thickness —
+as distinct from the owner's doweled physical **rig**, which is `jb_z`'s subject. Results computed
+on one are not evidence about the other.
+
+| file | what it establishes |
+|---|---|
+| `jb_ic_inertial_chain.py` | a chain built with Fuller's congruence kept: 24 struts and 8 triangles per cell as *identity* objects, welded only across genuine shared faces. Reproduces Fuller's congruence table from the geometry; gates the two construction traps (read the slot→vertex map at a generic angle; the shared-face corner correspondence flips with the direction of the 60° offset) |
+| `jb_cl_cluster.py` | the smallest patch with an interior — the centre cell plus all eight `<111>` neighbours. A line never has one: only 2 of each cell's 8 faces are shared, so every vertex stays on an outward-facing face however long the line gets |
+| `jb_rc_reduced.py` | **the dynamics of record.** Seven generalized coordinates per cell — centre (3), orientation (3), fold angle (1) — with the vertex ellipses enforced *by construction* |
+
+**`jb_rc` supersedes the DYNAMICS of the other two, and only the dynamics.** Their geometry,
+kinematics and congruence accounting stand, and `jb_rc` imports both for the builders and the weld
+correspondences. But every integration before `jb_rc` ran in the **bar-only** constraint space —
+strut lengths held, nothing else — which is strictly weaker than the jitterbug and admits **six**
+internal DOF per cell where the linkage has **one**. Measured on the same 6-cell chain: 36 against
+6. The five extra per cell are not jitterbug motions, and they are what the jumbled cluster render
+was showing. Do not read a transport number out of a bar-only run.
+
+What `jb_rc` establishes:
+
+- **The ellipse residual is absent, not small.** A vertex's body-frame position is a function of the
+  fold angle alone, so no coordinate in the state can move it off its ellipse. The constraint set is
+  welds and nothing else — nine rows per shared face, of which six are independent. A gate row that
+  checks an ellipse residual against a tolerance means the coordinates are wrong.
+- **The DOF table, with a correct global-rigid-motion basis** (translations `δc = t`; rotations
+  `δc = ω × c`, `ω_k = ω` — the `ω × c` term is what an earlier fold-map-rank run omitted, reporting
+  a column two too high). Cells free to turn: **N internal DOF for N cells**, 1…7 for chains and 9
+  for the cluster. Orientations frozen: the *same* Jacobian restricted to its centre and fold columns
+  has rank 4 per weld instead of 6 and leaves **1 at every size** — a single coordinate, so a
+  disturbance has nowhere to be. That contrast is the field claim.
+- **Energy audits clean with V = 0** — relative drift `1.8e-11` over t = 0…40, weld residual
+  `4.9e-11` *unprojected*. The integrator is deliberately **not** symplectic: a symplectic scheme
+  conserves a shadow Hamiltonian and would make the row nearly vacuous.
+- **The constraint is immediate and exact.** A phase-rate kick on the cluster's centre puts
+  **32/37** of the energy in the shell at t = 0, before any time passes — exactly rational, 5/37 to
+  the centre and 4/37 to each neighbour. There is no onset lag and no wavefront to time; a finite
+  signal speed would need compliant constraints, which is the rejected fork.
+- **The drain-and-return does not reproduce under a symmetric kick.** A centre kick is invariant
+  under the cube group, so it excites only the symmetric mode: the eight shell cells stay identical
+  to `2.6e-14` and the centre drains monotonically, 0.135 → 0.019 over t = 0…40. Kick a *shell* cell
+  instead and the return is there (0.940 → 0.808 at t = 4 → 0.951 at t = 12). The earlier
+  drain-and-return used a spin on one triangle, which selects a face and breaks the symmetry — so it
+  differed in initial condition as well as in constraint space.
+- The 6-cell chain transports and returns: the driven cell falls 0.831 → 0.332, an interior cell
+  reaches 0.396, cell 1 empties to `1.2e-4` and refills to 0.279. **Not a front** — the onset is
+  simultaneous, so this is mode superposition and no arrival time here is a signal speed.
+
+Withdrawn, not carried over: the bar-space "6 internal DOF per cell" for the chain, the 9-cell
+cluster's 54, the 80/20 split at t = 0 and the drain factor of eleven. Runtime ~18 s, 15 gate rows,
+4 mutation probes.
+
+> **`np.dot`, not `@`, in the multiplier solves.** On numpy 1.26 against Apple's Accelerate BLAS the
+> `@` operator's small-matrix SIMD path raises spurious divide-by-zero / overflow / invalid
+> `RuntimeWarning`s on these operands while returning a bit-identical, finite result (verified with
+> `np.array_equal`). The comment on `_solve` says so; do not "simplify" it back.
 
 Independent verification by two reviewing agents, written from scratch against the same claims —
 `rv_*.py` (finite-difference Jacobian check, tolerance sweep, local-dimension estimate that
