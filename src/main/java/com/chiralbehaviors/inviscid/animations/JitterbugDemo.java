@@ -186,9 +186,14 @@ public class JitterbugDemo extends PolyView {
         content.setContent(root);
 
         final long[] last = { 0 };
-        final Timeline timeline = new Timeline();
-        timeline.getKeyFrames()
-                .add(new KeyFrame(Duration.millis(12_000), new KeyValue(new WritableValue<Double>() {
+        // INITIAL STATE. Jitterbug's constructor bakes every face rotated and
+        // translated to the ORIGIN, so with zero transforms all 8 triangles of a
+        // cell sit piled at its centre and every cell sits at zero separation.
+        // rotateTo and the placement translations are what put them where they
+        // belong, and until this runs the scene is meaningless -- cells heaped
+        // on top of each other. The driver is therefore captured and invoked
+        // ONCE here, so the view is correct before the timeline is ever started.
+        final WritableValue<Double> driver = new WritableValue<Double>() {
                     @Override
                     public Double getValue() {
                         return -60d;
@@ -225,7 +230,12 @@ public class JitterbugDemo extends PolyView {
                         last[0] = now;
                         report(a, b, fa, fb, solo, A, B, shift, n);
                     }
-                }, 0d)));
+                };
+        driver.setValue(-60d);
+
+        final Timeline timeline = new Timeline();
+        timeline.getKeyFrames()
+                .add(new KeyFrame(Duration.millis(12_000), new KeyValue(driver, 0d)));
         timeline.setCycleCount(9000);
         timeline.setAutoReverse(true);
         content.setTimeline(timeline);

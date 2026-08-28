@@ -2,7 +2,7 @@
 /.classpath
 /.project
 /.settings/
-/Jfx3dViewerApp_session.properties
+Jfx3dViewerApp_session.properties
 **/.DS_Store
 **/.idea
 **/.serena
