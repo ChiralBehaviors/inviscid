@@ -630,12 +630,42 @@ class Topology:
 
 
 def _fcc13_contacts(v0):
-    """Twelve-around-one, read at a = 0 where it closes, then HELD.
+    """Twelve-around-one, read at a = 0 where it closes.
 
     Centre-to-neighbour: 12. Neighbour-to-neighbour: every ordered pair of
-    neighbour directions whose difference is again a contact vector. Read at
-    a = 0 and never re-read, for the same reason the hinge pairing is never
-    re-read at a merge angle.
+    neighbour directions whose difference is again a contact vector.
+
+    THIS IS AN a = 0 TOPOLOGY, AND THE REASON THIS DOCSTRING USED TO GIVE FOR
+    HOLDING IT WAS BACKWARDS (bead inviscid-43o, gated in
+    `jb_hh_held_correspondences.py`). It read: "Read at a = 0 and never
+    re-read, for the same reason the hinge pairing is never re-read at a merge
+    angle." Those are OPPOSITE cases, and the false analogy is what let the
+    defect through:
+
+      * the HINGE PAIRING is a LABELLING. Measured identical at nine generic
+        phases including negative ones, and degenerate only AT the merge
+        angles, where twelve vertices collapse to six of multiplicity 4.
+        Holding it is correct.
+      * these NEIGHBOUR-TO-NEIGHBOUR contacts are a COINCIDENCE. Re-read at
+        ANY a != 0 and the search returns none of them -- 12 contacts, zero
+        between neighbours, against 36 with 24 here. The twelve neighbours
+        stop touching each other the instant the jitterbug moves, because the
+        closure of the vertex set under the differences this search looks for
+        is a property of the a = 0 cuboctahedron alone.
+
+    THE DEFECT SPLITS, and only two thirds of it is broken. The 12
+    CENTRE-to-neighbour contacts are exact at EVERY phase to 4e-16 -- unit 0's
+    vertex k and unit 1+k's vertex ANTI[k] both land at 2 v[k] identically,
+    since v[ANTI[k]] = -v[k] at every fold angle. The 24 neighbour-neighbour
+    contacts carry the whole residual (0.069809626 at a = 1, 0.348622971 at
+    a = 5, growing linearly).
+
+    So this set is USABLE AT a = 0 AND MEANINGLESS AWAY FROM IT, and no gate
+    row depends on it elsewhere: `jb_y_dephasing` skips FCC13 at all three of
+    its call sites, this file excludes it from `live_ranks`, and row X2 asserts
+    exactly the restriction. Regenerating per phase is well posed but yields a
+    13-cell STAR -- which `SC7` already covers -- so it would replace the
+    topology rather than repair it.
     """
     cs = [(0, k, 1 + k, ANTI[k]) for k in range(12)]
     for i in range(12):
@@ -2952,7 +2982,9 @@ def gate(r0, r1, guard_fired, ranks, sig_free, sig_dow, inph, breathe,
          f"{r1['defect_ico']:.3f}", "> 1.0"),
         ("X2  six-around-one closes at EVERY swept a", six_all,
          str(six_all), "True"),
-        ("X2  twelve-around-one closes ONLY at a = 0", fcc_only0,
+        ("X2  twelve-around-one's NEIGHBOUR-NEIGHBOUR contact closes ONLY at "
+         "a = 0 (its centre star closes at every phase -- bead inviscid-43o)",
+         fcc_only0,
          str(fcc_only0), "True"),
         ("X3  rank constant on the FINE sweep, free AND dow", rank_const,
          str(rank_const), "True"),
