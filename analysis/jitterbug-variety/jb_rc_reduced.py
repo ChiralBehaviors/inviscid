@@ -571,6 +571,143 @@ def walk(asm, q0, u, eps):
     return q
 
 
+#: A cell folded past its own octahedron self-intersects, so |gamma| <= 60 is a
+#: HARD STOP, not a convention. The shared-face law b = a + 60 forces BOTH
+#: sublattices into that window at once, so the medium's admissible range is
+#: a in [-60, 0] -- sixty degrees, over which the sublattices exchange roles
+#: completely and the lattice constant breathes 1 -> 2/sqrt(3) -> 1.
+FOLD_LIMIT = 60.0
+
+
+def lattice_constant(a_deg):
+    """L(a): the centre-to-centre spacing per unit site, from the shared-face
+    law. Stationary at a = -30, which is the only angle where a coherently
+    breathing patch's centres do not move."""
+    return (IC.ZC * (np.cos(np.radians(a_deg))
+                     + np.cos(np.radians(a_deg + 60.0))) / np.sqrt(3.0))
+
+
+def coherent(sites, a_deg, rate=1.0):
+    """THE MEDIUM'S ONE MOTION, in closed form.
+
+    A compact patch has exactly one internal degree of freedom, and R5h measures
+    what it is: every cell folds at the SAME rate, NO cell rotates, and every
+    centre rides the lattice constant. So the whole configuration and its whole
+    velocity are functions of one angle:
+
+        gamma_even = a,  gamma_odd = a + 60,  R = I,  centre = L(a) * site
+        cdot = dL/da * adot * site,  omega = 0,  gammadot = adot
+
+    Returned as (q, u) in the Assembly's own packing, so it can be checked
+    against the constrained model rather than trusted -- which is what R5h does.
+    `rate` is adot in RADIANS per unit time.
+    """
+    n = len(sites)
+    L, dL, _ = lattice_derivatives(a_deg)
+    q = np.zeros((n, 8))
+    u = np.zeros((n, 7))
+    for k, site in enumerate(sites):
+        even = all(c % 2 == 0 for c in site)
+        q[k, 0:3] = L * np.array(site, float)
+        q[k, 3] = 1.0
+        q[k, 7] = a_deg if even else a_deg + 60.0
+        u[k, 0:3] = dL * rate * np.array(site, float)
+        u[k, 6] = rate
+    return q.ravel(), u
+
+
+def lattice_derivatives(a_deg):
+    """L, dL/da and d2L/da2 in RADIANS. L is a sum of two cosines, so
+    d2L/da2 = -L exactly -- worth writing down rather than differencing, because
+    a finite-differenced dM/da makes the equation of motion noisy at ~1e-8 and an
+    adaptive integrator asked for 1e-11 will thrash against it forever. That is
+    not hypothetical; it is what the first version of `swing` did."""
+    r = np.radians(a_deg)
+    z = IC.ZC / np.sqrt(3.0)
+    L = z * (np.cos(r) + np.cos(r + np.pi / 3.0))
+    return L, -z * (np.sin(r) + np.sin(r + np.pi / 3.0)), -L
+
+
+def effective_mass(sites, a_deg, derivative=False):
+    """M_eff(a) for a coherently breathing patch: twice the kinetic energy at
+    unit fold rate, with dM/da on request.
+
+    Summed straight over the cells rather than through an `Assembly`, because the
+    coherent velocity is closed form and needs no weld structure at all -- a
+    vertex moves at dL/da * site + v'(gamma). Going through the assembly per call
+    instead was two orders of magnitude slower. R5h checks this against the
+    constrained model's own energy, so the shortcut is verified rather than
+    assumed.
+
+    M_eff is NOT constant in a, which is why the breathe is not uniform in time
+    and why an animation of it is dynamics rather than a sweep.
+    """
+    _, dL, ddL = lattice_derivatives(a_deg)
+    ev = body(a_deg, 2)
+    od = body(a_deg + 60.0, 2)
+    m, dm = 0.0, 0.0
+    for site in sites:
+        s = np.array(site, float)
+        d = ev if all(c % 2 == 0 for c in site) else od
+        vel = dL * s + d[1]
+        acc = ddL * s + d[2]
+        m += float(np.dot(VMASS, np.einsum('ij,ij->i', vel, vel)))
+        if derivative:
+            dm += 2.0 * float(np.dot(VMASS, np.einsum('ij,ij->i', vel, acc)))
+    return (m, dm) if derivative else m
+
+
+def swing(sites, a0, adot0, tmax, nsample):
+    """The 1-DOF motion, bounced elastically off both fold limits.
+
+    V = 0, so the only force is the configuration-dependent inertia:
+    addot = -(1/2)(M'/M) adot^2, which is FreeDynamics' equation with this
+    patch's effective mass. The impact is velocity reversal, and that is exact
+    rather than convenient: with one degree of freedom every admissible velocity
+    is a multiple of one mode, so reversing it conserves energy identically and
+    cannot leave the weld tangent space.
+    """
+    from scipy.integrate import solve_ivp
+
+    def rhs(_t, y):
+        a, ad = y
+        m, dm = effective_mass(sites, a, derivative=True)
+        return [np.degrees(ad), -0.5 * (dm / m) * ad * ad]
+
+    def hi(_t, y):
+        return -y[0]
+
+    def lo(_t, y):
+        return y[0] + FOLD_LIMIT
+
+    hi.terminal = lo.terminal = True
+    #: DIRECTION MATTERS, and omitting it hangs. After a bounce the state sits
+    #: exactly ON the limit, so an undirected event fires again at once, at zero
+    #: elapsed time, forever. Requiring a downward crossing means the outgoing
+    #: leg -- which moves away from the limit -- does not retrigger it.
+    hi.direction = lo.direction = -1.0
+    y = [a0, adot0]
+    ts = np.linspace(0.0, tmax, nsample + 1)
+    rec, bounces, t0 = [], 0, 0.0
+    while t0 < tmax - 1e-12:
+        want = ts[(ts > t0 - 1e-12) & (ts <= tmax)]
+        sol = solve_ivp(rhs, (t0, tmax), y, method="DOP853", t_eval=want,
+                        rtol=1e-11, atol=1e-13, events=(hi, lo))
+        for j, t in enumerate(sol.t):
+            a, ad = sol.y[0, j], sol.y[1, j]
+            rec.append((t, a, ad,
+                        0.5 * effective_mass(sites, a) * ad * ad, bounces))
+        if sol.status != 1:
+            break
+        t0 = float(sol.t_events[0][0] if len(sol.t_events[0])
+                   else sol.t_events[1][0])
+        ye = (sol.y_events[0][0] if len(sol.y_events[0])
+              else sol.y_events[1][0])
+        y = [float(ye[0]), -float(ye[1])]      # the elastic impact, in full
+        bounces += 1
+    return rec, bounces
+
+
 def rank_of(M, tol=1e-8):
     if M.size == 0:
         return 0, 0.0
@@ -972,6 +1109,74 @@ def gate():
        f"worst weld residual along the walks {worst_w:.1e}",
        "12 contacts, none ever held closed, all opening quadratically"))
 
+    # R5h -- the medium's one motion, in closed form and bounded by its geometry
+    bs = ball(2.0)
+    basm, bdeg = honeycomb(bs, -30.0)
+    bc, bR, bg, bB = basm.frames(basm.q0())
+    brk, _ = rank_of(basm.constraint_jacobian(basm.cell_jacobians(bc, bR, bB)))
+    bdof = 7 * basm.N - brk - 6
+    bu, _ = fold_impulse(basm, 0)
+    #: the closed form IS the constrained motion -- checked, not assumed
+    worst_rot = worst_ctr = worst_weld = worst_mass = 0.0
+    for ang in (-7.0, -20.0, -30.0, -45.0, -55.0):
+        am, _ = honeycomb(bs, ang)
+        cq, cu = coherent(bs, ang)
+        ku, _ = fold_impulse(am, 0)
+        ku = ku / ku[0, 6]                       # normalise to unit fold rate
+        worst_rot = max(worst_rot, float(np.abs(ku[:, 3:6]).max()))
+        worst_ctr = max(worst_ctr, float(np.abs(ku[:, 0:3] - cu[:, 0:3]).max()))
+        worst_weld = max(worst_weld, float(np.abs(am.weld_residual(cq)).max()))
+        worst_mass = max(worst_mass, abs(effective_mass(bs, ang)
+                                         - 2.0 * float(am.energy(cq, cu).sum())))
+    hfd = 1e-5
+    dm_err = 0.0
+    for ang in (-7.0, -30.0, -52.0):
+        _, dm = effective_mass(bs, ang, derivative=True)
+        fd = (effective_mass(bs, ang + np.degrees(hfd))
+              - effective_mass(bs, ang - np.degrees(hfd))) / (2 * hfd)
+        dm_err = max(dm_err, abs(dm - fd) / abs(fd))
+    srec, bounces = swing(bs, -30.0, 0.30, 40.0, 200)
+    sE = np.array([r[3] for r in srec])
+    sa = np.array([r[1] for r in srec])
+    lam = [lattice_constant(x) for x in (0.0, -30.0, -60.0)]
+    out["breathe"] = (basm.N, len(basm.welds), bdof, bounces, srec, bs)
+    A(("R5h THE MEDIUM'S ONE MOTION, IN CLOSED FORM, BOUNDED BY ITS OWN "
+       "GEOMETRY. A compact patch -- 15 cells, no dangling ones, ONE internal "
+       "degree of freedom -- answers a phase kick on a SINGLE cell with a "
+       "perfectly coherent breathe, because there is no other motion available "
+       "to it. And that motion is closed form: every cell folds at the same "
+       "rate, NO cell rotates, every centre just rides the lattice constant "
+       "L(a). Checked against the constrained model rather than assumed, which "
+       "is what lets the animation skip the constraint solve entirely. Past "
+       "|gamma| = 60 a cell folds through its own octahedron and self-"
+       "intersects, so with b = a + 60 forcing both sublattices into the window "
+       "at once the range is a in [-60, 0] -- the limits are the geometry's, "
+       "not a convention. The impact is VELOCITY REVERSAL, exact rather than "
+       "convenient: with one degree of freedom every admissible velocity is a "
+       "multiple of one mode, so energy survives the bounce identically",
+       bdof == 1 and sum(1 for d in bdeg if d == 1) == 0
+       and float(bu[:, 6].max() - bu[:, 6].min()) < 1e-12
+       and worst_rot < 1e-11 and worst_ctr < 1e-10
+       and worst_weld < 1e-14 and worst_mass < 1e-9 and dm_err < 1e-6
+       and bounces >= 6
+       and sa.min() > -FOLD_LIMIT and sa.max() < 0.0
+       and float(np.abs(sE - sE[0]).max() / sE[0]) < 1e-9,
+       f"N={basm.N} welds={len(basm.welds)} dangling=0 -> DOF {bdof}; one-cell "
+       f"kick gives fold rates equal to "
+       f"{float(bu[:, 6].max() - bu[:, 6].min()):.0e}; over five angles the "
+       f"closed form has cell rotation {worst_rot:.0e}, centre velocity "
+       f"matching dL/da*site to {worst_ctr:.0e}, welds closed to "
+       f"{worst_weld:.0e}, and M_eff agreeing with the assembly's own energy to "
+       f"{worst_mass:.0e}; analytic dM/da matches central differences to "
+       f"{dm_err:.0e}; {bounces} elastic bounces over t=0..40 with a held in "
+       f"[{sa.min():.2f}, {sa.max():.2f}] and E = {sE[0]:.9f} conserved to "
+       f"{float(np.abs(sE - sE[0]).max() / sE[0]):.0e} ACROSS them; M_eff "
+       f"{effective_mass(bs, 0.0):.1f} -> {effective_mass(bs, -30.0):.1f} -> "
+       f"{effective_mass(bs, -60.0):.1f}, so the breathe is fastest at "
+       f"mid-swing; lattice constant ratio {lam[1] / lam[0]:.9f} against "
+       f"2/sqrt(3) = {2 / np.sqrt(3):.9f}",
+       "1 DOF, closed form verified, bounded in [-60,0], E exact across bounces"))
+
     # R6 -- the five spurious DOF per cell, measured rather than asserted
     Pb, bb, _, _, _, _ = IC.build(list(ch6.gam0))
     bar_dof = 3 * len(Pb) - IC.rigidity(Pb, bb) - 6
@@ -1225,6 +1430,14 @@ def main():
     print(f"    total energy {ev:.9f} = 152/137")
     print(f"    outer kick: middle peaks {mp:.5f} at t={mt:.2f}, "
           f"far peaks {fp:.5f} at t={ft:.2f}")
+
+    bn, bw, bdf, bb, brec, bsites = out["breathe"]
+    print(f"\n  A COMPACT PATCH BREATHING -- {bn} cells, {bw} welds, {bdf} internal")
+    print("  degree of freedom, bounced elastically off both fold limits:")
+    print(f"  {'t':>7} {'a':>9} {'a+60':>8} {'adot':>9} {'L(a)':>9} {'E':>13} {'bounces':>8}")
+    for t, a, ad, e, nb in brec[::max(1, len(brec) // 12)]:
+        print(f"  {t:7.2f} {a:9.3f} {a + 60:8.3f} {ad:+9.4f} "
+              f"{lattice_constant(a):9.6f} {e:13.9f} {nb:8d}")
 
     print("\n  6-cell chain, phase-rate kick on cell 0 -- share of kinetic energy:")
     rec = out["chain"]
