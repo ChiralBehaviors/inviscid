@@ -23,8 +23,24 @@ Gray, "The Jitterbug Motion" (2002) p.40, is why that matters:
 
 SharedFaceAnimation measures how much: the centres travel 15% while the shared
 face stays joined to 1e-15. A build that holds station cannot be paying that in
-centre travel, so it pays it in clearance -- and a joint with clearance is a
-UNILATERAL CONTACT, not a weld. That is the whole model here.
+centre travel, so it pays it in CLEARANCE -- and a joint with clearance is not a
+weld either. That is the whole model here.
+
+NOT A UNILATERAL CONTACT, AND THE DISTINCTION IS LOAD BEARING. T2 inviscid
+[23575] rules out the contact/granular reading of this medium, correctly: "A
+unilateral contact is one that can SEPARATE -- a shared vertex ceasing to be
+shared -- and that is exactly a change of incidence. Incidence never changes.
+The contact/granular reading was never available."
+
+That refutes contacts which MAKE AND BREAK. This model has neither. The owner's
+joints are permanent -- "they will ALWAYS be joined by the vertex and never ever
+split" -- and the constraint below is |c_k| <= t, a band with a stop on BOTH
+sides. Two-sided, permanently engaged, incidence fixed. The mechanism is
+BACKLASH, which is what a bilateral joint with clearance has, and it is a
+different object from a unilateral contact. 23575 and this file are both right
+and are about different things. An earlier version of this docstring said
+"UNILATERAL CONTACT" and would have read as refuted by an entry it does not
+actually contradict.
 
 THE MODEL. Cells at fixed sites along one dowel, one fold angle each, inertia
 from their own corner masses. Gray's radial law V(g) = Z cos(g) with
@@ -34,8 +50,14 @@ neighbours are coupled by
     c_k = V(g_k) + V(g_k+1) - sep0,     |c_k| <= t
 
 with t the joint play. INSIDE the band the cells are free of each other; at its
-edges they collide. That is a backlash chain, and a backlash chain has no linear
-sound speed at all -- only solitary waves whose speed depends on amplitude.
+two edges they collide. That is a BACKLASH chain, and a backlash chain has no
+linear sound speed at all -- only solitary waves whose speed depends on
+amplitude.
+
+23575 also reaches this file's starting point and stops one step short: "shared
+vertex, rigid -> constraint propagates instantly -> rigidity, NOT waves". True,
+for rigid joints. Give the SAME permanent joints clearance and the propagation
+stops being instant, without any incidence changing.
 
 TWO METHOD NOTES, both paid for here.
 
