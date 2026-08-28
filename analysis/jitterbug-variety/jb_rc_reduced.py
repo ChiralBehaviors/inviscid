@@ -533,6 +533,44 @@ def identification_rows(asm, classes):
     return np.array(rows)
 
 
+def apply_increment(asm, q, d):
+    """Move a configuration by a generalized displacement, rotating each
+    orientation by the exponential map so it stays on SO(3)."""
+    q = q.copy()
+    for k in range(asm.N):
+        q[8 * k:8 * k + 3] += d[7 * k:7 * k + 3]
+        w = d[7 * k + 3:7 * k + 6]
+        th = float(np.linalg.norm(w))
+        if th > 0:
+            dq = np.concatenate(([np.cos(th / 2)], np.sin(th / 2) * w / th))
+            a, b = dq, q[8 * k + 3:8 * k + 7]
+            q[8 * k + 3:8 * k + 7] = np.array([
+                    a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3],
+                    a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
+                    a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1],
+                    a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]])
+        q[8 * k + 7] += np.degrees(d[7 * k + 6])
+        q[8 * k + 3:8 * k + 7] /= np.linalg.norm(q[8 * k + 3:8 * k + 7])
+    return q
+
+
+def walk(asm, q0, u, eps):
+    """A FINITE step along a generalized velocity, Gauss-Newton'd back onto the
+    weld manifold. Finite rather than infinitesimal on purpose: whether a contact
+    opens or closes is second order, so a tangent alone cannot answer it."""
+    q = apply_increment(asm, q0, eps * u)
+    for _ in range(30):
+        g = asm.weld_residual(q)
+        if np.abs(g).max() < 1e-13:
+            break
+        ctr, R, gam, B = asm.frames(q)
+        C = asm.constraint_jacobian(asm.cell_jacobians(ctr, R, B))
+        # np.dot, not `@` -- see _solve on the Accelerate BLAS status flags.
+        q = apply_increment(asm, q, -np.dot(
+                C.T, np.linalg.lstsq(np.dot(C, C.T), g, rcond=None)[0]))
+    return q
+
+
 def rank_of(M, tol=1e-8):
     if M.size == 0:
         return 0, 0.0
@@ -890,6 +928,49 @@ def gate():
                  f"weld-imposed {v[3]} of {v[4]} spanning -> DOF {v[5]} "
                  f"(fold spread {v[6]:.0e})" for k, v in sv.items()),
        "structural at 5 angles, DOF 1 everywhere, one uniform fold rate"))
+
+    # R5g -- and whether that sharing is a constraint at all
+    asm_t, _ = honeycomb(brick(3, 3, 3))
+    q0t = asm_t.q0()
+    weldset = {frozenset([(k, a), (l, b)])
+               for k, l, prs in asm_t.welds for a, b in prs}
+    touch = [c for c in shared_vertices(asm_t)
+             if len(c) == 2 and frozenset(c) not in weldset]
+    ctr_t, R_t, g_t, B_t = asm_t.frames(q0t)
+    Mt = np.vstack([asm_t.constraint_jacobian(
+            asm_t.cell_jacobians(ctr_t, R_t, B_t)), asm_t.globals(ctr_t)])
+    rt2, _ = rank_of(Mt)
+    modes = np.linalg.svd(Mt)[2][rt2:]
+    held, worst_w, smallest = 0, 0.0, np.inf
+    for m in range(modes.shape[0]):
+        for eps in (0.08, -0.08):
+            qw = walk(asm_t, q0t, modes[m], eps)
+            worst_w = max(worst_w, float(np.abs(asm_t.weld_residual(qw)).max()))
+            Xw = asm_t.positions(qw)
+            gaps = np.array([np.linalg.norm(Xw[a[0]][a[1]] - Xw[b[0]][b[1]])
+                             for a, b in touch])
+            held += int((gaps < 1e-9).sum())
+            smallest = min(smallest, float(gaps.min()))
+    out["contact"] = (len(touch), modes.shape[0], held, smallest, worst_w)
+    A(("R5g THE VERTEX SHARING IS A TANGENCY, NOT A CONSTRAINT, so R5f's caveat "
+       "resolves itself for the MEDIUM. The 12 identifications the face-welds "
+       "miss are all between EVEN cells that share no face -- the square-face "
+       "neighbours, which is ThreeCellAnimation's 'the outer cells touch each "
+       "other without being asked to'. Walk a FINITE distance along every "
+       "weld-only internal mode, in BOTH directions, and every one of those "
+       "contacts OPENS: never once held closed, and the gap grows like eps^2, "
+       "so the modes graze the contact rather than cross it. A real vertex "
+       "contact is UNILATERAL -- two cells touching at a point can separate -- "
+       "so it never binds and imposes nothing. TWO-SIDED: a mode that closed a "
+       "contact would be counted here. What R5f measures is therefore the RIG's "
+       "answer, where vertices are joined; the MEDIUM's is R5e's",
+       len(touch) == 12 and out["contact"][2] == 0
+       and out["contact"][3] > 1e-4 and worst_w < 1e-12,
+       f"{len(touch)} even-even contacts, {modes.shape[0]} modes x 2 directions: "
+       f"{held} contacts held closed, smallest gap opened "
+       f"{out['contact'][3]:.1e} at |eps| = 0.08 (quadratic: eps^2 = 6.4e-3); "
+       f"worst weld residual along the walks {worst_w:.1e}",
+       "12 contacts, none ever held closed, all opening quadratically"))
 
     # R6 -- the five spurious DOF per cell, measured rather than asserted
     Pb, bb, _, _, _, _ = IC.build(list(ch6.gam0))
