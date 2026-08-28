@@ -466,9 +466,9 @@ public class ReducedCoordinatesTest {
                          u[NU * k + 6], 1e-9);
         }
 
-        for (Object[] c : new Object[][] { { "brick 3x3x3", brick(3), 9 },
-                                           { "brick 4x4x4", brick(4), 3 },
-                                           { "ball r=2.0", ball(2.0), 1 } }) {
+        for (Object[] c : new Object[][] { { "brick 3x3x3", ReducedCoordinates.brick(3), 9 },
+                                           { "brick 4x4x4", ReducedCoordinates.brick(4), 3 },
+                                           { "ball r=2.0", ReducedCoordinates.ball(2.0), 1 } }) {
             int[][] sites = (int[][]) c[1];
             int[] d = new int[sites.length];
             Assembly a = ReducedCoordinates.honeycomb(-30.0, sites, d);
@@ -485,45 +485,6 @@ public class ReducedCoordinatesTest {
             assertEquals(c[0] + " internal DOF", ((Integer) c[2]).intValue(), dof);
             assertEquals(c[0] + ": DOF is 1 + the dangling cells", 1 + dangling, dof);
         }
-    }
-
-    /** Sites of an {@code n x n x n} brick of the honeycomb: all-even and
-     *  all-odd integer points. Odd {@code n} leaves eight dangling corners. */
-    private static int[][] brick(int n) {
-        List<int[]> out = new ArrayList<>();
-        for (int x = 0; x < n; x++) {
-            for (int y = 0; y < n; y++) {
-                for (int z = 0; z < n; z++) {
-                    boolean even = x % 2 == 0 && y % 2 == 0 && z % 2 == 0;
-                    boolean odd = x % 2 == 1 && y % 2 == 1 && z % 2 == 1;
-                    if (even || odd) {
-                        out.add(new int[] { x, y, z });
-                    }
-                }
-            }
-        }
-        return out.toArray(new int[0][]);
-    }
-
-    /** A compact patch: every lattice site inside {@code radius}. No dangling
-     *  cells, and therefore one internal degree of freedom at any size. */
-    private static int[][] ball(double radius) {
-        int n = (int) radius + 2;
-        List<int[]> out = new ArrayList<>();
-        for (int x = -n; x <= n; x++) {
-            for (int y = -n; y <= n; y++) {
-                for (int z = -n; z <= n; z++) {
-                    boolean even = Math.floorMod(x, 2) == 0 && Math.floorMod(y, 2) == 0
-                                   && Math.floorMod(z, 2) == 0;
-                    boolean odd = Math.floorMod(x, 2) == 1 && Math.floorMod(y, 2) == 1
-                                  && Math.floorMod(z, 2) == 1;
-                    if ((even || odd) && x * x + y * y + z * z <= radius * radius) {
-                        out.add(new int[] { x, y, z });
-                    }
-                }
-            }
-        }
-        return out.toArray(new int[0][]);
     }
 
     private static double dist(double[] a, double[] b) {
@@ -551,9 +512,6 @@ public class ReducedCoordinatesTest {
         return out;
     }
 
-    /** A lone cell has no welds at all, so the constraint matrix has no rows and
-     *  a rank of zero. That is the n = 1 column of the table, not an edge case to
-     *  skip: one cell, one fold angle, one degree of freedom either way. */
     private static int rank(double[][] m) {
         return m.length == 0 ? 0 : Linear.rank(m, 1e-8);
     }

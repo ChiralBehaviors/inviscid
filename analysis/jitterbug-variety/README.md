@@ -592,6 +592,30 @@ Withdrawn, not carried over: the bar-space "6 internal DOF per cell" for the cha
 cluster's 54, the 80/20 split at t = 0 and the drain factor of eleven. Runtime ~18 s, 15 gate rows,
 4 mutation probes.
 
+**The medium's one motion, and the animation of it** (R5h, bead `inviscid-qvf.27`). Once the
+cycles are closed there is only one internal degree of freedom, so a phase kick on a *single* cell of
+a compact patch has nowhere to go but into a coherent breathe — and that breathe is **closed form**:
+
+    gamma_even = a,   gamma_odd = a + 60,   R = I,   centre = L(a) * site
+
+Verified against the constrained model over five angles rather than assumed: no cell rotates (3e-12),
+every centre rides `L(a)` (3e-12), welds close to 9e-16, and the fast `M_eff` agrees with the
+assembly's own energy to 1e-13. That is what lets `HoneycombBreatheAnimation` skip the constraint
+solve entirely.
+
+The range is `a ∈ [−60, 0]` — past `|gamma| = 60` a cell folds through its own octahedron and
+self-intersects, and `b = a + 60` forces both sublattices into the window at once. The impact is
+**velocity reversal**, exact rather than convenient: with one degree of freedom every admissible
+velocity is a multiple of one mode, so energy survives the bounce identically (measured: `E` held to
+7e-11 across ten bounces). `M_eff` runs **272 → 120 → 264** across the window, so the breathe is
+fastest at mid-swing — which is what makes it dynamics rather than a sweep, and the visible
+difference from `ThreeCellAnimation`'s constant-rate drive.
+
+> Two performance traps, both paid for here and recorded in the code: building an `Assembly` per
+> effective-mass call is ~100× slower and needs no weld structure at all; and a finite-differenced
+> `dM/da` makes the equation of motion noisy at ~1e-8, against which an adaptive integrator asked for
+> 1e-11 thrashes forever. `L` is a sum of two cosines, so `d²L/da² = −L` exactly.
+
 **Ported to Java, and the port is checked rather than trusted.**
 `src/main/java/com/chiralbehaviors/inviscid/jitterbug/ReducedCoordinates.java` is an independent
 implementation of the same model — plain arithmetic, no commons-math3 (that boundary is `Linear`'s,

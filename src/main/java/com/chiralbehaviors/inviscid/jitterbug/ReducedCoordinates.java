@@ -636,6 +636,14 @@ public final class ReducedCoordinates {
     /** Coordinates in the packed configuration block, per cell. */
     public static final int NQ = 8;
 
+    /** A cell folded past its own octahedron self-intersects, so
+     *  {@code |gamma| <= 60} is a HARD STOP and not a convention. The
+     *  shared-face law {@code b = a + 60} forces BOTH sublattices into that
+     *  window at once, so the medium's admissible range is {@code a in [-60, 0]}
+     *  — sixty degrees, over which the sublattices exchange roles completely and
+     *  the lattice constant breathes {@code 1 -> 2/sqrt(3) -> 1}. */
+    public static final double FOLD_LIMIT = 60.0;
+
     /** Vertex identities per cell. Twelve at <em>every</em> fold angle. */
     public static final int NV = 12;
 
@@ -856,6 +864,239 @@ public final class ReducedCoordinates {
             }
         }
         return new Assembly(gam, ctr, welds.toArray(new Weld[0]));
+    }
+
+    /**
+     * {@code L(a)}, {@code dL/da} and {@code d2L/da2} in <b>radians</b>, as
+     * {@code {L, dL, ddL}}.
+     *
+     * <p>
+     * {@code L} is a sum of two cosines, so {@code d2L/da2 = -L} exactly. Worth
+     * writing down rather than differencing: a finite-differenced
+     * {@code dM/da} makes the equation of motion noisy at ~1e-8, and an adaptive
+     * integrator asked for 1e-11 thrashes against that forever. Not
+     * hypothetical — it is what the first version of this cost.
+     */
+    public static double[] latticeDerivatives(double aDeg) {
+        double r = Math.toRadians(aDeg);
+        double z = JitterbugGeometry.L_EDGE * Math.sqrt(2.0 / 3.0) / Math.sqrt(3.0);
+        double l = z * (Math.cos(r) + Math.cos(r + Math.PI / 3.0));
+        return new double[] { l,
+                              -z * (Math.sin(r) + Math.sin(r + Math.PI / 3.0)),
+                              -l };
+    }
+
+    /**
+     * The configuration of a coherently breathing patch at fold angle
+     * {@code a} — the medium's one motion, in closed form.
+     *
+     * <pre>
+     *     gamma_even = a,   gamma_odd = a + 60,   R = I,   centre = L(a) * site
+     * </pre>
+     *
+     * A compact patch has exactly ONE internal degree of freedom, so this is not
+     * a convenient parameterisation of some larger family — it is the whole
+     * admissible set. Verified against the constrained model over five angles by
+     * {@code jb_rc_reduced.py}'s R5h and by
+     * {@code ReducedCoordinatesTest}: no cell rotates (3e-12), every centre
+     * rides {@code L(a)} (3e-12), welds close to 9e-16.
+     */
+    public static double[] coherentState(int[][] sites, double aDeg) {
+        double l = latticeDerivatives(aDeg)[0];
+        double[] q = new double[NQ * sites.length];
+        for (int k = 0; k < sites.length; k++) {
+            boolean even = true;
+            for (int t = 0; t < 3; t++) {
+                even &= Math.floorMod(sites[k][t], 2) == 0;
+                q[NQ * k + t] = l * sites[k][t];
+            }
+            q[NQ * k + 3] = 1.0;
+            q[NQ * k + 7] = even ? aDeg : aDeg + 60.0;
+        }
+        return q;
+    }
+
+    /** The velocity of that motion at fold rate {@code rate} (radians per unit
+     *  time): {@code cdot = dL/da * rate * site}, {@code omega = 0}. */
+    public static double[] coherentVelocity(int[][] sites, double aDeg,
+                                            double rate) {
+        double dl = latticeDerivatives(aDeg)[1];
+        double[] u = new double[NU * sites.length];
+        for (int k = 0; k < sites.length; k++) {
+            for (int t = 0; t < 3; t++) {
+                u[NU * k + t] = dl * rate * sites[k][t];
+            }
+            u[NU * k + 6] = rate;
+        }
+        return u;
+    }
+
+    /**
+     * {@code {M_eff(a), dM_eff/da}} — twice the kinetic energy of the coherent
+     * breathe at unit fold rate, and its derivative.
+     *
+     * <p>
+     * Summed straight over the cells rather than through an {@link Assembly},
+     * because the coherent velocity is closed form and needs no weld structure
+     * at all: a vertex moves at {@code dL/da * site + v'(gamma)}. Going through
+     * the assembly per call is roughly two orders of magnitude slower, which is
+     * what made the first version of the swing unusable.
+     *
+     * <p>
+     * {@code M_eff} is <b>not</b> constant in {@code a} — for the 15-cell ball it
+     * runs 272 → 120 → 264 across the window — so the breathe is fastest at
+     * mid-swing. That is what makes an animation of it dynamics rather than a
+     * sweep.
+     */
+    public static double[] effectiveMass(int[][] sites, double aDeg) {
+        double[] lat = latticeDerivatives(aDeg);
+        double[][][] ev = body(aDeg, 2);
+        double[][][] od = body(aDeg + 60.0, 2);
+        double m = 0;
+        double dm = 0;
+        for (int[] site : sites) {
+            boolean even = true;
+            for (int t = 0; t < 3; t++) {
+                even &= Math.floorMod(site[t], 2) == 0;
+            }
+            double[][][] d = even ? ev : od;
+            for (int i = 0; i < NV; i++) {
+                double vv = 0;
+                double va = 0;
+                for (int t = 0; t < 3; t++) {
+                    double vel = lat[1] * site[t] + d[1][i][t];
+                    double acc = lat[2] * site[t] + d[2][i][t];
+                    vv += vel * vel;
+                    va += vel * acc;
+                }
+                m += VERTEX_MASS[i] * vv;
+                dm += 2.0 * VERTEX_MASS[i] * va;
+            }
+        }
+        return new double[] { m, dm };
+    }
+
+    /**
+     * Advance the one-degree-of-freedom breathe by {@code dt}, bouncing
+     * elastically off both fold limits.
+     *
+     * <p>
+     * V = 0, so the only force is the configuration-dependent inertia,
+     * {@code addot = -(1/2)(M'/M) adot^2} — {@link FreeDynamics}'s equation with
+     * this patch's effective mass. The impact is <b>velocity reversal</b>, exact
+     * rather than convenient: with one degree of freedom every admissible
+     * velocity is a multiple of one mode, so reversing it conserves energy
+     * identically and cannot leave the weld tangent space. On a patch with
+     * dangling cells this law would be WRONG, because there the fold can reverse
+     * while something else keeps going.
+     *
+     * @param state {@code {a in degrees, adot in radians per unit time}}
+     * @return how many bounces happened during this call
+     */
+    public static int swingStep(double[] state, int[][] sites, double dt,
+                                int substeps) {
+        double h = dt / substeps;
+        int bounces = 0;
+        for (int s = 0; s < substeps; s++) {
+            double[] k1 = swingRates(state, sites);
+            double[] k2 = swingRates(addScaled(state, k1, 0.5 * h), sites);
+            double[] k3 = swingRates(addScaled(state, k2, 0.5 * h), sites);
+            double[] k4 = swingRates(addScaled(state, k3, h), sites);
+            for (int i = 0; i < 2; i++) {
+                state[i] += h / 6.0 * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]);
+            }
+            if (state[0] > 0.0) {
+                state[0] = -state[0];
+                state[1] = -state[1];
+                bounces++;
+            } else if (state[0] < -FOLD_LIMIT) {
+                state[0] = -2.0 * FOLD_LIMIT - state[0];
+                state[1] = -state[1];
+                bounces++;
+            }
+        }
+        return bounces;
+    }
+
+    /** Kinetic energy of the breathe, which is the only audit there is with
+     *  V = 0 — and it must survive the bounces, not merely the smooth legs. */
+    public static double swingEnergy(double[] state, int[][] sites) {
+        return 0.5 * effectiveMass(sites, state[0])[0] * state[1] * state[1];
+    }
+
+    /** All twelve vertex identities of every cell, from the closed form alone.
+     *  No assembly, no constraint solve — which is the point. */
+    public static double[][][] coherentPositions(int[][] sites, double aDeg) {
+        double l = latticeDerivatives(aDeg)[0];
+        double[][] ev = body(aDeg, 0)[0];
+        double[][] od = body(aDeg + 60.0, 0)[0];
+        double[][][] x = new double[sites.length][NV][3];
+        for (int k = 0; k < sites.length; k++) {
+            boolean even = true;
+            for (int t = 0; t < 3; t++) {
+                even &= Math.floorMod(sites[k][t], 2) == 0;
+            }
+            double[][] v = even ? ev : od;
+            for (int i = 0; i < NV; i++) {
+                for (int t = 0; t < 3; t++) {
+                    x[k][i][t] = l * sites[k][t] + v[i][t];
+                }
+            }
+        }
+        return x;
+    }
+
+    /** Sites of an {@code n x n x n} brick: all-even and all-odd integer points.
+     *  Odd {@code n} leaves eight DANGLING corner cells, which is why such a
+     *  brick reports 9 internal degrees of freedom rather than 1. */
+    public static int[][] brick(int n) {
+        List<int[]> out = new ArrayList<>();
+        for (int x = 0; x < n; x++) {
+            for (int y = 0; y < n; y++) {
+                for (int z = 0; z < n; z++) {
+                    boolean even = x % 2 == 0 && y % 2 == 0 && z % 2 == 0;
+                    boolean odd = x % 2 == 1 && y % 2 == 1 && z % 2 == 1;
+                    if (even || odd) {
+                        out.add(new int[] { x, y, z });
+                    }
+                }
+            }
+        }
+        return out.toArray(new int[0][]);
+    }
+
+    /** A COMPACT patch: every lattice site inside {@code radius}. No dangling
+     *  cells, and therefore exactly one internal degree of freedom at any size —
+     *  which is what makes it the medium rather than a fragment of it. */
+    public static int[][] ball(double radius) {
+        int n = (int) radius + 2;
+        List<int[]> out = new ArrayList<>();
+        for (int x = -n; x <= n; x++) {
+            for (int y = -n; y <= n; y++) {
+                for (int z = -n; z <= n; z++) {
+                    boolean even = Math.floorMod(x, 2) == 0
+                                   && Math.floorMod(y, 2) == 0
+                                   && Math.floorMod(z, 2) == 0;
+                    boolean odd = Math.floorMod(x, 2) == 1
+                                  && Math.floorMod(y, 2) == 1
+                                  && Math.floorMod(z, 2) == 1;
+                    if ((even || odd) && x * x + y * y + z * z <= radius * radius) {
+                        out.add(new int[] { x, y, z });
+                    }
+                }
+            }
+        }
+        return out.toArray(new int[0][]);
+    }
+
+    private static double[] addScaled(double[] a, double[] b, double s) {
+        return new double[] { a[0] + s * b[0], a[1] + s * b[1] };
+    }
+
+    private static double[] swingRates(double[] state, int[][] sites) {
+        double[] md = effectiveMass(sites, state[0]);
+        return new double[] { Math.toDegrees(state[1]),
+                              -0.5 * (md[1] / md[0]) * state[1] * state[1] };
     }
 
     /** The index of the face pointing most nearly along {@code dir}. */
