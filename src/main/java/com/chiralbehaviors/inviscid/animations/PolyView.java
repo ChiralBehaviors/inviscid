@@ -27,6 +27,8 @@ import javafx.scene.shape.Sphere;
 import mesh.Edge;
 import mesh.Face;
 import mesh.Line;
+import javafx.stage.Stage;
+
 import mesh.polyhedra.Polyhedron;
 
 /**
@@ -34,6 +36,33 @@ import mesh.polyhedra.Polyhedron;
  *
  */
 public class PolyView extends Jfx3dViewerApp {
+
+    /**
+     * Title the window and bring it to the front.
+     *
+     * <p>
+     * The vendored {@link Jfx3dViewerApp} never calls {@code setTitle}, so
+     * every animation in this package opened as an UNTITLED window that macOS
+     * also declined to activate ("Timeout while waiting for app reactivation"
+     * in the log). The result is a window that exists, renders, and is
+     * invisible in practice: it does not surface in Cmd-Tab or Mission Control
+     * by any name you could look for, and the accessibility API reports its
+     * title as the empty string, which reads exactly like "there is no
+     * window". That cost a real round trip on 2026-08-28, where a running
+     * animation was twice reported as not launching.
+     *
+     * <p>
+     * The title defaults to the concrete subclass's simple name, so no
+     * animation has to do anything to get one. {@link Jfx3dViewerApp} itself is
+     * vendored Oracle sample code and is left untouched.
+     */
+    @Override
+    public void start(Stage stage) throws Exception {
+        super.start(stage);
+        stage.setTitle(getClass().getSimpleName());
+        stage.toFront();
+        stage.requestFocus();
+    }
 
     public void addEdgesOf(Group group, Polyhedron poly, double radius, Material material) {
         for (Edge edge : poly.getEdges()) {
