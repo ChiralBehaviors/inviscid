@@ -67,8 +67,17 @@ FOUR DECLARATIONS.
 
 SCOPE. Harmonic, at the reference phase a = -30. A quadratic joint is the
 SIMPLEST V and real rubber is neither quadratic nor symmetric; the
-compression/extension asymmetry remains the live candidate for the qvf.11
-one-sidedness and is not modelled here. jb_hc's own band structure is VOID --
+compression/extension asymmetry is not modelled here.
+
+  SUPERSEDED IN ONE CLAUSE, 2026-08-29, DECISION 20 (T2 [23713]). This
+  paragraph used to call the asymmetry "the live candidate for the qvf.11
+  one-sidedness". It is no longer a candidate for anything, because the
+  TARGET is withdrawn: the owner withdrew qvf.11's array lock as evidence
+  about the MEDIUM, the rig having held centres that Gray p.40 requires to
+  move, under tolerances wide enough to hide it. jb_ja built the asymmetry
+  anyway and measured that it produces no lock at any stiffness ratio, and
+  -- relevant to THIS file -- that it would cost the medium its Hessian at
+  the weld, hence omega(k) itself. Nothing measured below is affected. jb_hc's own band structure is VOID --
 it put springs on struts -- and nothing here reuses any number from it, only
 the fact that the honeycomb's Bravais lattice is cubic.
 """

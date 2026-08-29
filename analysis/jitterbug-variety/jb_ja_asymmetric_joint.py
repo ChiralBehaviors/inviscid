@@ -1,5 +1,20 @@
 """jb_ja -- an asymmetric joint: what it does to the breathe, and what it costs.
 
+READ FIRST, added 2026-08-29 after this file was merged. DECISION 20 (T2
+[23713]) WITHDREW qvf.11's ARRAY LOCK AS EVIDENCE ABOUT THE MEDIUM. The owner:
+"the observation was, in fact, real. But it was not a 'real' observation of the
+system you've built" -- the rig held centres that Gray p.40 requires to move,
+under tolerances wide enough to hide it (jb_pr measures 6.8 deg of permitted
+phase excursion at rig scale, against 7.8 deg from the reference phase to the
+icosahedral one), and its simultaneity may not be reachable at all.
+
+SO THE TARGET THIS FILE WAS BUILT TO CHASE NO LONGER EXISTS. Nothing measured
+below changes, and R5's conclusion only strengthens: there was no lock in the
+medium to reproduce. What survives independently of qvf.11 entirely is R7 --
+an asymmetric joint has NO HESSIAN at the weld, so it costs omega(k) -- which
+was never about the lock and is the durable result of this file.
+
+
 WHAT PROMPTED THIS. Two files on record name the same untried candidate.
 jb_sj [23682]: "Real rubber is nonlinear and much stiffer in compression than
 in extension, and THAT asymmetry is a live candidate for the one-sidedness
