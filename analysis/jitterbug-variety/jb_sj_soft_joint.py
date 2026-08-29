@@ -67,9 +67,15 @@ WHAT IS NOT SETTLED, and one of these is the owner's.
     sqrt(k). Only RATIOS of frequencies are measurements; no absolute value is.
   * THE FORM OF V IS THE SIMPLEST ONE, a quadratic in the joint separation.
     Real rubber is nonlinear and is much stiffer in compression than in
-    extension. That asymmetry is a live candidate for the one-sidedness
-    qvf.11 reports and jb_tr could NOT reproduce with a symmetric clearance
-    ball -- but it is a modelling choice and it has not been made.
+    extension. It is a modelling choice and it is not made here.
+
+    SUPERSEDED IN ONE CLAUSE, 2026-08-29, DECISION 20 (T2 [23713]). This
+    bullet used to call that asymmetry "a live candidate for the one-sidedness
+    qvf.11 reports and jb_tr could NOT reproduce". The TARGET is withdrawn --
+    the owner withdrew qvf.11's lock as evidence about the medium -- so
+    jb_tr's failure to reproduce it is the EXPECTED result rather than a gap.
+    jb_ja [23709] built the asymmetry and measured no lock at any ratio.
+    Nothing measured in this file is affected.
   * THE HARD WALL IS NOT RECOVERED HERE as a limit of this V. A quadratic well
     is not the stiff limit of a square well; that would need the family
     |d/t|^(2n) with n large. So this file does not supersede jb_ct/jb_sv, it
@@ -309,11 +315,11 @@ def main():
         print("     supersede jb_ct or jb_sv -- it is a different joint law")
         print("     beside them. Bridging them needs the |d/t|^(2n) family.")
         print("   * THE FORM OF V IS THE SIMPLEST ONE. Real rubber is")
-        print("     nonlinear and much stiffer in compression than extension,")
-        print("     and THAT asymmetry is a live candidate for the qvf.11")
-        print("     one-sidedness jb_tr could not reproduce with a symmetric")
-        print("     clearance ball. It is a modelling choice and it has not")
-        print("     been made.")
+        print("     nonlinear and much stiffer in compression than extension.")
+        print("     It is a modelling choice and it is not made here. The")
+        print("     qvf.11 one-sidedness this bullet used to name as its")
+        print("     target is WITHDRAWN -- DECISION 20, T2 [23713] -- and")
+        print("     jb_ja built the asymmetry and found no lock at any ratio.")
         print("   * ONE PATCH, fifteen cells, free surfaces. Not the bulk.")
         print()
         print("  ALL CHECKS PASSED." if not bad
