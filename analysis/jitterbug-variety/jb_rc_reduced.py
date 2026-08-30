@@ -190,7 +190,16 @@ class Assembly:
         self.gam0 = np.asarray(gam, float)
         self.ctr0 = np.asarray(ctr, float)
         self.welds = welds
-        self.nc = 9 * len(welds)
+        # ROW OFFSET PER WELD. `honeycomb` welds a shared TRIANGULAR face and
+        # always carries three pairs, so this was `9 * len(welds)` and the
+        # offsets were `9 * r`. `honeycomb_single` welds AXIS neighbours and
+        # carries TWO (DECISION 21), so the layout is a running sum. For any
+        # all-three-pair assembly `_woff[r] == 9 * r` and nothing moves.
+        self._woff, off = [], 0
+        for (_k, _l, _pairs) in welds:
+            self._woff.append(off)
+            off += 3 * len(_pairs)
+        self.nc = off
 
     # -- state packing: centre(3) + quaternion(4) + gamma(1) per cell ------
     def q0(self):
@@ -259,14 +268,15 @@ class Assembly:
         g = np.zeros(self.nc)
         for r, (k, l, pairs) in enumerate(self.welds):
             for m, (a, b) in enumerate(pairs):
-                g[9 * r + 3 * m:9 * r + 3 * m + 3] = X[k][a] - X[l][b]
+                row = self._woff[r] + 3 * m
+                g[row:row + 3] = X[k][a] - X[l][b]
         return g
 
     def constraint_jacobian(self, J):
         C = np.zeros((self.nc, 7 * self.N))
         for r, (k, l, pairs) in enumerate(self.welds):
             for m, (a, b) in enumerate(pairs):
-                row = 9 * r + 3 * m
+                row = self._woff[r] + 3 * m
                 C[row:row + 3, 7 * k:7 * k + 7] = J[k][3 * a:3 * a + 3]
                 C[row:row + 3, 7 * l:7 * l + 7] = -J[l][3 * b:3 * b + 3]
         return C
@@ -275,7 +285,8 @@ class Assembly:
         d = np.zeros(self.nc)
         for r, (k, l, pairs) in enumerate(self.welds):
             for m, (a, b) in enumerate(pairs):
-                d[9 * r + 3 * m:9 * r + 3 * m + 3] = A[k][a] - A[l][b]
+                row = self._woff[r] + 3 * m
+                d[row:row + 3] = A[k][a] - A[l][b]
         return d
 
     def globals(self, ctr, defective=False):
@@ -482,6 +493,89 @@ def honeycomb(sites, gc=-30.0):
                 pairs.append((a, k))
             welds.append((i, j, pairs))
     return Assembly(gam, ctr, welds), deg
+
+
+#: The phase the SINGLE covering's axis welds are read at, and held from.
+#: The axis contact's arity is phase dependent -- four coincident vertex pairs
+#: at a = 0, TWO through the interior, one at a = -60 -- because the square is
+#: an OPENING that closes as the exchange passes through it, not a face. Only
+#: the interior pair set is valid at every phase; jb_ht T2 gates exactly that
+#: and it is measured here in R2. Same constant, same reason, as
+#: `jb_w_honeycomb.HONEYCOMB_REF_PHASE`.
+SINGLE_REF_PHASE = -30.0
+
+
+def honeycomb_single(sites, gc=-30.0, ref=SINGLE_REF_PHASE):
+    """A patch of the honeycomb with ONE COVERING: the voids stay EMPTY.
+
+    OWNER DECISION 21, 2026-08-29 (T2 [23727]). The octahedral spaces between
+    the cells are EMPTY. Through the jitterbug exchange the SOLID cells run
+    VE -> octahedron while the VOIDS run octahedron -> VE: the shapes swap and
+    the OCCUPANCY does not, so one sublattice is solid at every phase and the
+    other is void at every phase.
+
+    `honeycomb` puts a cell at EVERY site, which fills the voids. Because each
+    triangular face is shared by one even cell and one odd cell and both carry
+    a plate there, that builder draws every interior triangle TWICE (measured:
+    HC9 72 plates / 64 distinct, box r=3 728 / 512, ratio -> 2 in the bulk).
+    This builder keeps only the ALL-EVEN sublattice, so every triangle is
+    drawn once.
+
+    THE WELDS ARE THEREFORE DIFFERENT, and that is the whole structural
+    consequence. With the voids empty a cell's nearest sites are voids, so it
+    welds to its six AXIS neighbours -- the second-nearest cells, at
+    (+-2, 0, 0) and its permutations -- and each of those carries TWO
+    coincident vertex pairs rather than a triangular face's three. The pairs
+    are read at `ref` and HELD, because their count is phase dependent while
+    that pair set is not.
+
+    Returns (Assembly, degree) exactly as `honeycomb` does. `honeycomb` is
+    left intact: the two are meant to be compared module by module, not
+    swapped blind.
+    """
+    sites = [tuple(int(c) for c in s) for s in sites]
+    solid = [s for s in sites if all(c % 2 == 0 for c in s)]
+    if not solid:
+        raise ValueError("honeycomb_single: no all-even sites in `sites`")
+
+    def _ctr(g, ss):
+        sep = IC.ZC * (np.cos(np.radians(g)) + np.cos(np.radians(g + 60.0)))
+        L = sep / np.sqrt(3)
+        return [L * np.array(t, float) for t in ss]
+
+    # Correspondence read ONCE, at `ref`, and held -- never re-read at gc.
+    probe = Assembly([ref] * len(solid), _ctr(ref, solid), [])
+    Xr = probe.positions(probe.q0())
+    welds, deg = [], [0] * len(solid)
+    for i in range(len(solid)):
+        for j in range(i + 1, len(solid)):
+            d = tuple(solid[j][t] - solid[i][t] for t in range(3))
+            if sorted(map(abs, d)) != [0, 0, 2]:
+                continue
+            # ONE RECORD PER DISTINCT SHARED POINT. At the collapsed phases a
+            # cell's twelve labels occupy six positions, so several label
+            # pairs name the SAME joint -- at a = -60 the axis bond has four
+            # label pairs and ONE distinct point -- and emitting each would
+            # duplicate that joint's constraint fourfold. Same dedup, same
+            # reason, as `jb_w_honeycomb.honeycomb_contacts`' square branch;
+            # without it this builder is only correct at a reference phase
+            # where no vertices have merged.
+            pairs, seen = [], []
+            for a in range(NV):
+                v = Xr[i][a]
+                if any(np.linalg.norm(v - u) < 1e-9 for u in seen):
+                    continue
+                for b in range(NV):
+                    if np.linalg.norm(v - Xr[j][b]) < 1e-9:
+                        pairs.append((a, b))
+                        seen.append(v)
+                        break
+            if not pairs:
+                continue
+            deg[i] += 1
+            deg[j] += 1
+            welds.append((i, j, pairs))
+    return Assembly([gc] * len(solid), _ctr(gc, solid), welds), deg
 
 
 def brick(nx, ny, nz):
