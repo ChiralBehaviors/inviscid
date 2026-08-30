@@ -1,0 +1,179 @@
+<title>Overdrive</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F4F5F2; --ink:#1B2028; --ink-2:#5A6270; --line:#D5D9D2; --panel:#FBFBF9; --grid:#E3E6E0;
+  --o:#3D5AD6; --d:#B4286B; --u:#0F9B7A; --l:#D9531E; --joint:#1B2028; --halo:#F4F5F2; --focus:#3D5AD6; --band:#3D5AD6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#15181D; --ink:#E4E7EC; --ink-2:#9AA3B2; --line:#2A2F38; --panel:#1B1F26; --grid:#262B34;
+    --o:#6478E6; --d:#B23A78; --u:#22A883; --l:#E06A33; --joint:#E4E7EC; --halo:#1B1F26; --band:#6478E6;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#15181D; --ink:#E4E7EC; --ink-2:#9AA3B2; --line:#2A2F38; --panel:#1B1F26; --grid:#262B34;
+  --o:#6478E6; --d:#B23A78; --u:#22A883; --l:#E06A33; --joint:#E4E7EC; --halo:#1B1F26; --band:#6478E6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Instrument Sans",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;font-size:15px;line-height:1.45}
+.mono{font-family:"IBM Plex Mono","SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;padding:18px 24px 10px;flex-wrap:wrap}
+h1{font-size:21px;font-weight:600;margin:0;letter-spacing:-.01em}
+.lede{margin:4px 0 0;color:var(--ink-2);font-size:13.5px;max-width:78ch}
+.stage{display:grid;grid-template-columns:1fr 270px;min-height:54vh}
+.view{position:relative;touch-action:none;cursor:grab;background:var(--panel);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.view:active{cursor:grabbing}
+.view svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hint{position:absolute;left:16px;bottom:12px;color:var(--ink-2);font-size:12px;pointer-events:none}
+.side{padding:18px 20px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-left:1px solid var(--line);display:flex;flex-direction:column;gap:14px}
+.lbl{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);margin:0 0 6px}
+.big{font-size:30px;font-weight:500;line-height:1}
+.big small{font-size:12.5px;color:var(--ink-2);display:block;margin-top:4px;font-family:"Instrument Sans",system-ui,sans-serif;font-weight:400}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two div{padding:8px 10px;border:1px solid var(--line);border-radius:6px}
+.two .k{font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.two .v{font-size:19px;font-weight:500;line-height:1.3}
+.two .v small{font-size:12px;color:var(--ink-2);font-family:"Instrument Sans",system-ui,sans-serif}
+.sw{width:11px;height:11px;border-radius:2px;display:inline-block}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:6px;cursor:pointer}
+button:hover{border-color:var(--ink-2)}
+button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+button.on{border-color:var(--o);color:var(--o)}
+.legend{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;font-size:12.5px}
+.back{width:11px;height:11px;border-radius:2px;display:inline-block;border:1.5px dashed var(--ink-2);background:transparent}
+.charts{padding:14px 24px 22px;display:grid;gap:14px}
+.chart .t{font-size:13.5px;font-weight:500;margin:0 0 2px}
+.chart .s{font-size:12.5px;color:var(--ink-2);margin:0 0 6px}
+.chart svg{width:100%;height:auto;display:block;max-width:1100px}
+input[type=range]{width:100%;accent-color:var(--o);margin:6px 0 0}
+input[type=range]:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:4px}
+.read{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:13px;align-items:baseline}
+.read .k{color:var(--ink-2)}
+.read b{font-weight:500}
+@media (max-width:860px){.stage{grid-template-columns:1fr}.side{border-left:0}}
+</style>
+<header>
+  <div><h1>Overdrive</h1>
+  <p class="lede">The same ring, driven on past its dead end and kept going — a full 360° of the fold parameter. The physical range is the 60° arc from −60° to 0°. Beyond it the bodies pass through each other and through their own centres, the spacing falls to zero and goes negative, and the plates turn inside out and back. Fronts are painted solid, backs pale and dashed. Joints are held by identity and checked on every frame.</p></div>
+  <div class="btns"><button id="play" class="on">Pause</button><button id="reset">Reset view</button></div>
+</header>
+<div class="stage">
+  <div class="view" id="view"><svg id="svg" aria-label="The ring driven through 360 degrees, bodies passing through each other"></svg><div class="hint">Drag to turn · scroll to zoom · space pauses</div></div>
+  <aside class="side">
+    <div><p class="lbl">Fold of the VE cells</p><div class="big mono" id="av">−60°<small id="aw"></small></div>
+      <input type="range" id="scrub" min="0" max="180" step="1" value="0" aria-label="Fold of the VE cells, −60 to 300"></div>
+    <div class="two">
+      <div><div class="k"><span class="sw" style="background:var(--u)"></span>the voids</div><div class="v mono" id="bv">0°</div></div>
+      <div><div class="k">spacing per site</div><div class="v mono" id="L">1.000</div></div>
+    </div>
+    <div class="read">
+      <span class="k">fronts facing out, cells</span><b class="mono" id="oc">8 · 8</b>
+      <span class="k">fronts facing out, voids</span><b class="mono" id="ov">8 · 8</b>
+      <span class="k">strut crossings</span><b class="mono" id="cx">0</b>
+      <span class="k">the four face welds</span><b class="mono" id="res">exact</b>
+    </div>
+    <div><p class="lbl">Bodies</p><div class="legend">
+      <span class="sw" style="background:var(--o)"></span><span>VE cell O · front</span>
+      <span class="sw" style="background:var(--d)"></span><span>VE cell D · front</span>
+      <span class="sw" style="background:var(--u)"></span><span>void U · front</span>
+      <span class="sw" style="background:var(--l)"></span><span>void L · front</span>
+      <span class="back"></span><span>a back side, any body</span>
+      <span class="sw" style="background:var(--joint);width:8px;height:8px;transform:rotate(45deg)"></span><span>a body's centre</span></div></div>
+  </aside>
+</div>
+<div class="charts">
+  <div class="chart"><p class="t">Spacing per site against the fold</p><p class="s">1.155·cos(a + 30°) — the model's law continued. The shaded arc is the physical range; zero at +60° and +240° is all four centres on one point; negative is the ring turned inside out.</p><svg id="c1" viewBox="0 0 1100 170" role="img" aria-label="Spacing versus fold"></svg></div>
+  <div class="chart"><p class="t">Fronts facing out of their body, and strut crossings</p><p class="s">Left scale: fronts out of 8, cells (indigo) and voids (teal). Right scale: crossing strut pairs among the four bodies (grey area) — 108 to 112 mid-passage, none at any multiple of 60°.</p><svg id="c2" viewBox="0 0 1100 190" role="img" aria-label="Fronts out and crossings versus fold"></svg></div>
+</div>
+<script>
+const D = __DATA__;
+const F = D.frames, N = F.length;                     // a = -60 .. 300 step 2
+const COL = ['var(--o)','var(--u)','var(--d)','var(--l)'];
+const view = document.getElementById('view'), svg = document.getElementById('svg');
+const T = 30000;                                      // ms per 360 degrees
+let yaw = -0.7, elev = 0.5, zoom = 1.0, playing = true, t0 = performance.now(), fi = 0;
+const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduce) playing = false;
+function cam(p){ const cy=Math.cos(yaw), sy=Math.sin(yaw); const x1=cy*p[0]-sy*p[1], y1=sy*p[0]+cy*p[1], z1=p[2]; const ce=Math.cos(elev), se=Math.sin(elev); return [x1, y1*se+z1*ce, -y1*ce+z1*se]; }
+function normal(a,b,c){ const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]]; const n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]]; const l=Math.hypot(...n)||1; return n.map(t=>t/l); }
+const LIGHT=(()=>{const l=[-0.35,0.55,0.76];const m=Math.hypot(...l);return l.map(t=>t/m);})();
+const shade = n => Math.abs(n[0]*LIGHT[0]+n[1]*LIGHT[1]+n[2]*LIGHT[2]);
+function renderView(fr){
+  const W = view.clientWidth||800, H = view.clientHeight||500;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const S = Math.min(W,H) * 0.17 * zoom;
+  const mid = [0,0,0]; for (const c of fr.ctr){ mid[0]+=c[0]/4; mid[1]+=c[1]/4; mid[2]+=c[2]/4; }
+  const camc = p => cam([p[0]-mid[0], p[1]-mid[1], p[2]-mid[2]]);
+  const px = q => [W/2 + q[0]*S, H/2 - q[1]*S];
+  const items = [];
+  fr.cells.forEach((cell,k) => cell.forEach(tri => {
+    const q = tri.p.map(camc); const n = normal(q[0],q[1],q[2]);
+    const frontToCamera = (n[2] * tri.s) > 0;          // camera looks along +z of camera space
+    items.push({depth:(q[0][2]+q[1][2]+q[2][2])/3, kind:'tri', pts:q.map(px), col:COL[k], sh:shade(n), front:frontToCamera, isVoid:(k===1||k===3)}); }));
+  fr.ctr.forEach((c,k) => { const q = camc(c); items.push({depth:q[2]+0.04, kind:'ctr', p:px(q), col:COL[k]}); });
+  items.sort((u,v)=>u.depth-v.depth);
+  let out='';
+  for (const it of items){
+    if (it.kind==='tri'){ const d=it.pts.map(p=>p.join(',')).join(' ');
+      if (it.front) out += `<polygon points="${d}" fill="${it.col}" fill-opacity="${((it.isVoid?0.30:0.46)+0.36*it.sh).toFixed(3)}" stroke="${it.col}" stroke-width="1.3" stroke-linejoin="round"/>`;
+      else out += `<polygon points="${d}" fill="${it.col}" fill-opacity="${(0.06+0.06*it.sh).toFixed(3)}" stroke="${it.col}" stroke-width="1.2" stroke-dasharray="4 3" stroke-linejoin="round"/>`; }
+    else out += `<rect x="${it.p[0]-4}" y="${it.p[1]-4}" width="8" height="8" transform="rotate(45 ${it.p[0]} ${it.p[1]})" fill="${it.col}" stroke="var(--halo)" stroke-width="1.5"/>`;
+  }
+  svg.innerHTML = out;
+}
+const xs = (a, W, ml, mr) => ml + (a + 60)/360*(W - ml - mr);
+function renderCharts(fr){
+  // chart 1: spacing
+  { const c=document.getElementById('c1'); const W=1100,H=170, ml=50, mr=20, mt=12, mb=28;
+    const ys = v => mt + (1.2 - v)/2.4*(H-mt-mb);
+    let out = `<rect x="${xs(-60,W,ml,mr)}" y="${mt}" width="${xs(0,W,ml,mr)-xs(-60,W,ml,mr)}" height="${H-mt-mb}" fill="var(--band)" fill-opacity=".10"/>`;
+    for (const v of [-1,0,1]) out += `<line x1="${ml}" x2="${W-mr}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--grid)"/><text x="${ml-8}" y="${ys(v)+4}" text-anchor="end" font-size="11" fill="var(--ink-2)" font-family="IBM Plex Mono,monospace">${v>0?'+':''}${v.toFixed(1)}</text>`;
+    for (const t of [-60,0,60,120,180,240,300]) out += `<text x="${xs(t,W,ml,mr)}" y="${H-mb+18}" text-anchor="middle" font-size="11" fill="var(--ink-2)" font-family="IBM Plex Mono,monospace">${t>0?'+':''}${t}°</text>`;
+    out += `<path d="${F.map((f,i)=>(i?'L':'M')+xs(f.a,W,ml,mr).toFixed(1)+','+ys(f.L).toFixed(1)).join(' ')}" fill="none" stroke="var(--ink)" stroke-width="2"/>`;
+    out += `<line x1="${xs(fr.a,W,ml,mr)}" x2="${xs(fr.a,W,ml,mr)}" y1="${mt}" y2="${H-mb}" stroke="var(--ink-2)" stroke-opacity=".4"/><circle cx="${xs(fr.a,W,ml,mr)}" cy="${ys(fr.L)}" r="4.5" fill="var(--ink)" stroke="var(--panel)" stroke-width="2"/>`;
+    out += `<text x="${xs(-30,W,ml,mr)}" y="${mt+12}" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="Instrument Sans,system-ui,sans-serif">physical</text>`;
+    c.innerHTML = out; }
+  // chart 2: fronts out + crossings
+  { const c=document.getElementById('c2'); const W=1100,H=190, ml=50, mr=50, mt=12, mb=28;
+    const yf = v => mt + (8 - v)/8*(H-mt-mb), yc = v => mt + (120 - v)/120*(H-mt-mb);
+    let out = `<rect x="${xs(-60,W,ml,mr)}" y="${mt}" width="${xs(0,W,ml,mr)-xs(-60,W,ml,mr)}" height="${H-mt-mb}" fill="var(--band)" fill-opacity=".10"/>`;
+    for (const v of [0,4,8]) out += `<line x1="${ml}" x2="${W-mr}" y1="${yf(v)}" y2="${yf(v)}" stroke="var(--grid)"/><text x="${ml-8}" y="${yf(v)+4}" text-anchor="end" font-size="11" fill="var(--ink-2)" font-family="IBM Plex Mono,monospace">${v}</text>`;
+    for (const v of [0,60,120]) out += `<text x="${W-mr+8}" y="${yc(v)+4}" font-size="11" fill="var(--ink-2)" font-family="IBM Plex Mono,monospace">${v}</text>`;
+    for (const t of [-60,0,60,120,180,240,300]) out += `<text x="${xs(t,W,ml,mr)}" y="${H-mb+18}" text-anchor="middle" font-size="11" fill="var(--ink-2)" font-family="IBM Plex Mono,monospace">${t>0?'+':''}${t}°</text>`;
+    out += `<path d="M${xs(-60,W,ml,mr)},${yc(0)} ${F.map(f=>'L'+xs(f.a,W,ml,mr).toFixed(1)+','+yc(f.cross).toFixed(1)).join(' ')} L${xs(300,W,ml,mr)},${yc(0)} Z" fill="var(--ink-2)" fill-opacity=".18"/>`;
+    const step = (fn, col) => { let s=''; F.forEach((f,i)=>{ const x=xs(f.a,W,ml,mr), y=yf(fn(f)); if(!i) s+=`M${x},${y}`; else { const xp=xs(F[i-1].a,W,ml,mr); s+=` L${x},${yf(fn(F[i-1]))} L${x},${y}`; } }); return `<path d="${s}" fill="none" stroke="${col}" stroke-width="2"/>`; };
+    out += step(f=>f.out[0], 'var(--o)') + step(f=>f.out[1], 'var(--u)');
+    out += `<line x1="${xs(fr.a,W,ml,mr)}" x2="${xs(fr.a,W,ml,mr)}" y1="${mt}" y2="${H-mb}" stroke="var(--ink-2)" stroke-opacity=".4"/>`;
+    out += `<text x="${xs(150,W,ml,mr)}" y="${yf(0)-6}" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="Instrument Sans,system-ui,sans-serif">every plate inside out</text>`;
+    c.innerHTML = out; }
+}
+function render(){
+  const fr = F[fi];
+  renderView(fr); renderCharts(fr);
+  const a = fr.a;
+  document.getElementById('av').firstChild.textContent = (a>0?'+':'') + a.toFixed(0) + '°';
+  document.getElementById('aw').textContent = a <= 0 ? 'physical range' : (a >= 300 ? 'back at the octahedron' : 'overdrive');
+  document.getElementById('bv').textContent = '+' + fr.b.toFixed(0) + '°';
+  document.getElementById('L').textContent = (fr.L<0?'−':'+') + Math.abs(fr.L).toFixed(3);
+  document.getElementById('oc').textContent = fr.out[0] + ' · ' + fr.out[2];
+  document.getElementById('ov').textContent = fr.out[1] + ' · ' + fr.out[3];
+  document.getElementById('cx').textContent = fr.cross;
+  document.getElementById('res').textContent = fr.res < 1e-12 ? 'exact' : fr.res.toExponential(1);
+  document.getElementById('scrub').value = fi;
+}
+function loop(now){ if (playing){ const ph = ((now - t0) % T) / T; fi = Math.min(N-1, Math.floor(ph * N)); render(); } requestAnimationFrame(loop); }
+function setPlay(on){ playing = on; if (on) t0 = performance.now() - (fi/N)*T; const b=document.getElementById('play'); b.textContent = on?'Pause':'Play'; b.classList.toggle('on', on); }
+document.getElementById('play').onclick = () => setPlay(!playing);
+document.getElementById('reset').onclick = () => { yaw=-0.7; elev=0.5; zoom=1; render(); };
+document.getElementById('scrub').addEventListener('input', e => { setPlay(false); fi = +e.target.value; render(); });
+let drag=null;
+view.addEventListener('pointerdown', e => { drag={x:e.clientX,y:e.clientY,yaw,elev}; view.setPointerCapture(e.pointerId); });
+view.addEventListener('pointermove', e => { if(!drag) return; yaw = drag.yaw + (e.clientX-drag.x)*0.008; elev = Math.max(-1.5, Math.min(1.5, drag.elev + (e.clientY-drag.y)*0.008)); if(!playing) render(); });
+view.addEventListener('pointerup', () => drag=null); view.addEventListener('pointercancel', () => drag=null);
+view.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.max(0.4, Math.min(3, zoom*Math.exp(-e.deltaY*0.0015))); if(!playing) render(); }, {passive:false});
+window.addEventListener('keydown', e => { if (e.key===' ' && e.target.tagName!=='INPUT'){ e.preventDefault(); setPlay(!playing); } if (e.key==='ArrowLeft'){ setPlay(false); fi=Math.max(0,fi-1); render(); } if (e.key==='ArrowRight'){ setPlay(false); fi=Math.min(N-1,fi+1); render(); } });
+window.addEventListener('resize', () => { if(!playing) render(); });
+render(); setPlay(playing); requestAnimationFrame(loop);
+</script>

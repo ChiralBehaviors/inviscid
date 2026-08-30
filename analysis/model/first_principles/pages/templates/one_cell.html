@@ -1,0 +1,168 @@
+<title>One Jitterbug</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F4F5F2; --ink:#1B2028; --ink-2:#5A6270; --line:#D5D9D2; --rail:#EBEDE8; --panel:#FBFBF9;
+  --cw:#3D5AD6; --ccw:#0F9B7A; --drive:#D9531E; --joint:#1B2028; --halo:#F4F5F2; --focus:#3D5AD6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#15181D; --ink:#E4E7EC; --ink-2:#9AA3B2; --line:#2A2F38; --rail:#1B1F26; --panel:#1B1F26;
+    --cw:#6478E6; --ccw:#22A883; --drive:#E06A33; --joint:#E4E7EC; --halo:#15181D;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#15181D; --ink:#E4E7EC; --ink-2:#9AA3B2; --line:#2A2F38; --rail:#1B1F26; --panel:#1B1F26;
+  --cw:#6478E6; --ccw:#22A883; --drive:#E06A33; --joint:#E4E7EC; --halo:#15181D;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Instrument Sans",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;font-size:15px;line-height:1.45}
+.mono{font-family:"IBM Plex Mono","SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.wrap{display:grid;grid-template-columns:1fr 300px;min-height:100vh}
+.view{position:relative;min-height:60vh;touch-action:none;cursor:grab}
+.view:active{cursor:grabbing}
+.view svg{display:block;width:100%;height:100%;position:absolute;inset:0}
+.hint{position:absolute;left:18px;bottom:14px;color:var(--ink-2);font-size:12.5px;pointer-events:none}
+.rail{background:var(--rail);border-left:1px solid var(--line);padding:26px 22px 22px;display:flex;flex-direction:column;gap:22px}
+h1{font-size:21px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+.lede{margin:0;color:var(--ink-2);font-size:13.5px;max-width:34ch}
+.lbl{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);margin:0 0 8px}
+.fold{display:flex;flex-direction:column;gap:8px}
+.fold .val{font-size:26px;font-weight:500;line-height:1}
+.fold .val small{font-size:13px;color:var(--ink-2);margin-left:6px;font-family:"Instrument Sans",system-ui,sans-serif}
+input[type=range]{width:100%;accent-color:var(--drive);margin:4px 0}
+input[type=range]:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:4px}
+.ends{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-2)}
+.read{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;align-items:baseline}
+.read .k{color:var(--ink-2)}
+.read b{font-weight:500}
+.legend{display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;font-size:13px}
+.legend .sq{width:12px;height:12px;border-radius:2px;display:inline-block}
+.legend .dt{width:10px;height:10px;border-radius:50%;display:inline-block;background:var(--joint);margin-left:1px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:6px;cursor:pointer}
+button:hover{border-color:var(--ink-2)}
+button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+button.on{border-color:var(--drive);color:var(--drive)}
+.prov{font-size:12px;color:var(--ink-2);margin-top:auto;line-height:1.5}
+@media (max-width:820px){.wrap{grid-template-columns:1fr}.rail{border-left:0;border-top:1px solid var(--line)}.view{min-height:62vh}}
+</style>
+<div class="wrap">
+  <div class="view" id="view"><svg id="svg" aria-label="One jitterbug driven from the octahedron through the VE to the octahedron"></svg>
+    <div class="hint">Drag to turn · scroll to zoom · ← → step · space plays</div></div>
+  <aside class="rail">
+    <div>
+      <h1>One Jitterbug</h1>
+      <p class="lede">Eight rigid triangles, twelve rubber joints, nothing else. One triangle is driven about its own axis from −60° to +60°; the other seven follow through the joints. Octahedron, VE, octahedron.</p>
+    </div>
+    <div class="fold">
+      <p class="lbl">Driven triangle</p>
+      <div class="val mono"><span id="aval">0°</span><small id="aname">the VE</small></div>
+      <input type="range" id="fold" min="0" max="60" step="1" value="30" aria-label="Driven triangle angle">
+      <div class="ends"><span>−60° · octahedron</span><span>0° · VE</span><span>+60° · octahedron</span></div>
+      <div class="btns"><button id="play">Play</button><button id="ve">Go to the VE</button><button id="reset">Reset view</button></div>
+    </div>
+    <div>
+      <p class="lbl">On this frame</p>
+      <div class="read">
+        <span class="k">spin about its axis</span><b class="mono" id="spin">0.00°</b>
+        <span class="k">height along its axis</span><b class="mono" id="height">1.155</b>
+        <span class="k">distinct vertices</span><b class="mono" id="nvert">12</b>
+        <span class="k">the twelve joints</span><b id="joints">same twelve pairs, gap 0</b>
+        <span class="k">strut length</span><b class="mono" id="strut">1.414214</b>
+        <span class="k">nearest struts not sharing a joint</span><b class="mono" id="clear">1.225</b>
+      </div>
+    </div>
+    <div>
+      <p class="lbl">Triangles</p>
+      <div class="legend">
+        <span class="sq" style="background:var(--drive)"></span><span>the driven one</span>
+        <span class="sq" style="background:var(--cw)"></span><span>turn the same way as it</span>
+        <span class="sq" style="background:var(--ccw)"></span><span>turn the other way</span>
+        <span class="dt"></span><span>a joint: two corners, one from each neighbour</span>
+      </div>
+    </div>
+    <p class="prov">Every frame is the model's cell (<span class="mono">plates.corners</span> at the angle). The twelve joints were read once, at −30°, and are checked on every frame as the same corner pairs; the vertex count, strut length and self-clearance are computed from the exported points. Six vertices at ±60° is Fuller's "12 vertices congruent as 6".</p>
+  </aside>
+</div>
+<script>
+const D = __DATA__;
+const F = D.frames; const N = F.length;
+const view = document.getElementById('view'), svg = document.getElementById('svg'), fold = document.getElementById('fold');
+let fi = F.findIndex(f => f.a === 0), yaw = -0.6, elev = 0.5, zoom = 1.0, playing = false, dir = 1, timer = null;
+const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function cam(p){
+  const cy=Math.cos(yaw), sy=Math.sin(yaw);
+  const x1 = cy*p[0] - sy*p[1], y1 = sy*p[0] + cy*p[1], z1 = p[2];
+  const ce=Math.cos(elev), se=Math.sin(elev);
+  return [x1, y1*se + z1*ce, -y1*ce + z1*se];
+}
+function normal(a,b,c){
+  const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+  const n=[u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]];
+  const l=Math.hypot(...n)||1; return n.map(t=>t/l);
+}
+const LIGHT=(()=>{const l=[-0.35,0.55,0.76];const m=Math.hypot(...l);return l.map(t=>t/m);})();
+const shade = n => Math.abs(n[0]*LIGHT[0]+n[1]*LIGHT[1]+n[2]*LIGHT[2]);
+const sameSense = f => D.sigma[f] === D.sigma[D.driven];
+function render(){
+  const fr = F[fi], a = fr.a;
+  const W = view.clientWidth||800, H = view.clientHeight||600;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const S = Math.min(W,H) * 0.34 * zoom;
+  const px = q => [W/2 + q[0]*S, H/2 - q[1]*S];
+  const items = [];
+  // the driven triangle's axis through the centre
+  { const ax = D.axis; const q1 = cam(ax.map(t=>-1.6*t)), q2 = cam(ax.map(t=>1.6*t));
+    items.push({depth:-99, kind:'axis', a:px(q1), b:px(q2)}); }
+  fr.tris.forEach((tri,f) => {
+    const q = tri.map(cam); const n = normal(q[0],q[1],q[2]);
+    const col = f===D.driven ? 'var(--drive)' : (sameSense(f) ? 'var(--cw)' : 'var(--ccw)');
+    items.push({depth:(q[0][2]+q[1][2]+q[2][2])/3, kind:'tri', pts:q.map(px), col, sh:shade(n), hot:f===D.driven});
+  });
+  fr.verts.forEach(v => { const q = cam(v); items.push({depth:q[2]+0.03, kind:'dot', p:px(q)}); });
+  items.sort((u,v)=>u.depth-v.depth);
+  let out='';
+  for (const it of items){
+    if (it.kind==='axis') out += `<line x1="${it.a[0]}" y1="${it.a[1]}" x2="${it.b[0]}" y2="${it.b[1]}" stroke="var(--drive)" stroke-opacity=".5" stroke-width="1" stroke-dasharray="4 4"/>`;
+    else if (it.kind==='tri'){
+      const d = it.pts.map(p=>p.join(',')).join(' ');
+      out += `<polygon points="${d}" fill="${it.col}" fill-opacity="${(0.40+0.40*it.sh).toFixed(3)}" stroke="${it.col}" stroke-width="${it.hot?2.2:1.4}" stroke-linejoin="round"/>`;
+    } else out += `<circle cx="${it.p[0]}" cy="${it.p[1]}" r="4.6" fill="var(--joint)" stroke="var(--halo)" stroke-width="1.5"/>`;
+  }
+  svg.innerHTML = out;
+  document.getElementById('aval').textContent = (a>0?'+':'') + a.toFixed(0) + '°';
+  document.getElementById('aname').textContent = a===0 ? 'the VE' : (Math.abs(a)===60 ? 'the octahedron' : (a<0 ? 'closing one way' : 'closing the other way'));
+  document.getElementById('spin').textContent = (fr.spin>0?'+':'') + fr.spin.toFixed(2) + '°';
+  document.getElementById('height').textContent = fr.height.toFixed(3);
+  document.getElementById('nvert').textContent = fr.nvert;
+  document.getElementById('joints').textContent = fr.joint_max_gap < 1e-9 ? 'same twelve pairs, gap 0' : 'CHANGED — gap ' + fr.joint_max_gap.toExponential(1);
+  document.getElementById('strut').textContent = fr.strut[0].toFixed(6) + (Math.abs(fr.strut[1]-fr.strut[0])>1e-9 ? ' … ' + fr.strut[1].toFixed(6) : '');
+  document.getElementById('clear').textContent = fr.clear.toFixed(3);
+}
+function setFrame(i){ fi = Math.max(0, Math.min(N-1, i)); fold.value = fi; render(); }
+fold.addEventListener('input', e => { setFrame(+e.target.value); });
+function tick(){ if (fi>=N-1) dir=-1; if (fi<=0) dir=1; setFrame(fi+dir); }
+function play(on){
+  playing = on; document.getElementById('play').textContent = on ? 'Pause' : 'Play';
+  document.getElementById('play').classList.toggle('on', on);
+  if (timer){ clearInterval(timer); timer=null; }
+  if (on) timer = setInterval(tick, reduce ? 260 : 70);
+}
+document.getElementById('play').onclick = () => play(!playing);
+document.getElementById('ve').onclick = () => { play(false); setFrame(F.findIndex(f=>f.a===0)); };
+document.getElementById('reset').onclick = () => { yaw=-0.6; elev=0.5; zoom=1; render(); };
+let drag=null;
+view.addEventListener('pointerdown', e => { drag={x:e.clientX,y:e.clientY,yaw,elev}; view.setPointerCapture(e.pointerId); });
+view.addEventListener('pointermove', e => { if(!drag) return; yaw = drag.yaw + (e.clientX-drag.x)*0.008; elev = Math.max(-1.5, Math.min(1.5, drag.elev + (e.clientY-drag.y)*0.008)); render(); });
+view.addEventListener('pointerup', () => drag=null); view.addEventListener('pointercancel', () => drag=null);
+view.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.max(0.4, Math.min(3, zoom*Math.exp(-e.deltaY*0.0015))); render(); }, {passive:false});
+window.addEventListener('keydown', e => {
+  if (e.target === fold) return;
+  if (e.key==='ArrowLeft'){ play(false); setFrame(fi-1); }
+  if (e.key==='ArrowRight'){ play(false); setFrame(fi+1); }
+  if (e.key===' '){ e.preventDefault(); play(!playing); }
+});
+window.addEventListener('resize', render);
+render();
+</script>
