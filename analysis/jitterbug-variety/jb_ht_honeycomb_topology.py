@@ -189,8 +189,25 @@ def t2_held(topos):
 
 
 def t3_read_at_zero(topos):
-    """CONTROL. Build the same topologies with the list read at a = 0 and hold
-    it. It must BREAK, and the row prints by how much."""
+    """CONTROL, REBUILT 2026-08-29 because dropping the squares removed its
+    subject rather than because it was wrong.
+
+    It used to hold the list read at a = 0 and assert it BREAKS, which is why
+    `HONEYCOMB_REF_PHASE` exists. That breakage was carried entirely by the
+    SQUARE identifications, whose arity runs 4 distinct shared points at
+    a = 0, 2 through the interior and 1 at a = -60. With the squares out of
+    `honeycomb_identifications` (owner, 2026-08-29: the squares are not
+    welds), what remains is triangular, three labels at EVERY phase, and it
+    does not break -- the residual read at a = 0 is now identically zero.
+
+    So the row now gates BOTH halves of that, and each can still fail:
+      * the identification list is PHASE-INVARIANT, which is what dropping
+        the squares bought -- a list that still varied would fail;
+      * the SQUARE CENSUS, still reported by `honeycomb_contacts`, is what
+        was phase-dependent all along, 4 / 2 / 1 -- a census that did NOT
+        vary would mean the reference phase was never needed and this
+        control never had a subject.
+    """
     rows = []
     for t in topos:
         if t.n < 2:
@@ -198,8 +215,12 @@ def t3_read_at_zero(topos):
         at0 = W.honeycomb_identifications(t.lattice_sites, a=0.0)
         rows.append((t.name, len(at0), len(t.contacts),
                      _held_residual(t, at0, PHASES)))
+    sq = {}
+    for a in (0.0, REF, -60.0):
+        cs = [c for c in W.honeycomb_contacts((0, 0, 0), a) if c[1] == "sq"]
+        sq[a] = sorted({len(c[2]) for c in cs})
     return dict(rows=rows, worst=max(r[3] for r in rows) if rows else 0.0,
-                n=len(rows))
+                n=len(rows), sq=sq)
 
 
 def t4_counts():
@@ -410,9 +431,26 @@ def gate(t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10):
        t2["n"] > 0 and t2["worst"] < TOL_GEOM,
        f"worst {t2['worst']:.2e} over {t2['n']} topologies, two grids",
        f"< {TOL_GEOM:.0e}"))
-    R(("T3  CONTROL: the list read at a = 0 BREAKS -- this is why -30 -- "
-       "CAN FAIL", t3["n"] > 0 and t3["worst"] > BREAK_MIN,
-       f"worst {t3['worst']:.6f} over {t3['n']} topologies", f"> {BREAK_MIN}"))
+    R(("T3  CONTROL, REBUILT: the identifications are now PHASE-INVARIANT, and "
+       "the SQUARE CENSUS is what was phase-dependent all along -- CAN FAIL "
+       "BOTH WAYS. This row used to assert that the list read at a = 0 breaks, "
+       "which is why HONEYCOMB_REF_PHASE exists. That breakage was carried "
+       "entirely by the square identifications; with the squares out (owner, "
+       "2026-08-29: the squares are not welds) what remains is triangular, "
+       "three labels at every phase, and reading it at a = 0 no longer breaks "
+       "anything. The control has not been deleted -- it has been rebuilt onto "
+       "what is now true: the identification list does not move with phase, "
+       "and the square census still runs 4 / 2 / 1 distinct shared points, "
+       "which is what forced a reference phase in the first place. A list that "
+       "still varied fails this, and so does a census that does not",
+       t3["n"] > 0 and t3["worst"] < TOL_GEOM
+       and t3["sq"][0.0] == [4] and t3["sq"][REF] == [2]
+       and t3["sq"][-60.0] == [1],
+       f"identifications read at a = 0 vs at {REF}: worst residual "
+       f"{t3['worst']:.2e} over {t3['n']} topologies; square census "
+       f"a=0 {t3['sq'][0.0]}, a={REF:g} {t3['sq'][REF]}, "
+       f"a=-60 {t3['sq'][-60.0]}",
+       "an invariant identification list, and a square census that varies"))
     R(("T4  one interior cell: 36 identifications at -30, phase invariant; "
        "48 at a = 0 and 30 at a = -60 are what T3 is about",
        t4["invariant"] and t4["counts"][REF][1] == 36

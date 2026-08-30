@@ -327,15 +327,40 @@ def honeycomb_identifications(sites, a=HONEYCOMB_REF_PHASE):
     as unit j's vertex label l -- which is EXACTLY the format
     `jb_x.Topology.contacts` has always had. The format was never wrong;
     `build_topologies` simply emitted one identification per neighbour where
-    the real packing has three (triangular face) or four/two/one (square face,
-    as it folds).
+    the real packing has three.
+
+    TRIANGULAR NEIGHBOURS ONLY. Owner decision 2026-08-29: THE SQUARES ARE NOT
+    WELDS. A jitterbug cell has eight TRIANGULAR plates and no square plate --
+    the square is the OPENING between triangles, it falls out of them rather
+    than being intrinsic, and it is only square at ONE point of the transform,
+    the maximum VE state. Its arity shows it: triangular contacts are 8 faces
+    x 3 labels at every phase, constant, while square contacts run 4 labels at
+    a = 0, 2 through the interior and 1 at a = -60. No stable arity, because
+    there is no object there.
+
+    This brings jb_w into line with `jb_rc.honeycomb`, which has always welded
+    only the eight (+-1,+-1,+-1) neighbours and says why in its own docstring:
+    the square contacts "are open at every angle but 0 and are not welds".
+    Every dynamics result in this project -- jb_sj's spectrum, jb_bz's bands,
+    jb_mj, jb_je, jb_ja -- rests on that weld set; jb_w was the outlier, and on
+    HC9 it emitted 24 extra identifications, 72 constraint rows on a 63-DOF
+    assembly, from a face that exists at one instant.
+
+    WHAT IS NOT CLAIMED: that those cells do not touch. Two vertex pairs per
+    square neighbour stay coincident at every phase, and in a wired build they
+    would be real joints. The claim is only that they are not WELDS of the
+    mechanism. `honeycomb_contacts` still reports the full 8 + 6 census, and
+    `neighbours` still yields the six axis cells -- `_shell` needs them to
+    build HC15's SITE list, and those cells are real.
 
     Each unordered pair is emitted once, from the lower-indexed cell.
     """
     idx = {tuple(int(c) for c in s): i for i, s in enumerate(sites)}
     out = []
     for s, i in sorted(idx.items(), key=lambda kv: kv[1]):
-        for (nb, _kind, my_lab, their_lab) in honeycomb_contacts(s, a):
+        for (nb, kind, my_lab, their_lab) in honeycomb_contacts(s, a):
+            if kind != "tri":
+                continue
             j = idx.get(tuple(int(c) for c in nb))
             if j is None or j <= i:
                 continue
