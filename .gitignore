@@ -21,3 +21,6 @@ __pycache__/
 # jb_cache memoisation store: derived data, rebuildable from source at any
 # time. Deleting it costs one slow run and nothing else.
 .jbcache/
+
+# per-module gate output written by analysis/gates.sh
+analysis/.gates/

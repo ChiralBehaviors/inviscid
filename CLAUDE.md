@@ -35,6 +35,10 @@ Three layers, top to bottom:
 
 The single test (`AutomataTest`) covers `Necronomata` neighbor/iteration logic — the automaton model is testable headlessly; everything touching JavaFX scene graph is not.
 
+## Analysis (Python)
+
+`analysis/` holds the jitterbug-medium derivation as self-gating Python scripts (numpy/scipy; interpreter `/opt/homebrew/opt/python@3.13/libexec/bin/python3`). `analysis/README.md` is the map: `model/` is the model of record (rigid struts, soft joints, voids empty), `model/double_covering/` the same line before the voids were emptied, `retired/` the closed lines (hard wall, rig lock, strut springs, attic), `history/` the long derivation record. Run from the repo root: `analysis/gates.sh` (all), `analysis/gates.sh live`, or `python -m analysis.model.dispersion`. Every module's exit code is its verdict. The old two-letter names (`jb_rc`, `jb_bz`, …) that T2 and beads cite are listed beside each new name in the README.
+
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:6cd5cc61 -->
 ## Beads Issue Tracker
