@@ -24,3 +24,4 @@ __pycache__/
 
 # per-module gate output written by analysis/gates.sh
 analysis/.gates/
+analysis/.pages/

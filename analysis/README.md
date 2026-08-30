@@ -53,6 +53,36 @@ the medium.
 | `joint_exponent.py` — the exponent family, first measurement | jb_je_joint_exponent |
 | `asymmetric_joint.py` — an asymmetric joint costs the Hessian | jb_ja_asymmetric_joint |
 
+### model/first_principles/
+
+The tied array built up one body at a time, 2026-08-30, each step a gated
+measurement and each with a page the owner looked at. The record of the
+conversation is in T2 [23789] [23791] [23794]-[23796]; the physics in one
+paragraph: one cell passes through the VE and chooses a sense there; an
+octahedron with its joints as they are opens one way; an octahedron hung on a
+VE face is a passenger; a void bounded by plates of different VEs in a closed
+ring is a VE that expands, its fold the VE's plus sixty; so the tied array's
+motion is one sixty-degree segment with an octahedron at each end. The
+overdrive continues the parametrisation past both ends: joints hold by
+identity, plates turn inside out, and any patch collapses onto one octahedron
+at +60 and +240.
+
+| module | what it is |
+|---|---|
+| `geometry.py` | the shared measuring tools: coincidence classes, the twelve joints, segment distance (scalar and vectorised crossings), a rigid fit, front signs |
+| `one_cell.py` | one jitterbug −60 → +60: joints permanent, six vertices at ±60, the two octahedra pair the joints differently, the octahedron a dead end even as a free linkage, the VE the choice |
+| `face_to_face.py` | a VE and an octahedron cell on one shared plate: two independent folds, turn = a − b + 60, six corners per shared joint, never touching; two passengers stay passengers |
+| `vertex_point.py` | one vertex at the VE: four cells, eight corners, two permanent joints; the tied block walks through the VE on its weld manifold and is stopped by the two joints passing head-on |
+| `ring.py` | the smallest closed ring: one motion, void = VE + 60, no rotation, the void expands, both ends octahedra |
+| `overdrive.py` | the ring, HC15 and the 3×3×3 block through 360°: welds by identity, the spacing sinusoid, the side flips, crossings only in the passages, the collapse |
+
+`pages/` holds the exporters and templates behind the pages ("One Jitterbug",
+"Face to Face", "One Vertex, Four Cells", "Two Joints, One Point", "The
+Exchange", "A Full Cycle", "Overdrive" ×3). `python -m
+analysis.model.first_principles.pages.export_ring` and friends write frames to
+`analysis/.pages/data/`; `python -m analysis.model.first_principles.pages.build`
+inlines them into self-contained HTML in `analysis/.pages/` (git-ignored).
+
 ## retired/ — lines the owner has closed
 
 Still runnable, still gated, not maintained. Do not quote their numbers as

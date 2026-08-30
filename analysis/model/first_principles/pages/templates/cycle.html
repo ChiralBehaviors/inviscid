@@ -1,0 +1,160 @@
+<title>A Full Cycle</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F4F5F2; --ink:#1B2028; --ink-2:#5A6270; --line:#D5D9D2; --panel:#FBFBF9; --grid:#E3E6E0;
+  --o:#3D5AD6; --d:#B4286B; --u:#0F9B7A; --l:#D9531E; --joint:#1B2028; --halo:#F4F5F2; --focus:#3D5AD6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#15181D; --ink:#E4E7EC; --ink-2:#9AA3B2; --line:#2A2F38; --panel:#1B1F26; --grid:#262B34;
+    --o:#6478E6; --d:#B23A78; --u:#22A883; --l:#E06A33; --joint:#E4E7EC; --halo:#1B1F26;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#15181D; --ink:#E4E7EC; --ink-2:#9AA3B2; --line:#2A2F38; --panel:#1B1F26; --grid:#262B34;
+  --o:#6478E6; --d:#B23A78; --u:#22A883; --l:#E06A33; --joint:#E4E7EC; --halo:#1B1F26;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Instrument Sans",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;font-size:15px;line-height:1.45}
+.mono{font-family:"IBM Plex Mono","SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.page{display:grid;grid-template-rows:auto 1fr auto;min-height:100vh}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:18px;padding:18px 24px 10px;flex-wrap:wrap}
+h1{font-size:21px;font-weight:600;margin:0;letter-spacing:-.01em}
+.lede{margin:0;color:var(--ink-2);font-size:13.5px;max-width:70ch}
+.stage{display:grid;grid-template-columns:1fr 250px;min-height:52vh}
+.view{position:relative;touch-action:none;cursor:grab;background:var(--panel);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.view:active{cursor:grabbing}
+.view svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hint{position:absolute;left:16px;bottom:12px;color:var(--ink-2);font-size:12px;pointer-events:none}
+.side{padding:18px 20px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-left:1px solid var(--line);display:flex;flex-direction:column;gap:16px}
+.lbl{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);margin:0 0 6px}
+.big{font-size:30px;font-weight:500;line-height:1}
+.big small{font-size:12.5px;color:var(--ink-2);display:block;margin-top:4px;font-family:"Instrument Sans",system-ui,sans-serif;font-weight:400}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two div{padding:8px 10px;border:1px solid var(--line);border-radius:6px}
+.two .k{font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.two .v{font-size:20px;font-weight:500;line-height:1.3}
+.sw{width:11px;height:11px;border-radius:2px;display:inline-block}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:6px;cursor:pointer}
+button:hover{border-color:var(--ink-2)}
+button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+button.on{border-color:var(--o);color:var(--o)}
+.legend{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;font-size:12.5px}
+.chart{padding:14px 24px 18px}
+.chart .t{font-size:13.5px;font-weight:500;margin:0 0 2px}
+.chart .s{font-size:12.5px;color:var(--ink-2);margin:0 0 8px}
+.chart svg{width:100%;height:auto;display:block;max-width:1100px}
+.cl{display:flex;gap:18px;font-size:12.5px;color:var(--ink-2);margin-top:6px}
+input[type=range]{width:100%;accent-color:var(--o);margin:6px 0 0}
+input[type=range]:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:4px}
+@media (max-width:860px){.stage{grid-template-columns:1fr}.side{border-left:0}}
+</style>
+<div class="page">
+  <header>
+    <div><h1>A Full Cycle</h1>
+    <p class="lede">The ring — two VEs and the two voids between them — driven once around: the VEs close to octahedra while the voids open to VEs, then back. Each end is a dead end, so a cycle is there and back along the one motion the ring has.</p></div>
+    <div class="btns"><button id="play" class="on">Pause</button><button id="reset">Reset view</button></div>
+  </header>
+  <div class="stage">
+    <div class="view" id="view"><svg id="svg" aria-label="The four-body ring animating through one full cycle"></svg><div class="hint">Drag to turn · scroll to zoom · space pauses</div></div>
+    <aside class="side">
+      <div><p class="lbl">Phase of the cycle</p><div class="big mono" id="ph">0%<small id="phw">at the VE end</small></div>
+        <input type="range" id="scrub" min="0" max="1000" step="1" value="0" aria-label="Phase of the cycle"></div>
+      <div class="two">
+        <div><div class="k"><span class="sw" style="background:var(--o)"></span>the VEs</div><div class="v mono" id="av">0°</div></div>
+        <div><div class="k"><span class="sw" style="background:var(--u)"></span>the voids</div><div class="v mono" id="bv">+60°</div></div>
+      </div>
+      <div><p class="lbl">Spacing per site</p><div class="big mono" id="L">1.000<small>largest, 1.155, half way — the lattice swells as the cells shrink</small></div></div>
+      <div><p class="lbl">Bodies</p><div class="legend">
+        <span class="sw" style="background:var(--o)"></span><span>VE cell O</span>
+        <span class="sw" style="background:var(--d)"></span><span>VE cell D</span>
+        <span class="sw" style="background:var(--u)"></span><span>void U, above the point</span>
+        <span class="sw" style="background:var(--l)"></span><span>void L, below the point</span></div></div>
+    </aside>
+  </div>
+  <div class="chart">
+    <p class="t">The two folds over one cycle</p>
+    <p class="s">Drive is a cosine in time, so the ring eases into each dead end and turns. Void fold − VE fold = 60° throughout; the model's welds hold to 4×10⁻¹⁴ on every frame.</p>
+    <svg id="chart" viewBox="0 0 1100 200" role="img" aria-label="VE fold and void fold against cycle phase"></svg>
+    <div class="cl"><span><span class="sw" style="background:var(--o)"></span> VE fold</span><span><span class="sw" style="background:var(--u)"></span> void fold</span><span><span class="sw" style="background:var(--ink-2);opacity:.5"></span> spacing (right scale)</span></div>
+  </div>
+</div>
+<script>
+const D = __DATA__;
+const F = D.frames, N = F.length;              // a = -60 .. 0 at 1 degree
+const COL = ['var(--o)','var(--u)','var(--d)','var(--l)'];
+const view = document.getElementById('view'), svg = document.getElementById('svg');
+const T = 9000;                                   // ms per full cycle
+let yaw = -0.7, elev = 0.5, zoom = 1.0, playing = true, t0 = performance.now(), phase = 0, raf = null;
+const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduce) playing = false;
+function cam(p){ const cy=Math.cos(yaw), sy=Math.sin(yaw); const x1=cy*p[0]-sy*p[1], y1=sy*p[0]+cy*p[1], z1=p[2]; const ce=Math.cos(elev), se=Math.sin(elev); return [x1, y1*se+z1*ce, -y1*ce+z1*se]; }
+function normal(a,b,c){ const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]]; const n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]]; const l=Math.hypot(...n)||1; return n.map(t=>t/l); }
+const LIGHT=(()=>{const l=[-0.35,0.55,0.76];const m=Math.hypot(...l);return l.map(t=>t/m);})();
+const shade = n => Math.abs(n[0]*LIGHT[0]+n[1]*LIGHT[1]+n[2]*LIGHT[2]);
+function frameFor(ph){ const a = -30 + 30*Math.cos(2*Math.PI*ph); return F[Math.round(a + 60)]; }
+function renderView(fr){
+  const W = view.clientWidth||800, H = view.clientHeight||500;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const S = Math.min(W,H) * 0.17 * zoom;
+  const mid = [fr.L, fr.L, 0];
+  const camc = p => cam([p[0]-mid[0], p[1]-mid[1], p[2]-mid[2]]);
+  const px = q => [W/2 + q[0]*S, H/2 - q[1]*S];
+  const items = [];
+  fr.cells.forEach((cell,k) => cell.forEach(tri => { const q=tri.map(camc); const n=normal(q[0],q[1],q[2]); const isVoid=(k===1||k===3);
+    items.push({depth:(q[0][2]+q[1][2]+q[2][2])/3, kind:'tri', pts:q.map(px), col:COL[k], sh:shade(n), fo:isVoid?0.30:0.46}); }));
+  const pts=[]; for (const cell of fr.cells) for (const tri of cell) for (const p of tri) if (!pts.some(q=>Math.hypot(q[0]-p[0],q[1]-p[1],q[2]-p[2])<1e-5)) pts.push(p);
+  for (const p of pts){ const q=camc(p); items.push({depth:q[2]+0.03, kind:'dot', p:px(q)}); }
+  items.sort((u,v)=>u.depth-v.depth);
+  let out='';
+  for (const it of items){
+    if (it.kind==='tri'){ const d=it.pts.map(p=>p.join(',')).join(' '); out += `<polygon points="${d}" fill="${it.col}" fill-opacity="${(it.fo+0.36*it.sh).toFixed(3)}" stroke="${it.col}" stroke-width="1.3" stroke-linejoin="round"/>`; }
+    else out += `<circle cx="${it.p[0]}" cy="${it.p[1]}" r="3.6" fill="var(--joint)" stroke="var(--halo)" stroke-width="1.3"/>`;
+  }
+  svg.innerHTML = out;
+}
+function renderChart(ph){
+  const c = document.getElementById('chart'); const W=1100,H=200, ml=50, mr=50, mt=14, mb=30;
+  const xs = p => ml + p*(W-ml-mr), ys = v => mt + (60 - v)/120*(H-mt-mb), yl = L => mt + (1.16 - L)/0.16*(H-mt-mb)*0.999;
+  let out = '';
+  for (const v of [-60,-30,0,30,60]) out += `<line x1="${ml}" x2="${W-mr}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--grid)"/><text x="${ml-8}" y="${ys(v)+4}" text-anchor="end" font-size="11" fill="var(--ink-2)" font-family="IBM Plex Mono,monospace">${v>0?'+':''}${v}°</text>`;
+  for (const L of [1.0,1.08,1.16]) out += `<text x="${W-mr+8}" y="${yl(L)+4}" font-size="11" fill="var(--ink-2)" font-family="IBM Plex Mono,monospace">${L.toFixed(2)}</text>`;
+  for (const p of [0,0.25,0.5,0.75,1]) out += `<text x="${xs(p)}" y="${H-mb+18}" text-anchor="middle" font-size="11" fill="var(--ink-2)" font-family="IBM Plex Mono,monospace">${Math.round(p*100)}%</text>`;
+  const path = fn => { let s=''; for (let i=0;i<=200;i++){ const p=i/200; const fr=frameFor(p); s += (i?'L':'M')+xs(p).toFixed(1)+','+fn(fr).toFixed(1); } return s; };
+  out += `<path d="${path(fr=>yl(fr.L))}" fill="none" stroke="var(--ink-2)" stroke-opacity=".45" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  out += `<path d="${path(fr=>ys(fr.a))}" fill="none" stroke="var(--o)" stroke-width="2"/>`;
+  out += `<path d="${path(fr=>ys(fr.b))}" fill="none" stroke="var(--u)" stroke-width="2"/>`;
+  const fr = frameFor(ph);
+  out += `<line x1="${xs(ph)}" x2="${xs(ph)}" y1="${mt}" y2="${H-mb}" stroke="var(--ink-2)" stroke-opacity=".4"/>`;
+  out += `<circle cx="${xs(ph)}" cy="${ys(fr.a)}" r="4.5" fill="var(--o)" stroke="var(--panel)" stroke-width="2"/><circle cx="${xs(ph)}" cy="${ys(fr.b)}" r="4.5" fill="var(--u)" stroke="var(--panel)" stroke-width="2"/>`;
+  out += `<text x="${xs(0.5)}" y="${ys(-60)-6}" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="Instrument Sans,system-ui,sans-serif">VEs are octahedra · voids are VEs</text>`;
+  out += `<text x="${xs(0.02)}" y="${ys(0)-6}" font-size="12" fill="var(--ink)" font-family="Instrument Sans,system-ui,sans-serif">VE fold</text><text x="${xs(0.02)}" y="${ys(60)+16}" font-size="12" fill="var(--ink)" font-family="Instrument Sans,system-ui,sans-serif">void fold</text>`;
+  c.innerHTML = out;
+}
+function render(){
+  const fr = frameFor(phase);
+  renderView(fr); renderChart(phase);
+  document.getElementById('ph').firstChild.textContent = Math.round(phase*100) + '%';
+  const w = phase < 0.02 || phase > 0.98 ? 'at the VE end: voids are octahedra' : Math.abs(phase-0.5) < 0.02 ? 'at the octahedron end: voids are VEs' : (phase < 0.5 ? 'closing the VEs, opening the voids' : 'opening the VEs, closing the voids');
+  document.getElementById('phw').textContent = w;
+  document.getElementById('av').textContent = (fr.a>0?'+':'') + fr.a.toFixed(0) + '°';
+  document.getElementById('bv').textContent = '+' + fr.b.toFixed(0) + '°';
+  document.getElementById('L').firstChild.textContent = fr.L.toFixed(3);
+  document.getElementById('scrub').value = Math.round(phase*1000);
+}
+function loop(now){ if (playing){ phase = ((now - t0) % T) / T; render(); } raf = requestAnimationFrame(loop); }
+function setPlay(on){ playing = on; if (on) t0 = performance.now() - phase*T; const b=document.getElementById('play'); b.textContent = on?'Pause':'Play'; b.classList.toggle('on', on); }
+document.getElementById('play').onclick = () => setPlay(!playing);
+document.getElementById('reset').onclick = () => { yaw=-0.7; elev=0.5; zoom=1; render(); };
+document.getElementById('scrub').addEventListener('input', e => { setPlay(false); phase = +e.target.value/1000; render(); });
+let drag=null;
+view.addEventListener('pointerdown', e => { drag={x:e.clientX,y:e.clientY,yaw,elev}; view.setPointerCapture(e.pointerId); });
+view.addEventListener('pointermove', e => { if(!drag) return; yaw = drag.yaw + (e.clientX-drag.x)*0.008; elev = Math.max(-1.5, Math.min(1.5, drag.elev + (e.clientY-drag.y)*0.008)); if(!playing) render(); });
+view.addEventListener('pointerup', () => drag=null); view.addEventListener('pointercancel', () => drag=null);
+view.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.max(0.4, Math.min(3, zoom*Math.exp(-e.deltaY*0.0015))); if(!playing) render(); }, {passive:false});
+window.addEventListener('keydown', e => { if (e.key===' ' && e.target.tagName!=='INPUT'){ e.preventDefault(); setPlay(!playing); } });
+window.addEventListener('resize', () => { if(!playing) render(); });
+render(); setPlay(playing); raf = requestAnimationFrame(loop);
+</script>
