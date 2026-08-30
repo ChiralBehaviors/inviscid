@@ -1,0 +1,383 @@
+<title>Patch of Record</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper: #F5F6F3; --ink: #1E272E; --ink-2: #5B6772; --rule: #D5DBD8;
+    --accent: #2E5FA3; --accent-soft: #E4EBF5; --panel: #FFFFFF;
+    --cell: #8FA6C4; --strut: #1E272E; --joint: #C8542A;
+    --serif: "Source Serif 4", Georgia, serif;
+    --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "IBM Plex Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #151A1E; --ink: #E4E8EA; --ink-2: #98A3AB; --rule: #2B343A;
+      --accent: #80A8E2; --accent-soft: #1E2B3C; --panel: #1B2126;
+      --cell: #5F7A9C; --strut: #DCE3E8; --joint: #F08A5B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #151A1E; --ink: #E4E8EA; --ink-2: #98A3AB; --rule: #2B343A;
+    --accent: #80A8E2; --accent-soft: #1E2B3C; --panel: #1B2126;
+    --cell: #5F7A9C; --strut: #DCE3E8; --joint: #F08A5B;
+  }
+  body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 14px; margin: 0; }
+  main { max-width: 1100px; margin: 0 auto; padding: 22px 20px 48px; display: grid; gap: 14px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: 24px; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-2); margin: 0; }
+  .bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--rule); background: var(--panel); }
+  .tabs { display: flex; border: 1px solid var(--rule); }
+  .tabs button { font: inherit; font-weight: 500; padding: 6px 14px; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; }
+  .tabs button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  button.play { font: inherit; padding: 6px 12px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); cursor: pointer; min-width: 68px; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  label.opt { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
+  input[type=range] { width: 220px; accent-color: var(--accent); }
+  .grow { flex: 1 1 200px; display: flex; align-items: center; gap: 10px; }
+  .readout { font-family: var(--mono); font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; overflow-x: auto; }
+  #view { width: 100%; height: 64vh; min-height: 420px; border: 1px solid var(--rule); background: var(--panel); touch-action: none; }
+  #view canvas { display: block; width: 100%; height: 100%; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; color: var(--ink-2); font-size: 13px; align-items: center; }
+  .sw { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; margin-right: 5px; border-radius: 2px; }
+  .ramp { display: inline-block; width: 90px; height: 10px; vertical-align: -1px; margin: 0 5px; background: linear-gradient(90deg, #2F6FBF, #B7C0C8, #D9533A); }
+  .design { font-family: var(--serif); font-size: 16px; line-height: 1.5; max-width: 72ch; margin: 0; }
+  .design p { margin: 0 0 10px; }
+  .design code { font-family: var(--mono); font-size: 13px; }
+  h2 { font-family: var(--sans); font-weight: 500; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); margin: 8px 0 0; }
+</style>
+
+<main>
+  <header>
+    <h1>Patch of Record</h1>
+    <p class="sub">5×5×5 cells, voids empty. Positions are the model's own output, frame by frame. Drag to orbit, wheel to zoom.</p>
+  </header>
+
+  <div class="bar">
+    <div class="tabs" role="tablist">
+      <button id="tab-breathe" role="tab" aria-pressed="true">Breathe</button>
+      <button id="tab-kick" role="tab" aria-pressed="false">Kick</button>
+      <button id="tab-net" role="tab" aria-pressed="false">Kick, network</button>
+    </div>
+    <button class="play" id="play" aria-label="Play or pause">Pause</button>
+    <div class="grow">
+      <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Time">
+      <span class="readout" id="readout"></span>
+    </div>
+    <label class="opt"><input type="checkbox" id="cut"> Cut away front half</label>
+    <label class="opt"><input type="checkbox" id="joints" checked> Joints</label>
+    <label class="opt"><input type="checkbox" id="struts" checked> Struts</label>
+    <label class="opt">Speed <input type="range" id="speed" min="0.1" max="3" step="0.1" value="1" style="width:90px" aria-label="Speed"></label>
+    <label class="opt" id="mode-wrap" hidden>Show <select id="mode" style="font: inherit">
+      <option value="pos">full motion</option>
+      <option value="pos_fold">fold only — cells pinned, only the fold angle moves</option>
+      <option value="pos_rigid">rigid only — fold frozen at −30°, cells move as bodies</option>
+      <option value="pos_fold5">fold ×5 — fold deviation exaggerated fivefold (not to scale)</option>
+    </select></label>
+  </div>
+
+  <div id="view"></div>
+
+  <div class="legend" id="legend-breathe">
+    <span><span class="sw" style="background: var(--cell)"></span>rigid triangular plate</span>
+    <span><span class="sw" style="background: var(--strut)"></span>rigid strut, length √2</span>
+    <span><span class="sw" style="background: var(--joint); border-radius: 50%"></span>joint: the two tied vertices, one from each cell (2 joints per axis neighbour); one dot while closed, two when stretched</span>
+  </div>
+  <p class="readout" id="energy" hidden></p>
+  <div class="legend" id="legend-net" hidden>
+    <span>each triangle's rotation about its own normal, in the fold's sign: <span class="ramp"></span> −4° · 0 · +4°</span>
+    <span><span class="sw" style="background: var(--joint); border-radius: 50%"></span>every corner at a junction (four in the bulk); one dot while closed</span>
+  </div>
+  <div class="legend" id="legend-kick" hidden>
+    <span>fold angle deviation from −30°: <span class="ramp"></span> −4° toward octahedron · 0 · +4° toward VE</span>
+    <span><span class="sw" style="background: var(--joint); border-radius: 50%"></span>joint</span>
+  </div>
+
+  <h2>What is being drawn</h2>
+  <div class="design">
+    <p><b>The lattice.</b> Sites are the integer points of a cubic grid. Only the <b>all-even</b> sites hold a cell; the all-odd sites are the octahedral voids and hold nothing. This patch is the 125 even sites in −4…4, i.e. a 5×5×5 block of cells. Each cell is centred at <code>L(a)·site</code>, where <code>L(a)</code> is the lattice constant of the shared-face law, stationary at a = −30°.</p>
+    <p><b>One cell.</b> 12 vertices, 24 rigid struts of length √2, 8 rigid triangular plates, and one fold angle <code>a</code>: a = 0 is the vector equilibrium, a = −60 the octahedron. Between them the eight plates rotate about their own normals and move inward, Fuller's jitterbug.</p>
+    <p><b>The joints.</b> A cell touches each of its six <b>axis</b> neighbours (±2 along x, y or z) at two vertices across the square opening. Those two vertex pairs, read at a = −30 and held, are the joints — the orange dots. The eight diagonal neighbours at (±1,±1,±1) are voids, so there is no triangular-face joint anywhere. At a = 0 two more vertices of the same pair of cells touch momentarily (the square closes); at a = −60 the two joints merge into one point.</p>
+    <p><b>Breathe.</b> Every cell at the same fold angle, a running 0 → −60 → 0, centres riding <code>L(a)</code>. Nothing else moves. This is the medium's one free motion: every joint stays exactly closed throughout.</p>
+    <p><b>Kick.</b> Soft joints: each joint is a spring <code>V = ½ k |Δ|²</code> on the separation of its two tied vertices, <code>k = 1</code>; masses are corner point masses. At t = 0 the centre cell alone is given fold rate 0.2 rad per unit time and the block evolves freely (midpoint integration, step 0.005). Colour is each cell's fold-angle deviation from −30°. The <b>Show</b> menu separates the two things a cell can do: <i>fold only</i> pins every cell's centre and orientation and draws just its fold angle, so a fold wave appears as shape; <i>rigid only</i> freezes every fold at −30° and draws the cells' translation and rotation. The energy line reports how the block's energy is divided among those motions and the joint springs. <b>The motion is small.</b> At this kick the kicked cell's vertices move at most 12% of a strut and the surface cells about 3%; full motion and <i>fold only</i> agree to 0.2% of a strut, cell centres travel under 0.3% of a strut and cells rotate under 0.1° over the whole run, so the colour is the reliable signal and <i>fold ×5</i> exaggerates the fold deviation fivefold to make the wave visible as shape. In these units the two sound speeds are 1/(2√2) and 1/2 lattice constants per unit time, so the front reaches the block's faces around t ≈ 4–6 and reflects.</p>
+    <p><b>Kick, network.</b> The same block and the same kick with the cell constraint removed. Each of the 1000 triangles is a free rigid body (6 coordinates, unit mass lumped to its corners); every junction is one rubber blob tying all the corners that meet there — four in the bulk, two where a jitterbug's own hinge has no partner at the surface — with <code>V = ½k Σ|x<sub>corner</sub> − junction mean|²</code>, k = 1. No shared fold, no rigid hinge. The centre cell's eight triangles start with the velocities the fold-rate kick gives them; the network evolves freely (velocity Verlet, step 0.01). Colour is each triangle's rotation about its own normal in the fold's sign convention, so it is comparable to the Kick tab. The energy line splits kinetic energy into spin about the normal, translation, and tilt.</p>
+    <p id="facts" class="readout"></p>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const DATA = __DATA__;
+(function () {
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const N = DATA.N, NV = 12, TRIS = DATA.tris, BARS = DATA.bars, BONDS = DATA.bonds, SITES = DATA.sites;
+
+  function decode(b64, scale) {
+    const bin = atob(b64), n = bin.length / 2, out = new Float32Array(n);
+    const buf = new Int16Array(new ArrayBuffer(bin.length));
+    const u8 = new Uint8Array(buf.buffer);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    for (let i = 0; i < n; i++) out[i] = buf[i] * scale;
+    return out;
+  }
+  const VIEWS = {
+    breathe: { pos: decode(DATA.breathe.pos, DATA.breathe.scale), frames: DATA.breathe.phases.length,
+               span: 2 * (DATA.breathe.phases.length - 1), pingpong: true },
+    kick: { pos: decode(DATA.kick.pos, DATA.kick.scale), frames: DATA.kick.times.length,
+            span: DATA.kick.times.length - 1, pingpong: false,
+            pos_fold: decode(DATA.kick.pos_fold, DATA.kick.scale_fold),
+            pos_rigid: decode(DATA.kick.pos_rigid, DATA.kick.scale_rigid),
+            pos_fold5: decode(DATA.kick.pos_fold5, DATA.kick.scale_fold5) },
+  };
+  let mode = 'pos';
+  const NET = DATA.net;
+  VIEWS.net = { pos: decode(NET.pos, NET.scale), frames: NET.times.length, span: NET.times.length - 1, pingpong: false };
+  const NET_CORNERS = NET.junctions.reduce((s, g) => s + g.length, 0);
+  let view = 'breathe', t = 0, playing = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let cut = false, showJoints = true, showStruts = true, speed = 1;
+
+  // ---- scene ----
+  const host = document.getElementById('view');
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  host.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 1000);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8890a0, 0.85));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.55); sun.position.set(3, 5, 4); scene.add(sun);
+
+  const plateGeo = new THREE.BufferGeometry();
+  const platePos = new Float32Array(N * 8 * 3 * 3), plateCol = new Float32Array(N * 8 * 3 * 3);
+  plateGeo.setAttribute('position', new THREE.BufferAttribute(platePos, 3));
+  plateGeo.setAttribute('color', new THREE.BufferAttribute(plateCol, 3));
+  const plates = new THREE.Mesh(plateGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  scene.add(plates);
+
+  const strutGeo = new THREE.BufferGeometry();
+  const strutPos = new Float32Array(N * BARS.length * 2 * 3);
+  strutGeo.setAttribute('position', new THREE.BufferAttribute(strutPos, 3));
+  const struts = new THREE.LineSegments(strutGeo, new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.55 }));
+  scene.add(struts);
+
+  const jointGeo = new THREE.BufferGeometry();
+  const jointPos = new Float32Array(Math.max(BONDS.length * 2 * 2, DATA.net.junctions.reduce((s, g) => s + g.length, 0)) * 3);
+  jointGeo.setAttribute('position', new THREE.BufferAttribute(jointPos, 3));
+  const joints = new THREE.Points(jointGeo, new THREE.PointsMaterial({ color: 0xc8542a, size: 7, sizeAttenuation: false }));
+  scene.add(joints);
+
+  function theme() {
+    renderer.setClearColor(new THREE.Color(css('--panel')));
+    struts.material.color.set(css('--strut'));
+    joints.material.color.set(css('--joint'));
+  }
+  theme();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', theme);
+  new MutationObserver(theme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // ---- orbit ----
+  let theta = 0.65, phi = 1.05, dist = 0, dragging = false, px = 0, py = 0;
+  const target = new THREE.Vector3(0, 0, 0);
+  function placeCamera() {
+    camera.position.set(target.x + dist * Math.sin(phi) * Math.sin(theta), target.y + dist * Math.cos(phi), target.z + dist * Math.sin(phi) * Math.cos(theta));
+    camera.lookAt(target);
+  }
+  host.addEventListener('pointerdown', (e) => { dragging = true; px = e.clientX; py = e.clientY; host.setPointerCapture(e.pointerId); });
+  host.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    theta -= (e.clientX - px) * 0.008; phi -= (e.clientY - py) * 0.008;
+    phi = Math.max(0.05, Math.min(Math.PI - 0.05, phi)); px = e.clientX; py = e.clientY; placeCamera();
+  });
+  host.addEventListener('pointerup', () => { dragging = false; });
+  host.addEventListener('wheel', (e) => { e.preventDefault(); dist *= Math.exp(e.deltaY * 0.001); placeCamera(); }, { passive: false });
+
+  function resize() {
+    const w = host.clientWidth, h = host.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  addEventListener('resize', resize);
+
+  // ---- frame assembly ----
+  const cellColor = new THREE.Color(), baseCell = new THREE.Color();
+  const cBlue = new THREE.Color(0x2f6fbf), cMid = new THREE.Color(0xb7c0c8), cRed = new THREE.Color(0xd9533a);
+  function vertex(V, f, c, v, out) {
+    const i = ((f * N + c) * NV + v) * 3;
+    out[0] = V[i]; out[1] = V[i + 1]; out[2] = V[i + 2];
+  }
+  const A = [0, 0, 0], B = [0, 0, 0];
+  function frameAt(x) {
+    const vw = VIEWS[view];
+    let f0, f1, w;
+    if (vw.pingpong) {
+      const m = vw.frames - 1; let u = x % (2 * m); if (u < 0) u += 2 * m; if (u > m) u = 2 * m - u;
+      f0 = Math.floor(u); f1 = Math.min(f0 + 1, m); w = u - f0;
+    } else {
+      const m = vw.frames - 1; let u = x % m; if (u < 0) u += m;
+      f0 = Math.floor(u); f1 = Math.min(f0 + 1, m); w = u - f0;
+    }
+    return [f0, f1, w];
+  }
+  function lerpV(V, f0, f1, w, c, v, out) {
+    vertex(V, f0, c, v, A); vertex(V, f1, c, v, B);
+    out[0] = A[0] + (B[0] - A[0]) * w; out[1] = A[1] + (B[1] - A[1]) * w; out[2] = A[2] + (B[2] - A[2]) * w;
+  }
+  function gammaAt(f0, f1, w, c) {
+    if (view !== 'kick') return null;
+    const g = DATA.kick.gamma; return g[f0][c] + (g[f1][c] - g[f0][c]) * w;
+  }
+  const P = [0, 0, 0];
+  function buildNet() {
+    const [f0, f1, w] = frameAt(t), V = VIEWS.net.pos, T = NET.T;
+    const at = (f, tr, i, out) => { const k = ((f * T + tr) * 3 + i) * 3; out[0] = V[k]; out[1] = V[k + 1]; out[2] = V[k + 2]; };
+    const lerp = (tr, i, out) => { at(f0, tr, i, A); at(f1, tr, i, B); out[0] = A[0] + (B[0] - A[0]) * w; out[1] = A[1] + (B[1] - A[1]) * w; out[2] = A[2] + (B[2] - A[2]) * w; };
+    let pi = 0, si = 0, ji = 0;
+    for (let tr = 0; tr < T; tr++) {
+      const hidden = cut && SITES[NET.tri_cell[tr]][2] > 0;
+      const fe = NET.foldeq[f0][tr] + (NET.foldeq[f1][tr] - NET.foldeq[f0][tr]) * w;
+      const sgn = Math.max(-1, Math.min(1, fe / 4));
+      cellColor.copy(cMid).lerp(sgn < 0 ? cBlue : cRed, Math.abs(sgn));
+      for (let i = 0; i < 3; i++) {
+        if (hidden) { platePos[pi] = platePos[pi + 1] = platePos[pi + 2] = 0; }
+        else { lerp(tr, i, P); platePos[pi] = P[0]; platePos[pi + 1] = P[1]; platePos[pi + 2] = P[2]; }
+        plateCol[pi] = cellColor.r; plateCol[pi + 1] = cellColor.g; plateCol[pi + 2] = cellColor.b; pi += 3;
+      }
+      for (let e = 0; e < 3; e++) {
+        for (const i of [e, (e + 1) % 3]) {
+          if (hidden || !showStruts) { strutPos[si] = strutPos[si + 1] = strutPos[si + 2] = 0; }
+          else { lerp(tr, i, P); strutPos[si] = P[0]; strutPos[si + 1] = P[1]; strutPos[si + 2] = P[2]; }
+          si += 3;
+        }
+      }
+    }
+    for (const g of NET.junctions) {
+      for (const c of g) {
+        const tr = Math.floor(c / 3), i = c % 3;
+        const hidden = !showJoints || (cut && SITES[NET.tri_cell[tr]][2] > 0);
+        if (hidden) { jointPos[ji] = jointPos[ji + 1] = jointPos[ji + 2] = 1e6; }
+        else { lerp(tr, i, P); jointPos[ji] = P[0]; jointPos[ji + 1] = P[1]; jointPos[ji + 2] = P[2]; }
+        ji += 3;
+      }
+    }
+    jointGeo.setDrawRange(0, NET_CORNERS);
+    plateGeo.attributes.position.needsUpdate = true; plateGeo.attributes.color.needsUpdate = true; plateGeo.computeVertexNormals();
+    strutGeo.attributes.position.needsUpdate = true; jointGeo.attributes.position.needsUpdate = true;
+    const tt = NET.times[f0] + (NET.times[f1] - NET.times[f0]) * w, fi = w < 0.5 ? f0 : f1;
+    let cen = 0, n = 0;
+    for (let tr = 0; tr < T; tr++) if (NET.tri_cell[tr] === DATA.centre) { cen += Math.abs(NET.foldeq[fi][tr]); n++; }
+    ro.textContent = `t = ${tt.toFixed(2).padStart(6)}   centre cell, mean |rotation about normal| = ${(cen / n).toFixed(2)}°   largest vertex displacement in frame: ${(100 * NET.maxdisp[fi]).toFixed(1)}% of a strut`;
+    const es = NET.energy[Math.max(0, fi - 1)], E = es.spin + es.trans + es.tilt + es.pe;
+    const pc = (x) => (100 * x / E).toFixed(0).padStart(3) + '%';
+    document.getElementById('energy').textContent = `energy now:  spin about normal ${pc(es.spin)}   translation ${pc(es.trans)}   tilt ${pc(es.tilt)}   stored in joints ${pc(es.pe)}`;
+    document.getElementById('scrub').value = Math.round(1000 * (t % VIEWS.net.span) / VIEWS.net.span);
+  }
+  function build() {
+    if (view === 'net') { buildNet(); return; }
+    jointGeo.setDrawRange(0, BONDS.length * 4);
+    const vw = Object.assign({}, VIEWS[view], { pos: view === 'kick' ? VIEWS.kick[mode] : VIEWS.breathe.pos });
+    const [f0, f1, w] = frameAt(t);
+    baseCell.set(css('--cell'));
+    let pi = 0, si = 0, ji = 0;
+    for (let c = 0; c < N; c++) {
+      const hidden = cut && SITES[c][2] > 0;
+      if (view === 'kick') {
+        const d = (gammaAt(f0, f1, w, c) + 30) / 4;   // degrees, saturating at +-4
+        const s = Math.max(-1, Math.min(1, d));
+        cellColor.copy(cMid).lerp(s < 0 ? cBlue : cRed, Math.abs(s));
+      } else cellColor.copy(baseCell);
+      for (let k = 0; k < 8; k++) {
+        for (let m = 0; m < 3; m++) {
+          if (hidden) { platePos[pi] = platePos[pi + 1] = platePos[pi + 2] = 0; }
+          else { lerpV(vw.pos, f0, f1, w, c, TRIS[k][m], P); platePos[pi] = P[0]; platePos[pi + 1] = P[1]; platePos[pi + 2] = P[2]; }
+          plateCol[pi] = cellColor.r; plateCol[pi + 1] = cellColor.g; plateCol[pi + 2] = cellColor.b; pi += 3;
+        }
+      }
+      for (let k = 0; k < BARS.length; k++) {
+        for (let m = 0; m < 2; m++) {
+          if (hidden || !showStruts) { strutPos[si] = strutPos[si + 1] = strutPos[si + 2] = 0; }
+          else { lerpV(vw.pos, f0, f1, w, c, BARS[k][m], P); strutPos[si] = P[0]; strutPos[si + 1] = P[1]; strutPos[si + 2] = P[2]; }
+          si += 3;
+        }
+      }
+    }
+    for (let b = 0; b < BONDS.length; b++) {
+      const [ci, cj, prs] = BONDS[b];
+      const hidden = !showJoints || (cut && (SITES[ci][2] > 0 || SITES[cj][2] > 0));
+      for (let m = 0; m < 2; m++) {
+        if (hidden || m >= prs.length) {
+          for (let e = 0; e < 6; e++) jointPos[ji + e] = 1e6;
+        } else {
+          lerpV(vw.pos, f0, f1, w, ci, prs[m][0], A); lerpV(vw.pos, f0, f1, w, cj, prs[m][1], B);
+          jointPos[ji] = A[0]; jointPos[ji + 1] = A[1]; jointPos[ji + 2] = A[2];
+          jointPos[ji + 3] = B[0]; jointPos[ji + 4] = B[1]; jointPos[ji + 5] = B[2];
+        }
+        ji += 6;
+      }
+    }
+    plateGeo.attributes.position.needsUpdate = true; plateGeo.attributes.color.needsUpdate = true; plateGeo.computeVertexNormals();
+    strutGeo.attributes.position.needsUpdate = true; jointGeo.attributes.position.needsUpdate = true;
+    readout(f0, f1, w);
+  }
+  const ro = document.getElementById('readout');
+  function readout(f0, f1, w) {
+    if (view === 'breathe') {
+      const a = DATA.breathe.phases[f0] + (DATA.breathe.phases[f1] - DATA.breathe.phases[f0]) * w;
+      const L = DATA.breathe.L[f0] + (DATA.breathe.L[f1] - DATA.breathe.L[f0]) * w;
+      ro.textContent = `a = ${a.toFixed(1).padStart(6)}°   L(a) = ${L.toFixed(4)}   (VE at 0, octahedron at −60)`;
+    } else {
+      const tt = DATA.kick.times[f0] + (DATA.kick.times[f1] - DATA.kick.times[f0]) * w;
+      const g = gammaAt(f0, f1, w, DATA.centre);
+      ro.textContent = `t = ${tt.toFixed(2).padStart(6)}   centre cell a = ${g.toFixed(2)}°   (dev ${(g + 30) >= 0 ? '+' : ''}${(g + 30).toFixed(2)}°)   largest vertex displacement in frame: ${(100 * DATA.kick.maxdisp[w < 0.5 ? f0 : f1]).toFixed(1)}% of a strut${mode === 'pos_fold5' ? '   [drawn ×5]' : ''}`;
+      const es = DATA.kick.energy_split[w < 0.5 ? f0 : f1], E = es.fold + es.trans + es.rot + es.cross + es.pe;
+      const pc = (x) => (100 * x / E).toFixed(0).padStart(3) + '%';
+      document.getElementById('energy').textContent =
+        `energy now:  fold ${pc(es.fold)}   cell translation ${pc(es.trans)}   cell rotation ${pc(es.rot)}   stored in joints ${pc(es.pe)}` +
+        `      by shell (fold/transl/rot):  centre ${es.shells[0].map(pc).join('/')}   inner ${es.shells[1].map(pc).join('/')}   outer ${es.shells[2].map(pc).join('/')}`;
+    }
+    document.getElementById('scrub').value = Math.round(1000 * (t % VIEWS[view].span) / VIEWS[view].span);
+  }
+
+  // ---- fit camera to the breathe's widest frame ----
+  (function fit() {
+    const V = VIEWS.breathe.pos; let r = 0;
+    for (let i = 0; i < V.length; i += 3) r = Math.max(r, Math.hypot(V[i], V[i + 1], V[i + 2]));
+    dist = r * 2.6; placeCamera();
+  })();
+
+  // ---- controls ----
+  const tabB = document.getElementById('tab-breathe'), tabK = document.getElementById('tab-kick'), tabN = document.getElementById('tab-net');
+  function setView(v) {
+    view = v; t = 0;
+    tabB.setAttribute('aria-pressed', v === 'breathe'); tabK.setAttribute('aria-pressed', v === 'kick'); tabN.setAttribute('aria-pressed', v === 'net');
+    document.getElementById('legend-breathe').hidden = v !== 'breathe';
+    document.getElementById('legend-kick').hidden = v !== 'kick';
+    document.getElementById('legend-net').hidden = v !== 'net';
+    document.getElementById('energy').hidden = v === 'breathe';
+    document.getElementById('mode-wrap').hidden = v !== 'kick';
+    build();
+  }
+  tabB.onclick = () => setView('breathe'); tabK.onclick = () => setView('kick'); tabN.onclick = () => setView('net');
+  const playBtn = document.getElementById('play');
+  function setPlaying(p) { playing = p; playBtn.textContent = p ? 'Pause' : 'Play'; }
+  playBtn.onclick = () => setPlaying(!playing);
+  setPlaying(playing);
+  document.getElementById('scrub').addEventListener('input', (e) => { t = VIEWS[view].span * e.target.value / 1000; setPlaying(false); build(); });
+  document.getElementById('cut').onchange = (e) => { cut = e.target.checked; build(); };
+  document.getElementById('joints').onchange = (e) => { showJoints = e.target.checked; build(); };
+  document.getElementById('struts').onchange = (e) => { showStruts = e.target.checked; build(); };
+  document.getElementById('speed').oninput = (e) => { speed = +e.target.value; };
+  document.getElementById('mode').onchange = (e) => { mode = e.target.value; build(); };
+
+  document.getElementById('facts').textContent =
+    `cells ${N}   bonds ${BONDS.length}   joints ${BONDS.reduce((s, b) => s + b[2].length, 0)}   strut ${DATA.strut.toFixed(6)}   ` +
+    `kick ${DATA.kick.kick} rad/time   k ${DATA.kick.k}   step ${DATA.kick.h}   energy ${DATA.kick.energy[0].toFixed(5)} → ${DATA.kick.energy[1].toFixed(5)}   frames breathe ${DATA.breathe.phases.length}, kick ${DATA.kick.times.length}   |   network: ${DATA.net.T} triangles, ${DATA.net.junctions.length} junctions, max joint opening ${DATA.net.maxgap.toFixed(3)}`;
+
+  // ---- loop ----
+  let last = performance.now();
+  function loop(now) {
+    const dt = (now - last) / 1000; last = now;
+    if (playing) { t += dt * speed * (view === 'breathe' ? 24 : 6); build(); }
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  resize(); build(); requestAnimationFrame(loop);
+})();
+</script>
