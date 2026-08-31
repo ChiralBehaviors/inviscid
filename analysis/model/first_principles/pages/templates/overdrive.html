@@ -84,7 +84,7 @@ input[type=range]:focus-visible{outline:2px solid var(--focus);outline-offset:3p
   </aside>
 </div>
 <div class="charts">
-  <div class="chart"><p class="t">Spacing per site against the fold</p><p class="s">1.155·cos(a + 30°) — the model's law continued. The shaded arc is the physical range; zero at +60° and +240° is all four centres on one point; negative is the ring turned inside out.</p><svg id="c1" viewBox="0 0 1100 170" role="img" aria-label="Spacing versus fold"></svg></div>
+  <div class="chart"><p class="t">Spacing per site against the fold</p><p class="s">1.155·cos(a + 30°) — the model's law continued. The shaded arc is the physical range; zero at +60° and +240° is every centre on one point; negative is the array turned inside out. Dashed curve, right scale: the spread of the centres about their mean — zero only at the two collapses.</p><svg id="c1" viewBox="0 0 1100 170" role="img" aria-label="Spacing and centre spread versus fold"></svg></div>
   <div class="chart"><p class="t">Fronts facing out of their body, and strut crossings</p><p class="s">Left scale: fronts out of 8, cells (indigo) and voids (teal). Right scale: crossing strut pairs among the four bodies (grey area) — 108 to 112 mid-passage, none at any multiple of 60°.</p><svg id="c2" viewBox="0 0 1100 190" role="img" aria-label="Fronts out and crossings versus fold"></svg></div>
 </div>
 <script>
@@ -104,7 +104,7 @@ function renderView(fr){
   const W = view.clientWidth||800, H = view.clientHeight||500;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const S = Math.min(W,H) * 0.17 * zoom;
-  const mid = [0,0,0]; for (const c of fr.ctr){ mid[0]+=c[0]/4; mid[1]+=c[1]/4; mid[2]+=c[2]/4; }
+  const mid = [0,0,0]; const nb = fr.ctr.length; for (const c of fr.ctr){ mid[0]+=c[0]/nb; mid[1]+=c[1]/nb; mid[2]+=c[2]/nb; }
   const camc = p => cam([p[0]-mid[0], p[1]-mid[1], p[2]-mid[2]]);
   const px = q => [W/2 + q[0]*S, H/2 - q[1]*S];
   const items = [];
@@ -126,13 +126,18 @@ function renderView(fr){
 const xs = (a, W, ml, mr) => ml + (a + 60)/360*(W - ml - mr);
 function renderCharts(fr){
   // chart 1: spacing
-  { const c=document.getElementById('c1'); const W=1100,H=170, ml=50, mr=20, mt=12, mb=28;
+  { const c=document.getElementById('c1'); const W=1100,H=170, ml=50, mr=50, mt=12, mb=28;
     const ys = v => mt + (1.2 - v)/2.4*(H-mt-mb);
+    const SMAX = Math.max(...F.map(f=>f.spread));
+    const ysp = v => mt + (SMAX - v)/SMAX*(H-mt-mb);
     let out = `<rect x="${xs(-60,W,ml,mr)}" y="${mt}" width="${xs(0,W,ml,mr)-xs(-60,W,ml,mr)}" height="${H-mt-mb}" fill="var(--band)" fill-opacity=".10"/>`;
     for (const v of [-1,0,1]) out += `<line x1="${ml}" x2="${W-mr}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--grid)"/><text x="${ml-8}" y="${ys(v)+4}" text-anchor="end" font-size="11" fill="var(--ink-2)" font-family="IBM Plex Mono,monospace">${v>0?'+':''}${v.toFixed(1)}</text>`;
     for (const t of [-60,0,60,120,180,240,300]) out += `<text x="${xs(t,W,ml,mr)}" y="${H-mb+18}" text-anchor="middle" font-size="11" fill="var(--ink-2)" font-family="IBM Plex Mono,monospace">${t>0?'+':''}${t}°</text>`;
     out += `<path d="${F.map((f,i)=>(i?'L':'M')+xs(f.a,W,ml,mr).toFixed(1)+','+ys(f.L).toFixed(1)).join(' ')}" fill="none" stroke="var(--ink)" stroke-width="2"/>`;
-    out += `<line x1="${xs(fr.a,W,ml,mr)}" x2="${xs(fr.a,W,ml,mr)}" y1="${mt}" y2="${H-mb}" stroke="var(--ink-2)" stroke-opacity=".4"/><circle cx="${xs(fr.a,W,ml,mr)}" cy="${ys(fr.L)}" r="4.5" fill="var(--ink)" stroke="var(--panel)" stroke-width="2"/>`;
+    for (const v2 of [0, SMAX/2, SMAX]) out += `<text x="${W-mr+8}" y="${ysp(v2)+4}" font-size="11" fill="var(--d)" font-family="IBM Plex Mono,monospace">${v2.toFixed(1)}</text>`;
+    out += `<path d="${F.map((f,i)=>(i?'L':'M')+xs(f.a,W,ml,mr).toFixed(1)+','+ysp(f.spread).toFixed(1)).join(' ')}" fill="none" stroke="var(--d)" stroke-width="2" stroke-dasharray="6 4"/>`;
+    out += `<text x="${xs(150,W,ml,mr)}" y="${mt+14}" text-anchor="middle" font-size="12" fill="var(--d)" font-family="Instrument Sans,system-ui,sans-serif">spread of the centres</text>`;
+    out += `<line x1="${xs(fr.a,W,ml,mr)}" x2="${xs(fr.a,W,ml,mr)}" y1="${mt}" y2="${H-mb}" stroke="var(--ink-2)" stroke-opacity=".4"/><circle cx="${xs(fr.a,W,ml,mr)}" cy="${ysp(fr.spread)}" r="4" fill="var(--d)" stroke="var(--panel)" stroke-width="2"/><circle cx="${xs(fr.a,W,ml,mr)}" cy="${ys(fr.L)}" r="4.5" fill="var(--ink)" stroke="var(--panel)" stroke-width="2"/>`;
     out += `<text x="${xs(-30,W,ml,mr)}" y="${mt+12}" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="Instrument Sans,system-ui,sans-serif">physical</text>`;
     c.innerHTML = out; }
   // chart 2: fronts out + crossings
@@ -163,7 +168,7 @@ function render(){
   document.getElementById('res').textContent = fr.res < 1e-12 ? 'exact' : fr.res.toExponential(1);
   document.getElementById('scrub').value = fi;
 }
-function loop(now){ if (playing){ const ph = ((now - t0) % T) / T; fi = Math.min(N-1, Math.floor(ph * N)); render(); } requestAnimationFrame(loop); }
+function loop(now){ if (playing){ const ph = (((now - t0) % T) + T) % T / T; fi = Math.min(N-1, Math.floor(ph * N)); render(); } requestAnimationFrame(loop); }
 function setPlay(on){ playing = on; if (on) t0 = performance.now() - (fi/N)*T; const b=document.getElementById('play'); b.textContent = on?'Pause':'Play'; b.classList.toggle('on', on); }
 document.getElementById('play').onclick = () => setPlay(!playing);
 document.getElementById('reset').onclick = () => { yaw=-0.7; elev=0.5; zoom=1; render(); };

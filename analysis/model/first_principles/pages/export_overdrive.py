@@ -15,7 +15,10 @@ PATCHES = {"ring": [(0, 0, 0), (1, 1, 1), (2, 2, 0), (1, 1, -1)],
            "hc15": [tuple(int(c) for c in s) for s in MJ.hc15_sites()],
            "block": [tuple(int(c) for c in s) for s in RC.brick(5, 5, 5)]}
 SITES = PATCHES[PATCH]
-STEP = {"ring": 2.0, "hc15": 3.0, "block": 3.0}[PATCH]
+# optional: [2] a finer step, [3] an output name -- video renders want dense
+# frames without disturbing the page data the builder inlines.
+STEP = float(sys.argv[2]) if len(sys.argv) > 2 else {"ring": 2.0, "hc15": 3.0, "block": 3.0}[PATCH]
+OUT = sys.argv[3] if len(sys.argv) > 3 else f"overdrive_{PATCH}"
 NB = len(SITES)
 KIND = ["cell" if all(c % 2 == 0 for c in s) else "void" for s in SITES]
 TRI = [[IC.SLOT[(f, c)] for c in range(3)] for f in range(8)]
@@ -77,5 +80,5 @@ for a in np.arange(-60.0, 300.0 + 1e-9, STEP):
     if a % 30 == 0:
         print(f"a={a:+6.0f}  L={RC.lattice_constant(a):+.3f}  weld {res:.0e}  fronts out cells {frames[-1]["out_cells"]}/{8*KIND.count("cell")} voids {frames[-1]["out_voids"]}/{8*KIND.count("void")}  crossings {ncross:5d}  centres spread {spread:.3f}")
 json.dump({"frames": frames, "kind": KIND, "strut": IC.EL, "nb": NB, "patch": PATCH},
-          open(str(common.out(f"overdrive_{PATCH}")), "w"))
+          open(str(common.out(OUT)), "w"))
 print("frames", len(frames))
