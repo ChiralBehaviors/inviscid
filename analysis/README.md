@@ -83,6 +83,17 @@ analysis.model.first_principles.pages.export_ring` and friends write frames to
 `analysis/.pages/data/`; `python -m analysis.model.first_principles.pages.build`
 inlines them into self-contained HTML in `analysis/.pages/` (git-ignored).
 
+### model/su2/
+
+The SU(2)/boundary-conditions gate lane from
+`notes/su2_boundary_conditions.md` §8.6 (read §8 before citing §1–7).
+Vocabulary is classical ℤ₂ holonomy / antiperiodic Bloch sector — no spin,
+no quantum number.
+
+| module | what it is |
+|---|---|
+| `lift.py` | G0: sign-continuous SU(2) lift of a sampled SO(3) path with its null controls (trivial loop +q, bare 2π −q, bare 4π +q); refuses coarse sampling and unclosed loops |
+
 ## retired/ — lines the owner has closed
 
 Still runnable, still gated, not maintained. Do not quote their numbers as
