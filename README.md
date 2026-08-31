@@ -45,6 +45,12 @@ each is a self-contained interactive page (drag to rotate, scroll to zoom):
 shows a superseded vertex-touching packing — kept as the record of a corrected
 mistake.)
 
+From the first-principles derivation:
+**[Overdrive, Fifteen Bodies](https://chiralbehaviors.github.io/inviscid/overdrive/hc15.html)** —
+one VE with its complete neighbourhood (eight voids, six axis VEs) driven
+through a full 360° of the fold, far past the 60° physics allows: the whole
+patch collapses onto one octahedron and turns inside out.
+
 ## Run the animations (Java)
 
 Requires JDK 20+ (JavaFX 20, `source`/`target` 20).
