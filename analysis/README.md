@@ -93,6 +93,7 @@ no quantum number.
 | module | what it is |
 |---|---|
 | `lift.py` | G0: sign-continuous SU(2) lift of a sampled SO(3) path with its null controls (trivial loop +q, bare 2π −q, bare 4π +q); refuses coarse sampling and unclosed loops |
+| `plate_holonomy.py` | G1: every plate of every body on the record's three patches lifts to −q over one 360° overdrive cycle — a confirmation of the record (§8.3), necessary not sufficient for any SU(2)-medium claim |
 
 ## retired/ — lines the owner has closed
 
