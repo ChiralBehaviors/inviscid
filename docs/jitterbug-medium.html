@@ -1,0 +1,1325 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Jitterbug Medium</title>
+<style>
+  /* ---------- tokens ---------- */
+  :root {
+    color-scheme: light dark;
+    --bg: #F4F4F0;
+    --surface: #FBFBF8;
+    --panel: #EBEDE6;
+    --ink: #20261F;
+    --muted: #5A6156;
+    --line: #D8DBD2;
+    --line-strong: #B9BEB2;
+    --copper: #A6521B;
+    --verdigris: #0A8168;
+    --slate: #5B67C7;
+    --copper-soft: rgba(166, 82, 27, 0.12);
+    --band-free: rgba(32, 38, 31, 0.07);
+    --band-swing: rgba(166, 82, 27, 0.16);
+    --shadow: 0 1px 2px rgba(32, 38, 31, 0.06), 0 8px 28px rgba(32, 38, 31, 0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #131715;
+      --surface: #191E1B;
+      --panel: #0E1210;
+      --ink: #E6E9E2;
+      --muted: #98A093;
+      --line: #2A302B;
+      --line-strong: #3D453E;
+      --copper: #C0742F;
+      --verdigris: #2E9E83;
+      --slate: #6D7BD0;
+      --copper-soft: rgba(192, 116, 47, 0.16);
+      --band-free: rgba(230, 233, 226, 0.07);
+      --band-swing: rgba(192, 116, 47, 0.2);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 28px rgba(0, 0, 0, 0.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131715;
+    --surface: #191E1B;
+    --panel: #0E1210;
+    --ink: #E6E9E2;
+    --muted: #98A093;
+    --line: #2A302B;
+    --line-strong: #3D453E;
+    --copper: #C0742F;
+    --verdigris: #2E9E83;
+    --slate: #6D7BD0;
+    --copper-soft: rgba(192, 116, 47, 0.16);
+    --band-free: rgba(230, 233, 226, 0.07);
+    --band-swing: rgba(192, 116, 47, 0.2);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 28px rgba(0, 0, 0, 0.3);
+  }
+
+  /* ---------- base ---------- */
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+  }
+  main { display: block; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 20px; }
+  .prose { max-width: 66ch; }
+  h1, h2, h3 {
+    font-family: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+    line-height: 1.02;
+    margin: 0;
+    text-wrap: balance;
+    letter-spacing: 0.005em;
+  }
+  h1 { font-size: clamp(3.4rem, 8.5vw, 6.2rem); font-weight: 700; text-transform: uppercase; }
+  h2 { font-size: clamp(1.9rem, 3.6vw, 2.7rem); font-weight: 600; text-transform: uppercase; }
+  h3 { font-size: 1.18rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  p { margin: 0.85em 0; }
+  a { color: var(--copper); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { text-decoration-thickness: 2px; }
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.86em;
+  }
+  strong { font-weight: 600; }
+  .num { font-variant-numeric: tabular-nums; }
+  section { padding: 3.6rem 0 3rem; border-top: 1px solid var(--line); }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 0.9rem;
+  }
+  .lede { font-size: 1.13rem; }
+  .sub { color: var(--muted); font-size: 0.94rem; }
+  button:focus-visible, input:focus-visible, a:focus-visible {
+    outline: 2px solid var(--slate);
+    outline-offset: 2px;
+  }
+
+  /* ---------- header ---------- */
+  header { padding: 3.2rem 0 2.2rem; }
+  .statusline {
+    display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem;
+    margin-top: 1.2rem;
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.78rem; color: var(--muted);
+  }
+  .statusline .ok::before { content: "✓ "; color: var(--verdigris); }
+
+  /* ---------- viewer panels ---------- */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin: 1.6rem 0;
+  }
+  .stage { display: block; width: 100%; height: 480px; background: var(--panel); cursor: grab; touch-action: pan-y; }
+  .stage.dragging { cursor: grabbing; }
+  .panel .controls { padding: 0.9rem 1.1rem 1.1rem; border-top: 1px solid var(--line); }
+  .modes { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .modes .grow { flex: 1; }
+  .btn {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.78rem;
+    background: transparent; color: var(--ink);
+    border: 1px solid var(--line-strong); border-radius: 4px;
+    padding: 0.34rem 0.75rem; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--copper); }
+  .btn[aria-pressed="true"] { background: var(--copper); border-color: var(--copper); color: var(--bg); }
+  .chip {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.72rem;
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 0.2rem 0.65rem; cursor: pointer; white-space: nowrap;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--line-strong); }
+  .readout {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.82rem; font-variant-numeric: tabular-nums;
+    color: var(--ink); white-space: nowrap;
+  }
+  .readout .dim { color: var(--muted); }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 22px; margin: 0.4rem 0 0;
+    background: transparent; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px; background: var(--line-strong);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
+    background: var(--copper); border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--copper);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px; border-radius: 2px; background: var(--line-strong);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--copper); border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--copper);
+  }
+
+  .ruler { position: relative; height: 42px; margin-top: 2px; }
+  .ruler .band { position: absolute; top: 0; height: 8px; border-radius: 2px; }
+  .ruler .tick {
+    position: absolute; top: 0; width: 1px; height: 12px;
+    background: var(--line-strong); transform: translateX(-0.5px);
+  }
+  .ruler .lm { background: var(--copper); width: 2px; height: 14px; }
+  .ruler .lbl {
+    position: absolute; top: 16px; transform: translateX(-50%);
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.66rem; color: var(--muted); white-space: nowrap;
+  }
+  .ruler .lbl.al { transform: none; }
+  .ruler .lbl.ar { transform: translateX(-100%); }
+
+  .gaugebox {
+    display: flex; gap: 1.2rem; align-items: center; flex-wrap: wrap;
+    margin-top: 1rem; padding-top: 0.9rem; border-top: 1px dashed var(--line);
+  }
+  .gauge { flex: 0 0 auto; }
+  .gauge svg { display: block; }
+  .qchip {
+    font-family: "Big Shoulders Display", "Arial Narrow", sans-serif;
+    font-size: 2rem; font-weight: 700; min-width: 2.2ch; text-align: center;
+  }
+  .qchip.neg { color: var(--copper); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin-top: 0.7rem; }
+  .legend .key {
+    display: inline-flex; align-items: center; gap: 0.45rem;
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.74rem; color: var(--muted);
+  }
+  .swatch { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto; }
+
+  /* ---------- statements ---------- */
+  .statements { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 1.6rem; }
+  .stmt {
+    border: 1px solid var(--line); border-radius: 6px;
+    background: var(--surface); padding: 1.1rem 1.2rem 1rem;
+  }
+  .stmt .n {
+    font-family: "Big Shoulders Display", "Arial Narrow", sans-serif;
+    font-size: 2.6rem; font-weight: 700; line-height: 1; color: var(--copper);
+    display: block; margin-bottom: 0.4rem;
+  }
+  .stmt h3 { font-size: 1.02rem; margin-bottom: 0.4rem; }
+  .stmt p { font-size: 0.92rem; margin: 0.35rem 0 0; }
+  .stmt .src { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.68rem; color: var(--muted); display: block; margin-top: 0.6rem; }
+
+  /* ---------- first principles ---------- */
+  ol.fp { margin: 1.2rem 0 0; padding: 0; list-style: none; counter-reset: fp; max-width: 72ch; }
+  ol.fp li {
+    counter-increment: fp; position: relative;
+    padding: 0.55rem 0 0.55rem 3.2rem; border-top: 1px dashed var(--line);
+    font-size: 0.95rem;
+  }
+  ol.fp li::before {
+    content: counter(fp);
+    position: absolute; left: 0; top: 0.42rem;
+    font-family: "Big Shoulders Display", "Arial Narrow", sans-serif;
+    font-size: 1.5rem; font-weight: 600; color: var(--verdigris);
+    width: 2.2rem; text-align: right;
+  }
+
+  /* ---------- gate table ---------- */
+  .tablewrap { overflow-x: auto; margin-top: 1.4rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+  table.gates { border-collapse: collapse; width: 100%; min-width: 720px; }
+  table.gates th, table.gates td {
+    text-align: left; padding: 0.6rem 0.9rem; vertical-align: top;
+    border-top: 1px solid var(--line); font-size: 0.9rem;
+  }
+  table.gates thead th {
+    border-top: none;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+  table.gates td.g {
+    font-family: "Big Shoulders Display", "Arial Narrow", sans-serif;
+    font-size: 1.3rem; font-weight: 600; white-space: nowrap;
+  }
+  table.gates td.m { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.78rem; white-space: nowrap; color: var(--muted); }
+  table.gates td .neg {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.7rem;
+    letter-spacing: 0.08em; color: var(--copper); text-transform: uppercase;
+  }
+
+  .verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; margin-top: 1.6rem; }
+  .verdict .v {
+    border-top: 3px solid var(--verdigris); background: var(--surface);
+    border-inline: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    border-radius: 0 0 6px 6px; padding: 0.9rem 1rem 1rem;
+  }
+  .verdict h3 { font-size: 1.05rem; }
+  .verdict p { font-size: 0.9rem; margin: 0.4rem 0 0; }
+  .closing {
+    margin-top: 1.6rem; padding: 1.1rem 1.3rem;
+    border-left: 3px solid var(--copper); background: var(--copper-soft);
+    max-width: 66ch; font-size: 1.02rem;
+  }
+
+  /* ---------- race chart ---------- */
+  .race { margin-top: 1.6rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 1.2rem 1.4rem 1rem; }
+  .race h3 { font-size: 1rem; }
+  .race .axis-note { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.7rem; color: var(--muted); }
+  .race-plot { position: relative; margin: 1.1rem 0 0; }
+  .race-grid { position: absolute; inset: 0 0 0 64px; }
+  .race-grid i { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+  .race-row { position: relative; display: flex; align-items: center; height: 54px; }
+  .race-row .rlabel {
+    flex: 0 0 64px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.76rem; color: var(--muted);
+  }
+  .race-row .track { position: relative; flex: 1; height: 100%; border-left: 1px solid var(--line-strong); }
+  .race-dot {
+    position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 2px var(--surface);
+  }
+  .race-val {
+    position: absolute;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.7rem; font-variant-numeric: tabular-nums; color: var(--muted);
+    transform: translateX(-50%); white-space: nowrap;
+  }
+  .race-val.up { top: 2px; } .race-val.dn { bottom: 2px; }
+  .race-x { position: relative; height: 18px; margin-left: 64px; }
+  .race-x span {
+    position: absolute; transform: translateX(-50%);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.68rem; color: var(--muted);
+  }
+  .callout {
+    margin-top: 1rem; padding-top: 0.9rem; border-top: 1px dashed var(--line);
+    font-size: 0.9rem; color: var(--ink);
+  }
+
+  /* ---------- wall ---------- */
+  .wall { display: grid; grid-template-columns: 1fr 64px 1fr; gap: 0; margin-top: 1.8rem; align-items: stretch; }
+  .wall .side {
+    border: 1px solid var(--line); border-radius: 6px; background: var(--surface);
+    padding: 1.2rem 1.3rem 1.1rem;
+  }
+  .wall .side h3 { margin-bottom: 0.5rem; }
+  .wall .side ul { margin: 0.5rem 0 0; padding-left: 1.1rem; font-size: 0.9rem; }
+  .wall .side li { margin: 0.25rem 0; }
+  .wall .brick {
+    position: relative;
+    background: repeating-linear-gradient(45deg, var(--line-strong) 0 6px, transparent 6px 14px);
+    border-inline: 2px solid var(--line-strong);
+    margin: 8px 6px;
+  }
+  .wall .brick span {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); background: var(--bg); padding: 2px 8px; white-space: nowrap;
+  }
+  .wall-note { margin-top: 0.9rem; font-size: 0.9rem; }
+  @media (max-width: 700px) {
+    .wall { grid-template-columns: 1fr; }
+    .wall .brick { height: 44px; margin: 0; }
+    .wall .brick span { transform: translate(-50%, -50%); }
+  }
+
+  /* ---------- map ---------- */
+  .map { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 1.6rem; }
+  .card {
+    border: 1px solid var(--line); border-radius: 6px; background: var(--surface);
+    padding: 1.1rem 1.2rem 1.1rem;
+  }
+  .card h3 { margin-bottom: 0.5rem; }
+  .card ul { margin: 0.4rem 0 0; padding-left: 1.1rem; font-size: 0.9rem; }
+  .card li { margin: 0.32rem 0; }
+  .card .k { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.8em; }
+  .pages { columns: 2; column-gap: 1.6rem; margin-top: 0.4rem; padding-left: 1.1rem; font-size: 0.88rem; }
+  .pages li { margin: 0.3rem 0; break-inside: avoid; }
+  @media (max-width: 620px) { .pages { columns: 1; } }
+
+  footer {
+    border-top: 1px solid var(--line); margin-top: 3rem; padding: 1.6rem 0 2.6rem;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.74rem; color: var(--muted);
+  }
+
+  @media (max-width: 560px) {
+    .stage { height: 340px; }
+    .ruler .lbl { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">Inviscid · State of the work · 2026-09-01</p>
+    <h1>The Jitterbug Medium</h1>
+    <div class="prose">
+      <p class="lede">Rigid struts, soft rubber joints, the voids empty. Eight plates of an
+      octahedron, each spinning on its own face axis as it slides along it — one fold angle
+      per cell, and a honeycomb with exactly one thing it can do. The holonomy question is
+      answered and closed. The closure of record is the double. The cellular automaton lives
+      behind its own wall.</p>
+    </div>
+    <div class="statusline">
+      <span class="ok">analysis/gates.sh live — 144 rows</span>
+      <span class="ok">mvn test — 436 tests</span>
+      <span class="ok">no open beads</span>
+      <span class="ok">master 2ecdd89, PRs #45–#57 merged</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ============ HERO: one cell ============ -->
+  <section id="one-cell">
+    <div class="wrap">
+      <p class="eyebrow">One cell · the fold circle</p>
+      <h2>One motion, one coordinate</h2>
+      <div class="prose">
+        <p>Every configuration below is the model's own closed form,
+        <span class="mono">x<sub>i</sub>(a) = R(u<sub>i</sub>, σ<sub>i</sub>(a−60°))(v−c<sub>i</sub>) + u<sub>i</sub>·Z·cos a</span>
+        — the 24 struts hold √2 to 9·10⁻¹⁶ everywhere on the circle. Copper is a plate's
+        face; verdigris is its back. The medium's voids are the backs of the cells' own
+        plates (G4), so when the continuation turns the cell inside out, the void color is
+        what emerges. Drag to turn it.</p>
+      </div>
+
+      <div class="panel">
+        <canvas id="cellStage" class="stage" role="img"
+          aria-label="A jitterbug cell: eight triangular plates spinning on their face axes as the fold angle changes, from closed octahedron through icosahedron and cuboctahedron landmarks"></canvas>
+        <div class="controls">
+          <div class="modes">
+            <button class="btn" id="mBreathe" aria-pressed="true">▸ Breathe</button>
+            <button class="btn" id="mOver" aria-pressed="false">▸ Full circuit</button>
+            <button class="btn" id="mStill" aria-pressed="false">⏸ Still</button>
+            <span class="grow"></span>
+            <span class="readout"><span class="dim">a =</span> <span id="cellA" class="num">0.0</span>°</span>
+          </div>
+          <input type="range" id="cellSlider" min="-180" max="180" step="0.1" value="0"
+                 aria-label="Fold angle a, degrees">
+          <div class="ruler" id="cellRuler"></div>
+          <div class="modes" id="landmarks" style="margin-top:0.3rem">
+            <button class="chip" data-a="-60">octahedron −60°</button>
+            <button class="chip" data-a="-22.238756">icosahedron −22.24°</button>
+            <button class="chip" data-a="0">VE 0°</button>
+            <button class="chip" data-a="22.238756">icosahedron +22.24°</button>
+            <button class="chip" data-a="60">octahedron +60°</button>
+            <button class="chip" data-a="120">inside-out −60° image</button>
+          </div>
+          <div class="gaugebox">
+            <div class="gauge">
+              <svg width="92" height="92" viewBox="0 0 92 92" aria-label="SU(2) lift dial">
+                <circle cx="46" cy="46" r="38" fill="none" stroke="var(--line-strong)" stroke-width="1.5"></circle>
+                <text x="46" y="14" text-anchor="middle" font-size="11" fill="var(--muted)"
+                      font-family="IBM Plex Mono, monospace">+q</text>
+                <text x="46" y="87" text-anchor="middle" font-size="11" fill="var(--muted)"
+                      font-family="IBM Plex Mono, monospace">−q</text>
+                <line id="needle" x1="46" y1="46" x2="46" y2="12" stroke="var(--copper)" stroke-width="2.5"
+                      stroke-linecap="round"></line>
+                <circle cx="46" cy="46" r="3" fill="var(--copper)"></circle>
+              </svg>
+            </div>
+            <div>
+              <span class="qchip" id="qSign">+q</span>
+              <div class="readout"><span class="dim">plate turn Θ =</span> <span id="thetaOut" class="num">0</span>°</div>
+              <button class="btn" id="resetFrame" style="margin-top:0.4rem">reset frame</button>
+            </div>
+            <div class="sub" style="flex:1; min-width: 240px; max-width: 46ch;">
+              The lift: each plate's orientation tracked continuously in SU(2). The breathe
+              returns <strong>+q</strong> at any amplitude (G7). One monotone circuit returns the
+              shape and lands on <strong>−q</strong> (G1); the second circuit comes home (G0). No
+              relative observer inside the medium ever sees it (G2) — the sign exists only
+              against a remembered external frame. Reset the frame and it is gone.
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="sub prose">Landmarks, each located by measurement, not symmetry argument: the
+      cells' octahedron at −60° (joints merged four to a point), the icosahedron at ±22.2388°
+      (the open squares' short diagonals reach strut length — 30 equal edges), the
+      vector equilibrium at 0° (a free cell's rest; it springs back here), and the mirror
+      octahedron at +60° — the same shape with the joints paired differently, reachable only
+      through the VE, and the opening a tied cell's joints refuse. Beyond ±60° the
+      parametrisation continues: plates cross the centre at ±90° and
+      <span class="mono">X(a+180°) = −X(a)</span> exactly.</p>
+    </div>
+  </section>
+
+  <!-- ============ FOUR STATEMENTS ============ -->
+  <section id="statements">
+    <div class="wrap">
+      <p class="eyebrow">The model of record · in physics terms</p>
+      <h2>Four statements</h2>
+      <div class="statements">
+        <div class="stmt">
+          <span class="n">1</span>
+          <h3>Exactly one free motion</h3>
+          <p>Every cell breathing together. On any closed block one internal motion costs
+          nothing; every other motion stretches a joint. Seven zero modes — six rigid plus
+          the breathe — on every block from 8 to 216 cells, identified by vector.</p>
+          <span class="src">jb_1c R4–R5 · jb_1s R3</span>
+        </div>
+        <div class="stmt">
+          <span class="n">2</span>
+          <h3>Two sound speeds, ratio √2</h3>
+          <p>A real dispersion relation: 7 branches, 4 zero at Γ. Speeds 1/(2√2) and 1/2,
+          each doubly degenerate; optical ω² = 12/5. Every frequency ∝ √(joint stiffness),
+          which is unmeasured on the rig — so the ratios and closed forms are the result.</p>
+          <span class="src">jb_1c · supersedes jb_bz</span>
+        </div>
+        <div class="stmt">
+          <span class="n">3</span>
+          <h3>The front obeys the joint law alone</h3>
+          <p>Joint force ~ separation<sup>n−1</sup> gives front speed ~ A<sup>(n−2)/n</sup>.
+          n = 2: amplitude-independent to 0.000% over 8×. n = 5/2 (Hertz): 0.1993 vs 1/5 —
+          the project's one external check. Unchanged by emptying the voids.</p>
+          <span class="src">jb_1e</span>
+        </div>
+        <div class="stmt">
+          <span class="n">4</span>
+          <h3>A finite block rings; its lowest note is sound</h3>
+          <p>Spectrum tops out below the band ceiling, 1.463 → 1.694 over sides 2–6 toward √3;
+          the bottom falls as size<sup>−0.95</sup>. No gap above the one free motion.</p>
+          <span class="src">jb_1s R4–R5</span>
+        </div>
+      </div>
+      <p class="sub prose" style="margin-top:1.2rem"><strong>Not known:</strong> the rubber
+      joint's stiffness (it sets every absolute number); the size of its bending stiffness
+      (that it has one is rig fact 2); whether the real joint is n = 2 or n = 5/2; the lamina
+      mass model; whether real joints slip past each other at a vertex point.</p>
+    </div>
+  </section>
+
+  <!-- ============ THE ONE MOTION ============ -->
+  <section id="honeycomb">
+    <div class="wrap">
+      <p class="eyebrow">The honeycomb · 15 bodies · one internal degree of freedom</p>
+      <h2>The medium's one motion</h2>
+      <div class="prose">
+        <p>A compact patch of the honeycomb: seven cells (copper) and eight voids
+        (verdigris), welded plate to plate. The two families exchange — at
+        <span class="mono">a = 0°</span> the cells sit at the VE and the voids are closed
+        octahedra; at <span class="mono">a = −60°</span> they have completely swapped.
+        The lattice constant breathes 1 → 2/√3 → 1 on the way. Nothing tumbles, and nothing
+        passes through itself: |fold| = 60° is where a body folds through its own
+        octahedron, a hard stop rather than a convention. Void fold = cell fold + 60°
+        forces both families into that window at once, which is why the range is exactly
+        sixty degrees.</p>
+      </div>
+
+      <div class="panel">
+        <canvas id="hcStage" class="stage" role="img"
+          aria-label="A fifteen-body honeycomb patch breathing: copper cells and verdigris voids exchanging octahedron and cuboctahedron roles as the lattice constant swells and returns"></canvas>
+        <div class="controls">
+          <div class="modes">
+            <button class="btn" id="hcPlay" aria-pressed="true">⏸ Pause</button>
+            <span class="grow"></span>
+            <span class="readout">
+              <span class="dim">cells a =</span> <span id="hcA" class="num">−30.0</span>°
+              <span class="dim"> · voids b =</span> <span id="hcB" class="num">+30.0</span>°
+              <span class="dim"> · L =</span> <span id="hcL" class="num">1.1547</span>
+            </span>
+          </div>
+          <input type="range" id="hcSlider" min="-60" max="0" step="0.1" value="-30"
+                 aria-label="Coherent fold angle a, degrees">
+          <div class="ruler" id="hcRuler"></div>
+          <div class="legend">
+            <span class="key"><span class="swatch" style="background:var(--copper)"></span> cells</span>
+            <span class="key"><span class="swatch" style="background:var(--verdigris)"></span> voids — the backs of their neighbours' plates</span>
+            <span class="key"><span class="swatch" id="weldSwatch"></span> welded plates, drawn once (32 welds)</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="sub prose">The swing is dynamics, not a sweep: with one degree of freedom the
+      angle obeys <span class="mono">ä = −½(M′/M)ȧ²</span>, and the patch's effective mass
+      runs 272 → 120 → 264 across the window — fastest at mid-swing, lingering where the
+      cells are most open, bouncing elastically off both stops. Every weld here closes to
+      9·10⁻¹⁶ across the whole window; scale the lattice law by 1% and they tear open —
+      the geometry is that tight. The live version is
+      <span class="mono">HoneycombBreatheAnimation</span>.</p>
+
+      <h3 style="margin-top:2.4rem">The tied array, from first principles</h3>
+      <p class="sub" style="max-width:66ch">Built one body at a time, each step measured and shown.
+      Owner: “a truly interesting result.”</p>
+      <ol class="fp">
+        <li>One cell passes the VE with its twelve joints intact. The VE is where it chooses
+        its sense: the two octahedra it can close to merge the joints on the six points in
+        <em>different pairings</em>.</li>
+        <li>Tied as they are, an octahedron opens one way only — the mirror opening violates
+        the joints at first order, even as a free linkage.</li>
+        <li>An octahedron hung on a VE face is a passenger: one shared plate ties nothing but
+        the plate. Hanging more changes nothing.</li>
+        <li>A void bounded by plates of different VEs in a closed ring is a VE that expands:
+        the ring has one motion, void fold = cell fold + 60°, and no cell rotates.</li>
+        <li>So the tied array's motion is one sixty-degree segment with an octahedron dead-end
+        at each end. A cell and its void are one jitterbug's motion split in two.</li>
+        <li>At a vertex point of the VE state four cells meet — eight corners on one point,
+        two permanent joints. They stop the block passing the VE by meeting head-on. Which
+        pairs are tied <em>is</em> the array's chirality, chosen when it was tied.</li>
+        <li>The overdrive: continue the parametrisation through 360°. Every weld holds by
+        identity; plates turn inside out in two waves; at +60° and +240° the whole array is
+        one coincident octahedron, then re-expands mirrored.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ CAMPAIGN ============ -->
+  <section id="campaign">
+    <div class="wrap">
+      <p class="eyebrow">2026-08-31 → 09-01 · eight gates · thirteen PRs</p>
+      <h2>The holonomy campaign</h2>
+      <div class="prose">
+        <p>The question: the fold circle closes in configuration space but each plate's
+        orientation traverses a full turn — a classical Z2 holonomy. Is it real, and does
+        anything physical ride on it? Eight self-gating modules answered it, every row a
+        measured PASS/FAIL with its exit code as the verdict.</p>
+      </div>
+
+      <div class="tablewrap">
+        <table class="gates">
+          <thead><tr><th>Gate</th><th>Module</th><th>What it measured</th></tr></thead>
+          <tbody>
+            <tr><td class="g">G0</td><td class="m">lift.py</td>
+              <td>The instrument: a sign-continuous SU(2) lift. Trivial loop +q, 2π loop −q,
+              4π loop +q; refuses coarse and unclosed paths.</td></tr>
+            <tr><td class="g">G1</td><td class="m">plate_holonomy.py</td>
+              <td>One circuit of the fold circle is −q for <strong>432 of 432</strong> plates —
+              ring 32, hc15 120, block 280, cells and voids alike. The plate-orientation law
+              holds to 2·10⁻¹⁵ through the whole cycle.</td></tr>
+            <tr><td class="g">G2</td><td class="m">joint_twist.py</td>
+              <td>Relative lift across both permanent vertex joints is +q for all 8 cross
+              pairs, despite 180° excursions. No Z2 survives in <em>any</em> pairwise relative
+              history — the sign exists only against an external frame. (Subsumed G3.)</td></tr>
+            <tr><td class="g">G4</td><td class="m">inside_out_cover.py</td>
+              <td><span class="mono">X(a+180°) = −X(a)</span> exact, even uncentred.
+              Sheet-touching is patch geometry, not physics: one body is centrosymmetric at
+              every fold; hc15's sheets are ambiently coincident at every angle.</td></tr>
+            <tr><td class="g">G5</td><td class="m">doubled_block.py</td>
+              <td>The §3c double, built: every half-weld closed onto the twin sheet,
+              residual 9·10⁻¹⁶. spec(double) = spec(free) ⊎ spec(Dirichlet) exactly.
+              Beats free ~3×; torus-level from side 3.</td></tr>
+            <tr><td class="g">G6</td><td class="m">screw_sector.py</td>
+              <td><span class="neg">Negative — a result, not a failure.</span> No screw sector
+              on the medium: 0/48 isometries pair cell and void bodies at generic folds.
+              Glide pairing exists only at a = −30°, and belongs to the retired covering.</td></tr>
+            <tr><td class="g">G7</td><td class="m">physical_arc.py</td>
+              <td>The physical arc never exercises the holonomy: crossing-free on [−60°, 0°],
+              walls within 1° beyond both ends; breathe of <em>any</em> amplitude returns +q.
+              Only monotone traversal of the full circle reaches −q.</td></tr>
+            <tr><td class="g">τ</td><td class="m">screw_prerequisites.py</td>
+              <td>τ⁶ is a pure translation, exactly; a single τ leaves the coherent family
+              (parity demands +60° and −60° at once). Free and properly discontinuous on the
+              arc only. Bieberbach naming stays withdrawn.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="verdict">
+        <div class="v"><h3>Kinematically real</h3>
+          <p>One circuit of the fold circle is −q for every plate in every assembly
+          tried. G1, 432/432.</p></div>
+        <div class="v"><h3>Physically inert</h3>
+          <p>The medium's actual motion — the breathe, at any amplitude — returns +q,
+          always. G7.</p></div>
+        <div class="v"><h3>No carrier</h3>
+          <p>Every pairwise relative history is untwisted; even tether-capable joints
+          return +q. G2.</p></div>
+        <div class="v"><h3>No spectral home</h3>
+          <p>No screw sector, no fixed-fold twisted sector at any generic fold. G6,
+          resolved negative.</p></div>
+      </div>
+
+      <p class="closing">The classical Z2 holonomy lives in the fold circle's analytic
+      continuation, visible only against an external frame. Real, exact, and inert.
+      <strong>Closed 2026-09-01</strong> — not to be relitigated without new measurement.</p>
+    </div>
+  </section>
+
+  <!-- ============ DECISION 22 ============ -->
+  <section id="decision">
+    <div class="wrap">
+      <p class="eyebrow">Owner decision 22 · 2026-09-01 · “double for sure. that is the most elegant”</p>
+      <h2>The closure of record is the double</h2>
+      <div class="prose">
+        <p>Finite patches need a boundary story. Three candidates were measured: free
+        boundaries, the periodic torus, and the doubled block — a second copy glued along the
+        boundary plate-backs, closing every half-weld with real constraints on a real
+        assembly. No wrapped-index operator surgery, no rig. The double realises the
+        branched picture of note §3c as a buildable constraint system, and that
+        constructibility is the elegance the owner named.</p>
+      </div>
+
+      <div class="race">
+        <h3>The race to the bulk</h3>
+        <p class="axis-note">Kolmogorov distance to the Bloch density of states · lower is better</p>
+        <div class="race-plot">
+          <div class="race-grid" aria-hidden="true">
+            <i style="left:31.25%"></i><i style="left:62.5%"></i><i style="left:93.75%"></i>
+          </div>
+          <div class="race-row">
+            <span class="rlabel">side 3</span>
+            <div class="track">
+              <span class="race-dot" style="left:60.44%; background:var(--copper)" title="double(3): 0.0967"></span>
+              <span class="race-val up" style="left:62%">.0967</span>
+              <span class="race-dot" style="left:58.75%; background:var(--verdigris)" title="torus(3): 0.0940"></span>
+              <span class="race-val dn" style="left:56.5%">.0940</span>
+            </div>
+          </div>
+          <div class="race-row">
+            <span class="rlabel">side 4</span>
+            <div class="track">
+              <span class="race-dot" style="left:37.94%; background:var(--copper)" title="double(4): 0.0607"></span>
+              <span class="race-val up" style="left:37.94%">.0607</span>
+              <span class="race-dot" style="left:43.13%; background:var(--verdigris)" title="torus(4): 0.0690"></span>
+              <span class="race-val dn" style="left:43.13%">.0690</span>
+            </div>
+          </div>
+          <div class="race-row">
+            <span class="rlabel">side 5</span>
+            <div class="track">
+              <span class="race-dot" style="left:30.31%; background:var(--copper)" title="double(5): 0.0485"></span>
+              <span class="race-val up" style="left:32%">.0485</span>
+              <span class="race-dot" style="left:28.50%; background:var(--verdigris)" title="torus(5): 0.0456"></span>
+              <span class="race-val dn" style="left:26.5%">.0456</span>
+              <span class="race-dot" style="left:90.75%; background:var(--slate)" title="free(5): 0.1452"></span>
+              <span class="race-val up" style="left:90.75%">.1452</span>
+            </div>
+          </div>
+        </div>
+        <div class="race-x">
+          <span style="left:0%">0</span><span style="left:31.25%">.05</span>
+          <span style="left:62.5%">.10</span><span style="left:93.75%">.15</span>
+        </div>
+        <div class="legend">
+          <span class="key"><span class="swatch" style="background:var(--copper)"></span> the double</span>
+          <span class="key"><span class="swatch" style="background:var(--verdigris)"></span> torus — the validated exact reference</span>
+          <span class="key"><span class="swatch" style="background:var(--slate)"></span> free boundaries</span>
+        </div>
+        <p class="callout">Free runs ≈3× the double's distance at every size tried (sides
+        2–5) — and loses at matched cell count too: <strong>double(4)</strong>, 128 cells,
+        <span class="mono num">.0607</span> against <strong>free(5)</strong>, 125 cells,
+        <span class="mono num">.1452</span>. The accepted cost: the double is 2× the cells of
+        the box it closes.</p>
+      </div>
+
+      <div class="prose">
+        <p><span class="mono">spec(double) = spec(free) ⊎ spec(Dirichlet)</span>, exactly.
+        The Neumann sector keeps all seven zero modes — six rigid plus the breathe — where
+        the torus keeps only four. The wrapped torus operator matches the Bloch bands at
+        commensurate k and stays the exact reference when a measurement wants it.</p>
+        <p><strong>What it binds:</strong> future finite-patch work on the jitterbug medium —
+        spectra, wave propagation, closed-patch experiments, in either language — defaults to
+        <span class="mono">doubled_block.double(side)</span>. It does not bind the automaton
+        line; adoption in any particular visualization is per-work, the owner's call.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ THE WALL ============ -->
+  <section id="wall">
+    <div class="wrap">
+      <p class="eyebrow">Two lines · one repository · PR #57</p>
+      <h2>Two lines, one wall</h2>
+      <div class="prose">
+        <p>Necronomata was conflated with the medium once. The correction is structural now,
+        not prose: the CA line moved under its own package, and the boundary is enforced by a
+        test that scans raw text — javadoc links count — so the next conflation is a red
+        build, not a debate.</p>
+      </div>
+      <div class="wall">
+        <div class="side">
+          <h3 style="color:var(--copper)">The jitterbug medium</h3>
+          <p class="sub" style="margin:0.2rem 0 0">Model of record in Python; a Java expression beside it.</p>
+          <ul>
+            <li><span class="k">analysis/model/</span> — rigid struts, soft joints, voids empty</li>
+            <li><span class="k">Jitterbug</span> — the transformation itself</li>
+            <li><span class="k">CubicGrid</span>, golden-ratio geometry, <span class="k">jitterbug/</span> dynamics</li>
+            <li>the medium animations (honeycomb, three-cell, jitterbug)</li>
+          </ul>
+        </div>
+        <div class="brick" role="presentation"><span>ArchitectureWallTest</span></div>
+        <div class="side">
+          <h3 style="color:var(--verdigris)">The CA line</h3>
+          <p class="sub" style="margin:0.2rem 0 0">A cellular automaton with its own dynamics. It renders
+          jitterbug geometry; it is not the medium.</p>
+          <ul>
+            <li><span class="k">com.chiralbehaviors.inviscid.automaton</span></li>
+            <li><span class="k">Necronomata</span> · <span class="k">QuantaField</span></li>
+            <li><span class="k">lga/</span> lattice gas · <span class="k">measure/</span> harnesses</li>
+            <li>its own animations, its own open questions</li>
+          </ul>
+        </div>
+      </div>
+      <p class="wall-note prose">The dependency is one-way by construction: the automaton may
+      import medium geometry; <strong>nothing outside <span class="mono">automaton</span> may
+      reference it</strong>, enforced in <span class="mono">mvn test</span>. Decisions in one
+      line never bind the other — Decision 22 is a medium decision. The wall test was
+      verified to <em>detect</em> before it was trusted: a planted offender failed the build,
+      then was removed.</p>
+    </div>
+  </section>
+
+  <!-- ============ MAP ============ -->
+  <section id="map">
+    <div class="wrap">
+      <p class="eyebrow">Coordinates</p>
+      <h2>Where everything lives</h2>
+      <div class="map">
+        <div class="card">
+          <h3>Run it</h3>
+          <p class="sub" style="margin:0.2rem 0 0.4rem">Main methods, run directly — no exec plugin.</p>
+          <ul>
+            <li><span class="k">HoneycombBreatheAnimation</span> — the medium's one motion, bounded by elastic contact</li>
+            <li><span class="k">ThreeCellPhaseAnimation</span> — a free tree fragment; it tumbles and winds</li>
+            <li><span class="k">JitterbugAnimation</span> — one cell through the family</li>
+            <li><span class="k">automaton.animations.NecronomataAnimation</span> — the CA line</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>The analysis lane</h3>
+          <ul>
+            <li><span class="k">analysis/model/su2/</span> — the eight gate modules above</li>
+            <li><span class="k">analysis/model/first_principles/</span> — the tied array, one body at a time, with page exporters</li>
+            <li><span class="k">analysis/notes/su2_boundary_conditions.md</span> — §1–7 as first written, §8 critiques, §9 resolution. Never cite §1–7 without §8/§9.</li>
+            <li><span class="k">analysis/gates.sh live</span> — every module's exit code is its verdict (~17 min; run named modules to iterate)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>The records</h3>
+          <ul>
+            <li>Decision 22 — T2 <span class="k">[23932]</span>; lane record T2 <span class="k">[23914]</span>; bd memory <span class="k">decision-22-…</span></li>
+            <li>State of the model — T2 <span class="k">[23764]</span>; first principles — T2 <span class="k">[23799]</span></li>
+            <li>PRs <a href="https://github.com/ChiralBehaviors/inviscid/pull/45" target="_blank" rel="noopener">#45</a>–<a href="https://github.com/ChiralBehaviors/inviscid/pull/57" target="_blank" rel="noopener">#57</a>, all merged; the wall is <a href="https://github.com/ChiralBehaviors/inviscid/pull/57" target="_blank" rel="noopener">#57</a>, the double <a href="https://github.com/ChiralBehaviors/inviscid/pull/51" target="_blank" rel="noopener">#51</a>, the negative <a href="https://github.com/ChiralBehaviors/inviscid/pull/52" target="_blank" rel="noopener">#52</a></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Open work</h3>
+          <p class="sub" style="margin:0.2rem 0 0.4rem">None. Candidate directions, all the owner's choice, none filed:</p>
+          <ul>
+            <li>Any next finite-patch measurement — spectra past side 5, waves on closed patches — defaults to the double</li>
+            <li>Per-visualization adoption of the double in the Java medium animations</li>
+            <li>The CA line's own questions, on its own terms</li>
+            <li><em>Recorded, not pursued:</em> the glide pairing at −30° (retired covering)</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 style="margin-top:2.2rem">The pages</h3>
+      <p class="sub" style="max-width:66ch">The interactive pages live in the repository —
+      <span class="mono">docs/</span> is served by GitHub Pages, so these links survive any
+      account. The catalog is
+      <a href="https://chiralbehaviors.github.io/inviscid/" target="_blank" rel="noopener">chiralbehaviors.github.io/inviscid</a>;
+      this page itself is <span class="mono">docs/jitterbug-medium.html</span> there.</p>
+      <ul class="pages">
+        <li><a href="https://chiralbehaviors.github.io/inviscid/first_principles/one_cell.html" target="_blank" rel="noopener">One Jitterbug</a></li>
+        <li><a href="https://chiralbehaviors.github.io/inviscid/first_principles/face_to_face.html" target="_blank" rel="noopener">Face to Face</a></li>
+        <li><a href="https://chiralbehaviors.github.io/inviscid/first_principles/vertex.html" target="_blank" rel="noopener">One Vertex, Four Cells</a></li>
+        <li><a href="https://chiralbehaviors.github.io/inviscid/first_principles/joints.html" target="_blank" rel="noopener">Two Joints, One Point</a></li>
+        <li><a href="https://chiralbehaviors.github.io/inviscid/first_principles/ring.html" target="_blank" rel="noopener">The Exchange</a></li>
+        <li><a href="https://chiralbehaviors.github.io/inviscid/first_principles/cycle.html" target="_blank" rel="noopener">A Full Cycle</a></li>
+        <li><a href="https://chiralbehaviors.github.io/inviscid/overdrive/ring.html" target="_blank" rel="noopener">Overdrive (four bodies)</a></li>
+        <li><a href="https://chiralbehaviors.github.io/inviscid/overdrive/hc15.html" target="_blank" rel="noopener">Overdrive, Fifteen Bodies</a></li>
+        <li><a href="https://chiralbehaviors.github.io/inviscid/overdrive/block.html" target="_blank" rel="noopener">Overdrive, Thirty-Five Bodies</a></li>
+      </ul>
+      <p class="sub" style="max-width:66ch">All nine regenerate from source:
+      <span class="mono">pages/export_*.py</span> then <span class="mono">build.py</span>.
+      The earlier honeycomb figures are on the catalog index. The Four Statements and
+      Breathe/Kick pages from the state-of-the-model session were never given exporters and
+      their published links are gone — the four statements live above and in T2
+      <span class="mono">[23764]</span>.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    Model of record unchanged: rigid struts · soft joints · voids empty — master 2ecdd89 ·
+    2026-09-01 · geometry on this page is the model's own closed form, welds verified to 9·10⁻¹⁶
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var dirtyHooks = [];
+
+  /* ================= palette (theme-aware) ================= */
+  var PAL = null;
+  function readPal() {
+    var cs = getComputedStyle(document.documentElement);
+    function v(name) { return cs.getPropertyValue(name).trim(); }
+    function hex2rgb(h) {
+      h = h.replace("#", "");
+      return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)];
+    }
+    var copper = hex2rgb(v("--copper")), verd = hex2rgb(v("--verdigris"));
+    var weld = [Math.round((copper[0] + verd[0]) / 2), Math.round((copper[1] + verd[1]) / 2),
+                Math.round((copper[2] + verd[2]) / 2)];
+    PAL = {
+      panel: v("--panel"), ink: v("--ink"), muted: v("--muted"),
+      copper: copper, verd: verd, weld: weld
+    };
+    var sw = document.getElementById("weldSwatch");
+    if (sw) sw.style.background = "rgb(" + weld.join(",") + ")";
+    dirtyHooks.forEach(function (f) { f(); });
+  }
+  readPal();
+  var mmDark = matchMedia("(prefers-color-scheme: dark)");
+  if (mmDark.addEventListener) mmDark.addEventListener("change", readPal);
+  new MutationObserver(readPal).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ================= geometry: the model's closed form ================= */
+  var SIGNS = [];
+  [1, -1].forEach(function (x) { [1, -1].forEach(function (y) { [1, -1].forEach(function (z) {
+    SIGNS.push([x, y, z]);
+  }); }); });
+  var ZAX = 2 / Math.sqrt(3);
+  var D2R = Math.PI / 180;
+
+  function rodrigues(u, deg) {
+    var t = deg * D2R, s = Math.sin(t), c = 1 - Math.cos(t);
+    var K = [[0, -u[2], u[1]], [u[2], 0, -u[0]], [-u[1], u[0], 0]];
+    var KK = [], i, j, m, acc;
+    for (i = 0; i < 3; i++) { KK.push([0, 0, 0]);
+      for (j = 0; j < 3; j++) { acc = 0;
+        for (m = 0; m < 3; m++) acc += K[i][m] * K[m][j];
+        KK[i][j] = acc; } }
+    var R = [];
+    for (i = 0; i < 3; i++) { R.push([0, 0, 0]);
+      for (j = 0; j < 3; j++) R[i][j] = (i === j ? 1 : 0) + s * K[i][j] + c * KK[i][j]; }
+    return R;
+  }
+
+  /* corners(a): [8 faces][3 corners][xyz], sigma = +s1*s2*s3, octahedra at ±60, VE at 0.
+     Verified against JitterbugGeometry: struts sqrt(2) to 9e-16, welds closed to 9e-16. */
+  function corners(aDeg) {
+    var out = [], axial = ZAX * Math.cos(aDeg * D2R);
+    for (var i = 0; i < 8; i++) {
+      var s = SIGNS[i];
+      var c = [s[0] / 3, s[1] / 3, s[2] / 3];
+      var n = Math.sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+      var u = [c[0] / n, c[1] / n, c[2] / n];
+      var sigma = s[0] * s[1] * s[2];
+      var R = rodrigues(u, sigma * (aDeg - 60));
+      var tri = [];
+      for (var j = 0; j < 3; j++) {
+        var v = [0, 0, 0]; v[j] = s[j];
+        var d = [v[0] - c[0], v[1] - c[1], v[2] - c[2]];
+        var p = [0, 0, 0];
+        for (var k = 0; k < 3; k++) {
+          p[k] = R[k][0] * d[0] + R[k][1] * d[1] + R[k][2] * d[2] + u[k] * axial;
+        }
+        tri.push(p);
+      }
+      out.push(tri);
+    }
+    return out;
+  }
+
+  function latticeL(aDeg) { return (2 / Math.sqrt(3)) * Math.cos((aDeg + 30) * D2R); }
+
+  function wrap180(a) {
+    var w = ((a + 180) % 360 + 360) % 360 - 180;
+    return w === -180 ? 180 : w;
+  }
+
+  /* ================= tiny renderer (canvas 2D, painter's algorithm) ================= */
+  function makeView(canvas, opts) {
+    var ctx = canvas.getContext("2d");
+    var yaw = opts.yaw, pitch = opts.pitch, D = 8, fscale = opts.fscale;
+    var W = 0, H = 0, dpr = 1;
+
+    function resize() {
+      dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth; H = canvas.clientHeight;
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    }
+    resize();
+    if (window.ResizeObserver) new ResizeObserver(function () { resize(); opts.onDirty(); }).observe(canvas);
+
+    function viewRot(p) {
+      var cy = Math.cos(yaw), sy = Math.sin(yaw);
+      var cp = Math.cos(pitch), sp = Math.sin(pitch);
+      var x = cy * p[0] + sy * p[2];
+      var z = -sy * p[0] + cy * p[2];
+      var y = cp * p[1] - sp * z;
+      z = sp * p[1] + cp * z;
+      return [x, y, z];
+    }
+    function project(v) {
+      var f = fscale * Math.min(W, H);
+      var s = f / (D - v[2]);
+      return [W / 2 + v[0] * s, H / 2 - v[1] * s, s];
+    }
+
+    var LIGHT = (function () {
+      var l = [-0.45, 0.6, 0.66], n = Math.hypot(l[0], l[1], l[2]);
+      return [l[0] / n, l[1] / n, l[2] / n];
+    })();
+
+    /* items: {tri:[[x,y,z]x3], axis:[xyz] plate normal, kind} or {dot:[xyz]} */
+    function draw(items, colorFor) {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = PAL.panel;
+      ctx.fillRect(0, 0, W, H);
+      var drawn = [];
+      items.forEach(function (it) {
+        if (it.tri) {
+          var v0 = viewRot(it.tri[0]), v1 = viewRot(it.tri[1]), v2 = viewRot(it.tri[2]);
+          var z = (v0[2] + v1[2] + v2[2]) / 3;
+          drawn.push({ z: z, v: [v0, v1, v2], it: it });
+        } else {
+          var vd = viewRot(it.dot);
+          drawn.push({ z: vd[2] + 0.02, v: vd, it: it });
+        }
+      });
+      drawn.sort(function (a, b) { return a.z - b.z; });
+      drawn.forEach(function (d) {
+        var it = d.it;
+        if (it.tri) {
+          var un = viewRot(it.axis);
+          var cx = (d.v[0][0] + d.v[1][0] + d.v[2][0]) / 3;
+          var cyv = (d.v[0][1] + d.v[1][1] + d.v[2][1]) / 3;
+          var toCam = [-cx, -cyv, D - d.z];
+          var tn = Math.hypot(toCam[0], toCam[1], toCam[2]);
+          var facing = (un[0] * toCam[0] + un[1] * toCam[1] + un[2] * toCam[2]) / tn;
+          var lam = Math.abs(un[0] * LIGHT[0] + un[1] * LIGHT[1] + un[2] * LIGHT[2]);
+          var b = 0.62 + 0.38 * lam;
+          var rgb = colorFor(it, facing);
+          var P0 = project(d.v[0]), P1 = project(d.v[1]), P2 = project(d.v[2]);
+          ctx.beginPath();
+          ctx.moveTo(P0[0], P0[1]); ctx.lineTo(P1[0], P1[1]); ctx.lineTo(P2[0], P2[1]);
+          ctx.closePath();
+          ctx.fillStyle = "rgb(" + Math.round(rgb[0] * b) + "," + Math.round(rgb[1] * b) + "," +
+                          Math.round(rgb[2] * b) + ")";
+          ctx.fill();
+          ctx.strokeStyle = PAL.ink; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.4;
+          ctx.stroke(); ctx.globalAlpha = 1;
+        } else {
+          var P = project(d.v);
+          ctx.beginPath();
+          ctx.arc(P[0], P[1], Math.max(2.5, P[2] * 0.045), 0, 2 * Math.PI);
+          ctx.fillStyle = PAL.muted; ctx.fill();
+        }
+      });
+    }
+
+    /* drag to orbit */
+    var dragging = false, px = 0, py = 0;
+    canvas.addEventListener("pointerdown", function (e) {
+      dragging = true; px = e.clientX; py = e.clientY;
+      canvas.classList.add("dragging"); canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      yaw += (e.clientX - px) * 0.008;
+      pitch += (e.clientY - py) * 0.008;
+      pitch = Math.max(-1.4, Math.min(1.4, pitch));
+      px = e.clientX; py = e.clientY;
+      opts.onDirty();
+    });
+    canvas.addEventListener("pointerup", function () { dragging = false; canvas.classList.remove("dragging"); });
+    canvas.addEventListener("pointercancel", function () { dragging = false; canvas.classList.remove("dragging"); });
+
+    return {
+      draw: draw,
+      spin: function (da) { yaw += da; },
+      isDragging: function () { return dragging; }
+    };
+  }
+
+  /* ================= ruler builder ================= */
+  function buildRuler(el, min, max, bands, ticks, marks) {
+    function pct(v) { return ((v - min) / (max - min)) * 100; }
+    var html = "";
+    bands.forEach(function (b) {
+      html += '<span class="band" style="left:' + pct(b[0]) + "%; width:" + (pct(b[1]) - pct(b[0])) +
+              "%; background:" + b[2] + '"></span>';
+    });
+    ticks.forEach(function (t) {
+      html += '<span class="tick" style="left:' + pct(t) + '%"></span>';
+    });
+    marks.forEach(function (m) {
+      var cls = m[2] === "l" ? " al" : m[2] === "r" ? " ar" : "";
+      html += '<span class="tick lm" style="left:' + pct(m[0]) + '%"></span>' +
+              '<span class="lbl' + cls + '" style="left:' + pct(m[0]) + '%">' + m[1] + "</span>";
+    });
+    el.innerHTML = html;
+  }
+
+  /* ================= HERO: one cell ================= */
+  (function () {
+    var canvas = document.getElementById("cellStage");
+    var slider = document.getElementById("cellSlider");
+    var aOut = document.getElementById("cellA");
+    var thetaOut = document.getElementById("thetaOut");
+    var qSign = document.getElementById("qSign");
+    var needle = document.getElementById("needle");
+    var dirty = true;
+    function markDirty() { dirty = true; }
+    dirtyHooks.push(markDirty);
+    var view = makeView(canvas, { yaw: 0.65, pitch: -0.42, fscale: 1.5, onDirty: markDirty });
+
+    buildRuler(document.getElementById("cellRuler"), -180, 180,
+      [[-60, 60, "var(--band-free)"], [-60, 0, "var(--band-swing)"]],
+      [-180, -120, 120],
+      [[-60, "octa"], [-22.24, "icosa"], [0, "VE"], [22.24, "icosa"], [60, "octa"], [180, "180°", "r"]]);
+
+    /* a is CONTINUOUS (unwrapped); theta rides every change of a, so the lift is
+       path-dependent, which is the whole point. glide moves a continuously to a target. */
+    var state = { a: 0, theta: 0, mode: reduced ? "still" : "breathe", bdir: -1, glide: null };
+
+    function setA(newA) {
+      state.theta += newA - state.a;
+      state.a = newA;
+      slider.value = wrap180(newA).toFixed(1);
+      dirty = true;
+    }
+
+    function render() {
+      var tris = corners(state.a);
+      var items = [];
+      var invs3 = 1 / Math.sqrt(3);
+      for (var i = 0; i < 8; i++) {
+        var s = SIGNS[i];
+        items.push({ tri: tris[i], axis: [s[0] * invs3, s[1] * invs3, s[2] * invs3] });
+      }
+      /* joints: cluster the 24 corners (12 at generic angles, 6 at the octahedra) */
+      var reps = [];
+      for (i = 0; i < 8; i++) for (var j = 0; j < 3; j++) {
+        var p = tris[i][j], found = false;
+        for (var k = 0; k < reps.length; k++) {
+          var q = reps[k];
+          if (Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) < 1e-6) { found = true; break; }
+        }
+        if (!found) reps.push(p);
+      }
+      reps.forEach(function (r) { items.push({ dot: r }); });
+      view.draw(items, function (it, facing) {
+        return facing >= 0 ? PAL.copper : PAL.verd;
+      });
+      var w = wrap180(state.a);
+      aOut.textContent = (w < -0.05 ? "−" : w > 0.05 ? "+" : "") + Math.abs(w).toFixed(1);
+      var th = state.theta;
+      thetaOut.textContent = (th < -0.5 ? "−" : "") + Math.abs(th).toFixed(0);
+      var lift = Math.cos(th * D2R / 2);
+      qSign.textContent = lift >= 0 ? "+q" : "−q";
+      qSign.className = "qchip" + (lift >= 0 ? "" : " neg");
+      needle.setAttribute("transform", "rotate(" + (th / 2) + " 46 46)");
+    }
+
+    function shortestTo(target) {
+      /* signed shortest continuous move from state.a to an angle congruent to target */
+      var d = wrap180(target - wrap180(state.a));
+      return d;
+    }
+
+    var last = null;
+    function tick(now) {
+      requestAnimationFrame(tick);
+      if (last === null) { last = now; return; }
+      var dt = Math.min((now - last) / 1000, 0.05); last = now;
+
+      if (state.glide !== null) {
+        var d = state.glide - state.a;
+        if (Math.abs(d) < 0.3) {
+          setA(state.glide); state.glide = null;
+          if (state.mode === "breathe") state.bdir = wrap180(state.a) > -30 ? -1 : 1;
+        } else {
+          setA(state.a + d * Math.min(1, dt * 5));
+        }
+      } else if (state.mode === "breathe") {
+        var w = wrap180(state.a);
+        if (w > 0.05 || w < -60.05) {
+          /* glide back into the swing window first, the shortest continuous way */
+          var toVE = shortestTo(0), toOcta = shortestTo(-60);
+          state.glide = state.a + (Math.abs(toVE) <= Math.abs(toOcta) ? toVE : toOcta);
+        } else {
+          /* harmonic swing across [-60, 0]: v = omega*sqrt(A^2 - x^2), lingering at the ends */
+          var x = w + 30;
+          var v = 1.7 * (Math.sqrt(Math.max(0, 900 - x * x)) + 1.2);
+          var na = state.a + state.bdir * v * dt;
+          var nw = wrap180(na);
+          if (nw > 0) { na = state.a + (0 - w); state.bdir = -1; }
+          else if (nw < -60) { na = state.a + (-60 - w); state.bdir = 1; }
+          setA(na);
+        }
+      } else if (state.mode === "over") {
+        setA(state.a + 40 * dt);
+      }
+
+      if (!view.isDragging() && !reduced) { view.spin(dt * 0.05); dirty = true; }
+      if (dirty) { dirty = false; render(); }
+    }
+    requestAnimationFrame(tick);
+
+    function setMode(m) {
+      state.mode = m;
+      if (m !== "still") state.glide = null;
+      ["mBreathe", "mOver", "mStill"].forEach(function (id) {
+        var want = (id === "mBreathe" && m === "breathe") || (id === "mOver" && m === "over") ||
+                   (id === "mStill" && m === "still");
+        document.getElementById(id).setAttribute("aria-pressed", want ? "true" : "false");
+      });
+    }
+    document.getElementById("mBreathe").addEventListener("click", function () { setMode("breathe"); });
+    document.getElementById("mOver").addEventListener("click", function () { setMode("over"); });
+    document.getElementById("mStill").addEventListener("click", function () { setMode("still"); });
+    document.getElementById("resetFrame").addEventListener("click", function () {
+      state.theta = 0; dirty = true;
+    });
+
+    slider.addEventListener("input", function () {
+      setMode("still"); state.glide = null;
+      var d = shortestTo(parseFloat(slider.value));
+      state.theta += d; state.a += d;
+      dirty = true;
+    });
+    document.getElementById("landmarks").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-a]");
+      if (!b) return;
+      setMode("still");
+      state.glide = state.a + shortestTo(parseFloat(b.getAttribute("data-a")));
+    });
+
+    render();
+  })();
+
+  /* ================= HONEYCOMB: 15 bodies, one degree of freedom ================= */
+  (function () {
+    var canvas = document.getElementById("hcStage");
+    var slider = document.getElementById("hcSlider");
+    var aOut = document.getElementById("hcA"), bOut = document.getElementById("hcB"),
+        lOut = document.getElementById("hcL");
+    var playBtn = document.getElementById("hcPlay");
+    var dirty = true;
+    function markDirty() { dirty = true; }
+    dirtyHooks.push(markDirty);
+    var view = makeView(canvas, { yaw: 0.6, pitch: -0.5, fscale: 0.85, onDirty: markDirty });
+
+    buildRuler(document.getElementById("hcRuler"), -60, 0,
+      [[-60, 0, "var(--band-swing)"]],
+      [-45, -15],
+      [[-60, "cells closed", "l"], [-30, "mid-swing"], [0, "voids closed", "r"]]);
+
+    /* sites: integer triples, all coordinates the same parity, |site| <= 2.
+       7 even (cells) + 8 odd (voids) = 15 bodies, 32 welds. */
+    var sites = [], siteSet = {};
+    for (var x = -2; x <= 2; x++) for (var y = -2; y <= 2; y++) for (var z = -2; z <= 2; z++) {
+      var even = (Math.abs(x) % 2 === 0 && Math.abs(y) % 2 === 0 && Math.abs(z) % 2 === 0);
+      var odd = (Math.abs(x) % 2 === 1 && Math.abs(y) % 2 === 1 && Math.abs(z) % 2 === 1);
+      if ((even || odd) && Math.sqrt(x * x + y * y + z * z) <= 2.0) {
+        var s = { p: [x, y, z], even: even };
+        sites.push(s);
+        siteSet[s.p.join(",")] = s;
+      }
+    }
+
+    /* effective mass across the window: quadratic through the measured 272 / 120 / 264 */
+    function Meff(a) { return 272 + 10 * a + (37 / 225) * a * a; }
+
+    var state = { a: -30, dir: 1, playing: !reduced };
+    if (reduced) {
+      playBtn.setAttribute("aria-pressed", "false");
+      playBtn.textContent = "▸ Play";
+    }
+
+    function render() {
+      var a = state.a;
+      var xe = corners(a), xo = corners(a + 60);
+      var L = latticeL(a);
+      var items = [];
+      var invs3 = 1 / Math.sqrt(3);
+      sites.forEach(function (s) {
+        var src = s.even ? xe : xo;
+        for (var f = 0; f < 8; f++) {
+          var sg = SIGNS[f];
+          var nb = (s.p[0] + sg[0]) + "," + (s.p[1] + sg[1]) + "," + (s.p[2] + sg[2]);
+          var welded = !!siteSet[nb];
+          if (welded && !s.even) continue; /* each welded plate drawn once */
+          var tri = [];
+          for (var j = 0; j < 3; j++) {
+            tri.push([src[f][j][0] + L * s.p[0],
+                      src[f][j][1] + L * s.p[1],
+                      src[f][j][2] + L * s.p[2]]);
+          }
+          items.push({
+            tri: tri,
+            axis: [sg[0] * invs3, sg[1] * invs3, sg[2] * invs3],
+            kind: welded ? "weld" : (s.even ? "cell" : "void")
+          });
+        }
+      });
+      view.draw(items, function (it) {
+        return it.kind === "weld" ? PAL.weld : it.kind === "cell" ? PAL.copper : PAL.verd;
+      });
+      aOut.textContent = (a < -0.05 ? "−" : "") + Math.abs(a).toFixed(1);
+      var b = a + 60;
+      bOut.textContent = (b < -0.05 ? "−" : "+") + Math.abs(b).toFixed(1);
+      lOut.textContent = L.toFixed(4);
+    }
+
+    var last = null;
+    function tick(now) {
+      requestAnimationFrame(tick);
+      if (last === null) { last = now; return; }
+      var dt = Math.min((now - last) / 1000, 0.05); last = now;
+      if (state.playing) {
+        /* one degree of freedom: speed follows 1/sqrt(M_eff), elastic bounce at the stops */
+        var v = 26 * Math.sqrt(Meff(-30) / Meff(state.a));
+        var a = state.a + state.dir * v * dt;
+        if (a >= 0) { a = 0; state.dir = -1; }
+        else if (a <= -60) { a = -60; state.dir = 1; }
+        state.a = a;
+        slider.value = a.toFixed(1);
+        dirty = true;
+      }
+      if (!view.isDragging() && !reduced) { view.spin(dt * 0.04); dirty = true; }
+      if (dirty) { dirty = false; render(); }
+    }
+    requestAnimationFrame(tick);
+
+    playBtn.addEventListener("click", function () {
+      state.playing = !state.playing;
+      playBtn.setAttribute("aria-pressed", state.playing ? "true" : "false");
+      playBtn.textContent = state.playing ? "⏸ Pause" : "▸ Play";
+    });
+    slider.addEventListener("input", function () {
+      state.playing = false;
+      playBtn.setAttribute("aria-pressed", "false");
+      playBtn.textContent = "▸ Play";
+      state.a = parseFloat(slider.value);
+      dirty = true;
+    });
+
+    render();
+  })();
+})();
+</script>
