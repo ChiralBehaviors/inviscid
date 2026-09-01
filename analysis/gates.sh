@@ -26,6 +26,7 @@ LIVE=(
   model.first_principles.ring model.first_principles.overdrive
   model.su2.lift model.su2.plate_holonomy model.su2.inside_out_cover model.su2.joint_twist
   model.su2.physical_arc model.su2.screw_prerequisites model.su2.doubled_block
+  model.su2.screw_sector
 )
 RETIRED=(
   retired.hard_wall.contact_chain retired.hard_wall.contact_potential retired.hard_wall.impact_law
