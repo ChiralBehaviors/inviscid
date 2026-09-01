@@ -97,6 +97,7 @@ no quantum number.
 | `inside_out_cover.py` | G4: X(a+180) = −X(a) exactly on configurations, const = 0, inversion centre the lattice origin — deck-map candidate (b) pinned; sheet-touching in ambient space is patch geometry (site-symmetric patches coincide everywhere, uncentred ones only at the collapses) |
 | `joint_twist.py` | G2 (subsumes G3): the relative-rotation lift across BOTH co-located vertex joints ({O,A}, {B,D}) is +q — the ℤ₂ cancels pairwise; it lives in absolute orientation histories only, so even a tether-capable joint would return untwisted each cycle; face-weld relative history is constant |
 | `physical_arc.py` | G7: the physical 60° arc never exercises the holonomy — crossing-free exactly on [−60, 0] with walls within 1° of both ends, breathe lifts +q everywhere, oscillation of any amplitude lifts +q (only monotone traversal reaches −q); closed patches are one-freedom, the free block's nullity 15 identified as breathe + 8 hanging corner-VE folds |
+| `screw_prerequisites.py` | τ prerequisites for G6: single applications of τ leave the coherent family (only τ¹ carries ex-cells, τ⁵ ex-voids, τ²⁻⁴ nothing); τ⁶ = pure translation exactly, τ³ = translate ∘ per-body inversion; free + properly discontinuous on the arc (spacing √3·L, L ≥ 1), degenerate at the collapses — G6 must use the mapping-torus identification, Bieberbach naming stays withdrawn |
 
 ## retired/ — lines the owner has closed
 
