@@ -94,6 +94,7 @@ no quantum number.
 |---|---|
 | `lift.py` | G0: sign-continuous SU(2) lift of a sampled SO(3) path with its null controls (trivial loop +q, bare 2π −q, bare 4π +q); refuses coarse sampling and unclosed loops |
 | `plate_holonomy.py` | G1: every plate of every body on the record's three patches lifts to −q over one 360° overdrive cycle — a confirmation of the record (§8.3), necessary not sufficient for any SU(2)-medium claim |
+| `inside_out_cover.py` | G4: X(a+180) = −X(a) exactly on configurations, const = 0, inversion centre the lattice origin — deck-map candidate (b) pinned; sheet-touching in ambient space is patch geometry (site-symmetric patches coincide everywhere, uncentred ones only at the collapses) |
 
 ## retired/ — lines the owner has closed
 
