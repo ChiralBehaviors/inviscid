@@ -1,6 +1,6 @@
 # ContactAtlas - Phase A -> Phase C contact predicate transcription source (bead inviscid-0nx.16)
 # atlasVersion=2
-# generatorClass=com.chiralbehaviors.inviscid.lga.ContactAtlasGenerator
+# generatorClass=com.chiralbehaviors.inviscid.automaton.lga.ContactAtlasGenerator
 # gitCommit=90b2bca7f26a2bcf41e26965a6d7aa76d60e8cad-dirty
 # memberRadius=0.015
 # geometryResolution=360

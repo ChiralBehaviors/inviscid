@@ -1,6 +1,6 @@
 # AnisotropyProbe Phase A measurement report
 # bead=inviscid-0nx.10
-# generator=com.chiralbehaviors.inviscid.measure.AnisotropyProbe
+# generator=com.chiralbehaviors.inviscid.automaton.measure.AnisotropyProbe
 # gitCommit=859b3c28eb04702b2c4b4cefb6b5d42520804242-dirty
 # extent=8,8,8
 # ticks=128
