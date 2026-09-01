@@ -155,14 +155,17 @@
         When the front reaches the wall of the box it does not reflect and does not wrap —
         it crosses into the <strong>twin sheet</strong> (right), which is what the double
         <em>is</em>. Drag to turn.</p>
-        <p class="sub"><strong>Views.</strong> The medium is space-filling — cells and voids
-        tile the honeycomb — so the default <em>cutaway</em> draws every cell at its true
-        scale and slices the block at the kicked cell's plane: the cut face is the wave's
-        cross-section. <em>Solid</em> is the whole tiling from outside. <em>X-ray</em>
-        shrinks quiet cells to points so the shell can be seen through the block — in that
-        view the lattice's layers read as separated bands; the apparent empty planes
-        between them are where the voids sit and the cells' own plates reach, which a
-        centre-point rendering does not draw.</p>
+        <p class="sub"><strong>Views.</strong> The medium tiles space — cells and voids
+        together — and each cell is drawn as its <em>actual silhouette</em>: the projected
+        hull of the twelve joints at the working fold, computed from the model's closed
+        form, turning with the view. The default <em>cutaway</em> draws the cells at true
+        scale and slices the block at the kicked cell's plane, so the cut face is the
+        wave's cross-section. Where neighbouring silhouettes meet they are touching at
+        their shared joints; where gaps open between them, that space is the voids'.
+        <em>Solid</em> is the whole tiling from outside. <em>X-ray</em>
+        shrinks quiet cells to points so the shell can be seen through the block — in
+        that view the lattice's layers read as separated bands, and the apparent empty
+        planes between them are the same voids.</p>
       </div>
       <div class="panel">
         <canvas id="stage" class="stage" role="img"
@@ -347,6 +350,70 @@
             Math.round(c1[1] + (c2[1] - c1[1]) * t),
             Math.round(c1[2] + (c2[2] - c1[2]) * t)];
   }
+
+  /* ---- the cell's true shape: the model's closed form at the working fold.
+     x_i(a) = R(u_i, sigma_i(a-60))(v-c_i) + u_i Z cos a, R_CIRC = 1 -- the
+     same units as the exported centres, so the glyph is TRUE SCALE. Every
+     cell keeps R = I (no cell rotates) and the wave's fold deviations
+     (< 0.7 deg here) do not visibly change the shape, so ONE silhouette --
+     the view-projected convex hull of the 24 corners at a = -30 -- serves
+     every cell exactly. */
+  var CSIGNS = [];
+  [1, -1].forEach(function (sx) { [1, -1].forEach(function (sy2) { [1, -1].forEach(function (sz) {
+    CSIGNS.push([sx, sy2, sz]);
+  }); }); });
+  function cellCorners(aDeg) {
+    var ZAX = 2 / Math.sqrt(3), D2R = Math.PI / 180;
+    var axial = ZAX * Math.cos(aDeg * D2R), out = [];
+    CSIGNS.forEach(function (sg) {
+      var c = [sg[0] / 3, sg[1] / 3, sg[2] / 3];
+      var n = Math.sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+      var u = [c[0] / n, c[1] / n, c[2] / n];
+      var sig = sg[0] * sg[1] * sg[2];
+      var th = sig * (aDeg - 60) * D2R, st = Math.sin(th), omc = 1 - Math.cos(th);
+      for (var j = 0; j < 3; j++) {
+        var v = [0, 0, 0]; v[j] = sg[j];
+        var d = [v[0] - c[0], v[1] - c[1], v[2] - c[2]];
+        var cr = [u[1] * d[2] - u[2] * d[1], u[2] * d[0] - u[0] * d[2], u[0] * d[1] - u[1] * d[0]];
+        var ud = u[0] * d[0] + u[1] * d[1] + u[2] * d[2];
+        var p = [0, 0, 0];
+        for (var k2 = 0; k2 < 3; k2++) {
+          p[k2] = d[k2] + st * cr[k2] + omc * (ud * u[k2] - d[k2]) + u[k2] * axial;
+        }
+        out.push(p);
+      }
+    });
+    return out;
+  }
+  var REF_CORNERS = cellCorners(-30.0);
+  function convexHull(pts) {
+    pts = pts.slice().sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+    function cross(o, a, b) {
+      return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    }
+    var lo = [], hi = [], i;
+    for (i = 0; i < pts.length; i++) {
+      while (lo.length > 1 && cross(lo[lo.length - 2], lo[lo.length - 1], pts[i]) <= 0) lo.pop();
+      lo.push(pts[i]);
+    }
+    for (i = pts.length - 1; i >= 0; i--) {
+      while (hi.length > 1 && cross(hi[hi.length - 2], hi[hi.length - 1], pts[i]) <= 0) hi.pop();
+      hi.push(pts[i]);
+    }
+    return lo.slice(0, -1).concat(hi.slice(0, -1));
+  }
+  function glyphFor(cy, sy, cp, sp) {
+    var pts = REF_CORNERS.map(function (p) {
+      var vx = cy * p[0] + sy * p[2], vz = -sy * p[0] + cy * p[2];
+      var vy = cp * p[1] - sp * vz;
+      return [vx, -vy];               /* screen y grows downward */
+    });
+    var hull = convexHull(pts);
+    var g = new Path2D();
+    hull.forEach(function (p, i) { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
+    g.closePath();
+    return g;
+  }
   var scrub = document.getElementById("scrub");
   scrub.max = String(T - 1);
 
@@ -379,6 +446,7 @@
     var order = Array.prototype.slice.call(idx, 0, count);
     order.sort(function (a, b) { return zbuf[a] - zbuf[b]; });
     var body = mix(PAL.panelRgb, PAL.mutedRgb, 0.4);
+    var glyph = glyphFor(cy, sy, cp, sp);
     var kview = null;
     for (var o = 0; o < count; o++) {
       i = order[o];
@@ -388,8 +456,7 @@
       var q = folds[base + i] / 127.0;
       var a = Math.abs(q);
       if (viewMode === "xray") {
-        /* centre points, quiet cells shrunk: see THROUGH the block */
-        var size = Math.max(2, s * spacing * 0.34);
+        /* centre glyphs, quiet cells shrunk: see THROUGH the block */
         if (a < 0.02) {
           ctx.globalAlpha = 0.1;
           ctx.fillStyle = PAL.muted;
@@ -397,38 +464,43 @@
           ctx.globalAlpha = 1;
         } else {
           var col = q > 0 ? PAL.copper : PAL.slate;
+          var gs = s * 0.30 * (0.45 + 0.55 * a);
           ctx.globalAlpha = Math.min(0.95, 0.25 + 0.75 * a);
           ctx.fillStyle = "rgb(" + col.join(",") + ")";
-          var half = size * (0.45 + 0.55 * a) / 2;
-          ctx.fillRect(sx - half, syp - half, 2 * half, 2 * half);
+          ctx.setTransform(dpr * gs, 0, 0, dpr * gs, dpr * sx, dpr * syp);
+          ctx.fill(glyph);
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           ctx.globalAlpha = 1;
         }
       } else {
-        /* true scale: the tiling is space-filling and drawn that way.
-           tint compresses amplitude (a^0.45) so the decayed field still
-           reads against per-frame normalisation */
+        /* the cell's true silhouette at true scale; the star gaps between
+           glyphs are the voids. tint compresses amplitude (a^0.45) so the
+           decayed field still reads against per-frame normalisation */
         var depth = (zbuf[i] - zmin) / (zmax - zmin + 1e-9);
         var b = 0.74 + 0.26 * depth;
         var tint = Math.min(1, 1.5 * Math.pow(a, 0.45));
         var sgn = q > 0 ? PAL.copper : PAL.slate;
         var c2 = mix(body, sgn, tint);
-        var sz = s * spacing * 0.96, hf = sz / 2;
         ctx.globalAlpha = 0.97;
         ctx.fillStyle = "rgb(" + Math.round(c2[0] * b) + "," +
                         Math.round(c2[1] * b) + "," + Math.round(c2[2] * b) + ")";
-        ctx.fillRect(sx - hf, syp - hf, sz, sz);
+        ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * sx, dpr * syp);
+        ctx.fill(glyph);
         ctx.strokeStyle = PAL.panel;
-        ctx.lineWidth = Math.max(0.75, sz * 0.05);
-        ctx.strokeRect(sx - hf, syp - hf, sz, sz);
+        ctx.lineWidth = 0.07;
+        ctx.stroke(glyph);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.globalAlpha = 1;
       }
       if (i === kicked) { kview = [sx, syp, s]; }
     }
     if (kview) {
-      var rs = Math.max(6, kview[2] * spacing * 0.55);
+      var ks = kview[2] * 1.16;
+      ctx.setTransform(dpr * ks, 0, 0, dpr * ks, dpr * kview[0], dpr * kview[1]);
       ctx.strokeStyle = "rgb(" + PAL.verd.join(",") + ")";
-      ctx.globalAlpha = 0.95; ctx.lineWidth = 2;
-      ctx.strokeRect(kview[0] - rs, kview[1] - rs, 2 * rs, 2 * rs);
+      ctx.globalAlpha = 0.95; ctx.lineWidth = 0.1;
+      ctx.stroke(glyph);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.globalAlpha = 1;
     }
     if (showSphere) {
