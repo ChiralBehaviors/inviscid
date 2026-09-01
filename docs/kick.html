@@ -150,11 +150,19 @@
         <p>Every frame below is the model's own integration (velocity Verlet, gated against
         exact modal evolution; energy conserved to 3·10⁻⁵). Color is the signed fold
         deviation — copper opening, slate closing — normalised per frame so the wave stays
-        visible as it decays; the readout gives the frame's true scale. The translucent
-        sphere is the prediction, radius = ½·t: the shell should ride it, arriving just
-        behind. When the front reaches the wall of the box it does not reflect and does not
-        wrap — it crosses into the <strong>twin sheet</strong> (right), which is what the
-        double <em>is</em>. Drag to turn.</p>
+        visible as it decays; the readout gives the frame's true scale. The dashed circle
+        is the prediction, radius = ½·t: the shell should ride it, arriving just behind.
+        When the front reaches the wall of the box it does not reflect and does not wrap —
+        it crosses into the <strong>twin sheet</strong> (right), which is what the double
+        <em>is</em>. Drag to turn.</p>
+        <p class="sub"><strong>Views.</strong> The medium is space-filling — cells and voids
+        tile the honeycomb — so the default <em>cutaway</em> draws every cell at its true
+        scale and slices the block at the kicked cell's plane: the cut face is the wave's
+        cross-section. <em>Solid</em> is the whole tiling from outside. <em>X-ray</em>
+        shrinks quiet cells to points so the shell can be seen through the block — in that
+        view the lattice's layers read as separated bands; the apparent empty planes
+        between them are where the voids sit and the cells' own plates reach, which a
+        centre-point rendering does not draw.</p>
       </div>
       <div class="panel">
         <canvas id="stage" class="stage" role="img"
@@ -162,6 +170,9 @@
         <div class="controls">
           <div class="modes">
             <button class="btn" id="play" aria-pressed="true">⏸ Pause</button>
+            <button class="btn" id="mCut" aria-pressed="true">cutaway</button>
+            <button class="btn" id="mSolid" aria-pressed="false">solid</button>
+            <button class="btn" id="mXray" aria-pressed="false">x-ray</button>
             <button class="btn" id="sphereBtn" aria-pressed="true">prediction sphere</button>
             <button class="btn" id="sheetBtn" aria-pressed="true">twin sheet</button>
             <span class="grow"></span>
@@ -176,7 +187,7 @@
             <span class="key"><span class="swatch" style="background:var(--copper)"></span> fold opening (+)</span>
             <span class="key"><span class="swatch" style="background:var(--slate)"></span> fold closing (−)</span>
             <span class="key"><span class="swatch" style="background:var(--verdigris)"></span> the kicked cell</span>
-            <span class="key">quiet cells fade — the front is what you see</span>
+            <span class="key" id="modeNote">cutaway: cells at true scale, sliced at the kick plane</span>
           </div>
         </div>
       </div>
@@ -307,7 +318,8 @@
     PAL = { panel: cs.getPropertyValue("--panel").trim(),
             ink: cs.getPropertyValue("--ink").trim(),
             muted: cs.getPropertyValue("--muted").trim(),
-            copper: rgb("--copper"), slate: rgb("--slate"), verd: rgb("--verdigris") };
+            copper: rgb("--copper"), slate: rgb("--slate"), verd: rgb("--verdigris"),
+            mutedRgb: rgb("--muted"), panelRgb: rgb("--panel") };
     dirty = true; drawStrip();
   }
   var mmDark = matchMedia("(prefers-color-scheme: dark)");
@@ -319,7 +331,7 @@
   /* viewer */
   var canvas = document.getElementById("stage");
   var ctx = canvas.getContext("2d");
-  var W = 0, H = 0, dpr = 1, yaw = 0.5, pitch = -0.35, dirty = true;
+  var W = 0, H = 0, dpr = 1, yaw = 0.5, pitch = -0.72, dirty = true;
   function resize() {
     dpr = window.devicePixelRatio || 1;
     W = canvas.clientWidth; H = canvas.clientHeight;
@@ -329,6 +341,12 @@
   if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
 
   var frame = 0, playing = !reduced, showSphere = true, showSheet2 = true;
+  var viewMode = "cut";
+  function mix(c1, c2, t) {
+    return [Math.round(c1[0] + (c2[0] - c1[0]) * t),
+            Math.round(c1[1] + (c2[1] - c1[1]) * t),
+            Math.round(c1[2] + (c2[2] - c1[2]) * t)];
+  }
   var scrub = document.getElementById("scrub");
   scrub.max = String(T - 1);
 
@@ -345,42 +363,72 @@
     var count = showSheet2 ? N2 : N;
     var t = D.times[frame], sc = scales[frame];
     var base = frame * N2;
+    var cutY = kpos[1] + 0.05 * spacing;
+    var zmin = 1e9, zmax = -1e9;
     for (var i = 0; i < count; i++) {
       var x = P[3 * i], y = P[3 * i + 1], z = P[3 * i + 2];
       if (!showSheet2) x += (span + gap) / 2;
       var vx = cy * x + sy * z, vz = -sy * x + cy * z;
       var vy = cp * y - sp * vz; vz = sp * y + cp * vz;
       zbuf[i] = vz; idx[i] = i;
+      if (vz < zmin) zmin = vz;
+      if (vz > zmax) zmax = vz;
       /* stash view coords packed in temp arrays */
       vxs[i] = vx; vys[i] = vy;
     }
     var order = Array.prototype.slice.call(idx, 0, count);
     order.sort(function (a, b) { return zbuf[a] - zbuf[b]; });
+    var body = mix(PAL.panelRgb, PAL.mutedRgb, 0.4);
+    var kview = null;
     for (var o = 0; o < count; o++) {
       i = order[o];
+      if (viewMode === "cut" && P[3 * i + 1] > cutY) continue;
       var s = f / (camD - zbuf[i]);
       var sx = W / 2 + vxs[i] * s, syp = H / 2 - vys[i] * s;
       var q = folds[base + i] / 127.0;
       var a = Math.abs(q);
-      var size = Math.max(2, s * spacing * 0.34);
-      if (i === kicked) {
-        ctx.strokeStyle = "rgb(" + PAL.verd.join(",") + ")";
-        ctx.globalAlpha = 0.9; ctx.lineWidth = 2;
-        ctx.strokeRect(sx - size * 0.8, syp - size * 0.8, size * 1.6, size * 1.6);
+      if (viewMode === "xray") {
+        /* centre points, quiet cells shrunk: see THROUGH the block */
+        var size = Math.max(2, s * spacing * 0.34);
+        if (a < 0.02) {
+          ctx.globalAlpha = 0.1;
+          ctx.fillStyle = PAL.muted;
+          ctx.fillRect(sx - 1.2, syp - 1.2, 2.4, 2.4);
+          ctx.globalAlpha = 1;
+        } else {
+          var col = q > 0 ? PAL.copper : PAL.slate;
+          ctx.globalAlpha = Math.min(0.95, 0.25 + 0.75 * a);
+          ctx.fillStyle = "rgb(" + col.join(",") + ")";
+          var half = size * (0.45 + 0.55 * a) / 2;
+          ctx.fillRect(sx - half, syp - half, 2 * half, 2 * half);
+          ctx.globalAlpha = 1;
+        }
+      } else {
+        /* true scale: the tiling is space-filling and drawn that way.
+           tint compresses amplitude (a^0.45) so the decayed field still
+           reads against per-frame normalisation */
+        var depth = (zbuf[i] - zmin) / (zmax - zmin + 1e-9);
+        var b = 0.74 + 0.26 * depth;
+        var tint = Math.min(1, 1.5 * Math.pow(a, 0.45));
+        var sgn = q > 0 ? PAL.copper : PAL.slate;
+        var c2 = mix(body, sgn, tint);
+        var sz = s * spacing * 0.96, hf = sz / 2;
+        ctx.globalAlpha = 0.97;
+        ctx.fillStyle = "rgb(" + Math.round(c2[0] * b) + "," +
+                        Math.round(c2[1] * b) + "," + Math.round(c2[2] * b) + ")";
+        ctx.fillRect(sx - hf, syp - hf, sz, sz);
+        ctx.strokeStyle = PAL.panel;
+        ctx.lineWidth = Math.max(0.75, sz * 0.05);
+        ctx.strokeRect(sx - hf, syp - hf, sz, sz);
         ctx.globalAlpha = 1;
       }
-      if (a < 0.02) {
-        ctx.globalAlpha = 0.1;
-        ctx.fillStyle = PAL.muted;
-        ctx.fillRect(sx - 1.2, syp - 1.2, 2.4, 2.4);
-        ctx.globalAlpha = 1;
-        continue;
-      }
-      var col = q > 0 ? PAL.copper : PAL.slate;
-      ctx.globalAlpha = Math.min(0.95, 0.25 + 0.75 * a);
-      ctx.fillStyle = "rgb(" + col.join(",") + ")";
-      var half = size * (0.45 + 0.55 * a) / 2;
-      ctx.fillRect(sx - half, syp - half, 2 * half, 2 * half);
+      if (i === kicked) { kview = [sx, syp, s]; }
+    }
+    if (kview) {
+      var rs = Math.max(6, kview[2] * spacing * 0.55);
+      ctx.strokeStyle = "rgb(" + PAL.verd.join(",") + ")";
+      ctx.globalAlpha = 0.95; ctx.lineWidth = 2;
+      ctx.strokeRect(kview[0] - rs, kview[1] - rs, 2 * rs, 2 * rs);
       ctx.globalAlpha = 1;
     }
     if (showSphere) {
@@ -441,6 +489,22 @@
     this.setAttribute("aria-pressed", playing ? "true" : "false");
     this.textContent = playing ? "⏸ Pause" : "▸ Play";
   });
+  var MODE_NOTE = {
+    cut: "cutaway: cells at true scale, sliced at the kick plane",
+    solid: "solid: the space-filling tiling, seen from outside",
+    xray: "x-ray: quiet cells shrink to points — the empty bands are the voids' planes"
+  };
+  function setView(m) {
+    viewMode = m;
+    document.getElementById("mCut").setAttribute("aria-pressed", m === "cut" ? "true" : "false");
+    document.getElementById("mSolid").setAttribute("aria-pressed", m === "solid" ? "true" : "false");
+    document.getElementById("mXray").setAttribute("aria-pressed", m === "xray" ? "true" : "false");
+    document.getElementById("modeNote").textContent = MODE_NOTE[m];
+    dirty = true;
+  }
+  document.getElementById("mCut").addEventListener("click", function () { setView("cut"); });
+  document.getElementById("mSolid").addEventListener("click", function () { setView("solid"); });
+  document.getElementById("mXray").addEventListener("click", function () { setView("xray"); });
   document.getElementById("sphereBtn").addEventListener("click", function () {
     showSphere = !showSphere;
     this.setAttribute("aria-pressed", showSphere ? "true" : "false");
