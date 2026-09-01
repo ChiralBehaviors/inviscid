@@ -24,7 +24,7 @@ LIVE=(
   model.double_covering.joint_exponent model.double_covering.asymmetric_joint
   model.first_principles.one_cell model.first_principles.face_to_face model.first_principles.vertex_point
   model.first_principles.ring model.first_principles.overdrive
-  model.su2.lift model.su2.plate_holonomy
+  model.su2.lift model.su2.plate_holonomy model.su2.inside_out_cover
 )
 RETIRED=(
   retired.hard_wall.contact_chain retired.hard_wall.contact_potential retired.hard_wall.impact_law
