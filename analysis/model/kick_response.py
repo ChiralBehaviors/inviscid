@@ -65,6 +65,7 @@ import sys
 import numpy as np
 from scipy import sparse
 
+from analysis.model import assembly as RC
 from analysis.model import dispersion as OC
 from analysis.model import kinematics as MJ
 from analysis.model.double_covering import soft_joint_spectrum as SJ
@@ -256,6 +257,69 @@ def modal_folds(asm, k, u0, times):
 
 
 # --------------------------------------------------------------------------
+# the doubled block at scale: the fold-sector graph, built directly
+# --------------------------------------------------------------------------
+
+def double_graph(side, gc=A_REF):
+    """(centres (2N, 3), m_gamma (2N,), Hff sparse (2N, 2N)) for the doubled
+    block, built from the lattice graph and the R5b-gated integers -- onsite
+    12k, -2k per weld, k = 1 here (scale Hff for other k).
+
+    WHY THIS EXISTS. honeycomb_single discovers welds by an O(N^2) scan over
+    sites, which is the model's own careful path and is kept; at side 28 the
+    ghost-padded build behind double() would take tens of minutes. The fold
+    sector needs none of that: R5 gates that it decouples exactly and R5b
+    that its couplings are integers, so the operator IS the graph -- interior
+    axis bonds within each sheet, and one -2k tie to the twin cell per
+    missing boundary bond (a corner cell ties to its twin three times).
+    R9 gates this builder equal to the model's own constructor -- operator
+    entries and centres, exactly -- on the sizes both can build, which is
+    the only reason it may be trusted at the sizes only this one can.
+    """
+    sites = DB.boxsites(side)
+    idx = {s: i for i, s in enumerate(sites)}
+    n = len(sites)
+    rows, cols, vals = [], [], []
+
+    def couple(i, j, w):
+        rows.append(i)
+        cols.append(j)
+        vals.append(-2.0 * w)
+        rows.append(j)
+        cols.append(i)
+        vals.append(-2.0 * w)
+
+    axes = [(2, 0, 0), (0, 2, 0), (0, 0, 2)]
+    for i, s in enumerate(sites):
+        for e in axes:
+            t = (s[0] + e[0], s[1] + e[1], s[2] + e[2])
+            j = idx.get(t)
+            if j is not None:
+                couple(i, j, 1.0)          # sheet 1 interior bond
+                couple(i + n, j + n, 1.0)  # sheet 2 mirror
+        # missing bonds in BOTH directions tie the cell to its twin
+        miss = 0
+        for e in axes:
+            for sgn in (1, -1):
+                t = (s[0] + sgn * e[0], s[1] + sgn * e[1], s[2] + sgn * e[2])
+                if t not in idx:
+                    miss += 1
+        if miss:
+            couple(i, i + n, float(miss))
+    for i in range(2 * n):
+        rows.append(i)
+        cols.append(i)
+        vals.append(12.0)
+    Hff = sparse.csr_matrix((vals, (rows, cols)), shape=(2 * n, 2 * n))
+    # per-unit-site spacing from the model's own two-cell build, never
+    # re-derived: ctr0[1] sits at (2, 0, 0) in site units
+    two, _ = RC.honeycomb_single([(0, 0, 0), (2, 0, 0)], gc=gc)
+    lu = float(two.ctr0[1][0]) / 2.0
+    ctr = np.array(sites, float) * lu
+    return np.vstack([ctr, ctr]), np.full(2 * n, 8.0), Hff
+
+
+# --------------------------------------------------------------------------
 # patches, axes, fronts
 # --------------------------------------------------------------------------
 
@@ -307,13 +371,10 @@ def front_speed(times, frames, side, frac=0.2, tail=4):
 def export(side, tmax, path, sample=0.3):
     """Run the doubled-block kick on the fold sector and write the page's
     frame data: both sheets, int8-quantised per frame, energy split,
-    arrivals. The decoupling (R5) is what licenses the fold-only run."""
-    dbl, _box = DB.double(side)
-    Minv, M, C = operator(dbl)
-    hmax, mmax = fold_cross_norms(M, C)
-    if max(hmax, mmax) > 1e-10:
-        raise RuntimeError(f"fold sector not decoupled: {hmax}, {mmax}")
-    mg, Hff = fold_operator(M, C)
+    arrivals. Uses the graph-built operator (R9 gates it equal to the
+    model's constructor), which is what makes large sides affordable; the
+    decoupling (R5) is what licenses the fold-only run."""
+    ctr2, mg, Hff = double_graph(side)
     cell = centre_cell(side)
     times, frames, erows = verlet_fold(mg, Hff, cell, RATE, tmax,
                                        sample=sample)
@@ -331,7 +392,7 @@ def export(side, tmax, path, sample=0.3):
         "times": [round(float(t), 4) for t in times],
         "scales": [float(s) for s in scales],
         "centres": base64.b64encode(
-            np.asarray(dbl.ctr0, np.float32).tobytes()).decode(),
+            np.asarray(ctr2, np.float32).tobytes()).decode(),
         "folds_i8": base64.b64encode(quant.tobytes()).decode(),
         "energy": [[round(float(x), 9) for x in row] for row in erows],
         "front_speed": None if np.isnan(speed) else round(speed, 4),
@@ -463,15 +524,32 @@ def gate():
     A(("R8 4x stiffness doubles the front (sqrt k)", abs(ratio - 2.0) < 0.1,
        f"front(4k)/front(k) = {ratio:.3f}"))
 
+    # R9: the graph builder IS the model's own constructor, on the sizes
+    # both can build -- the only reason double_graph may be trusted at the
+    # sizes only it can build
+    worst_h, worst_v = 0.0, 0.0
+    for (dblg, Mg, Cg) in ((dbl2, M2, C2), (dbl3, M3, C3)):
+        s9 = round((dblg.N / 2) ** (1 / 3))
+        mg9, H9 = fold_operator(Mg, Cg)
+        ctrg, mgg, Hg = double_graph(s9)
+        worst_h = max(worst_h, float(np.max(np.abs((Hg - H9).toarray()))))
+        worst_v = max(worst_v, float(np.max(np.abs(ctrg - dblg.ctr0))))
+        worst_v = max(worst_v, float(np.max(np.abs(mgg - mg9))))
+    out["r9"] = (worst_h, worst_v)
+    A(("R9 graph-built double == the model's own constructor (sides 2, 3)",
+       worst_h < 1e-12 and worst_v < 1e-12,
+       f"operator diff {worst_h:.2e}, centres/mass diff {worst_v:.2e}"))
+
     return checks, out
 
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "export":
-        side = int(sys.argv[2]) if len(sys.argv) > 2 else 14
-        tmax = float(sys.argv[3]) if len(sys.argv) > 3 else 45.0
+        side = int(sys.argv[2]) if len(sys.argv) > 2 else 28
+        tmax = float(sys.argv[3]) if len(sys.argv) > 3 else 72.0
+        sample = float(sys.argv[4]) if len(sys.argv) > 4 else 0.6
         p, times, frames, erows = export(
-            side, tmax, "analysis/.pages/data/kick.json")
+            side, tmax, "analysis/.pages/data/kick.json", sample=sample)
         print(f"exported double({side}) kick, {len(times)} frames -> {p}")
         return 0
     checks, _ = gate()
