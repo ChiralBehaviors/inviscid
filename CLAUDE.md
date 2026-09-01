@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Inviscid — cellular automata based on "jitterbugs" (Buckminster Fuller's jitterbug transformation), visualized in JavaFX 3D. Single-module Maven project, JavaFX 20.
 
+**Two lines, not one — never conflate them.** The Java side (`Necronomata`, the `lga/` lattice gas, the collision rules) is a cellular automaton with its own dynamics: it *renders* jitterbug geometry but is **not the jitterbug medium**. The medium of record lives in `analysis/` (rigid struts, soft joints, voids empty). Decisions, gates, and closure choices made in the analysis layer — e.g. OWNER DECISION 22, the doubled-block closure (T2 `DECISION-22-2026-09-01-closure-is-the-double`) — do **not** bind the CA line, and the CA's rules and boundary treatment do not constrain the medium. This conflation was made once (note `analysis/notes/su2_boundary_conditions.md` §6, corrected in §9 on 2026-09-01); do not repeat it.
+
 ## Commands
 
 - Build: `mvn compile`
