@@ -98,6 +98,7 @@ no quantum number.
 | `joint_twist.py` | G2 (subsumes G3): the relative-rotation lift across BOTH co-located vertex joints ({O,A}, {B,D}) is +q — the ℤ₂ cancels pairwise; it lives in absolute orientation histories only, so even a tether-capable joint would return untwisted each cycle; face-weld relative history is constant |
 | `physical_arc.py` | G7: the physical 60° arc never exercises the holonomy — crossing-free exactly on [−60, 0] with walls within 1° of both ends, breathe lifts +q everywhere, oscillation of any amplitude lifts +q (only monotone traversal reaches −q); closed patches are one-freedom, the free block's nullity 15 identified as breathe + 8 hanging corner-VE folds |
 | `screw_prerequisites.py` | τ prerequisites for G6: single applications of τ leave the coherent family (only τ¹ carries ex-cells, τ⁵ ex-voids, τ²⁻⁴ nothing); τ⁶ = pure translation exactly, τ³ = translate ∘ per-body inversion; free + properly discontinuous on the arc (spacing √3·L, L ≥ 1), degenerate at the collapses — G6 must use the mapping-torus identification, Bieberbach naming stays withdrawn |
+| `doubled_block.py` | G5: the §3c double built (every half-weld closed, all cells degree 6) — it does NOT lose the seven zero modes: spectrum = free (Neumann) ⊎ pinned-boundary (Dirichlet, no zeros) exactly; torus reference = wrapped operator ≡ Bloch bands at commensurate k (4 zeros); the double runs ~3× closer to the Bloch DOS than the free block and at the torus's level from side 3, winning at matched cell count |
 
 ## retired/ — lines the owner has closed
 
