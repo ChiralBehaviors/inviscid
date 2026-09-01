@@ -320,6 +320,11 @@ double and the torus are spectrally equivalent closures at the sizes tried.
 is the most elegant"). It keeps all seven zero modes where the torus keeps
 four, it is a real assembly rather than operator surgery, and it realises the
 branched-cover picture this note began from as a buildable constraint system.
+**Scope (owner, same day): Necronomata is NOT the jitterbug medium.** The
+cellular-automaton / lattice-gas line is its own layer and is not bound by
+this decision; §6's listing of Necronomata among the closure consumers was a
+conflation. The decision binds finite-patch work on the jitterbug medium in
+the analysis layer only.
 Accepted cost: twice the cells of the box it closes. Constructor:
 `analysis/model/su2/doubled_block.py::double(side)`. Record: T2
 `DECISION-22-2026-09-01-closure-is-the-double` [23932].
