@@ -1,12 +1,14 @@
 # SU(2) boundary conditions for the jitterbug medium — brainstorm record
 
-2026-08-31. Status: **brainstorm only** — nothing implemented, no gates run for the
-claims marked open. Origin: owner question "how do we deal with boundary
-conditions — not a torus, but a double covering of 3D space," clarified to mean
-**the properties of SU(2)**.
+2026-08-31. Status: **resolved 2026-09-01** — the §8.6 gate plan ran in full
+(§9); the closure question is answered and decided (OWNER DECISION 22: the
+double). Origin: owner question "how do we deal with boundary conditions — not
+a torus, but a double covering of 3D space," clarified to mean **the
+properties of SU(2)**.
 
 > **§1–7 are the brainstorm as first written; §8 (five critique lenses) revises
-> several of their claims — read §8 before citing anything above it.**
+> several of their claims — read §8 before citing anything above it. §9 records
+> what the gates measured and the closure decision.**
 
 ## 1. The question
 
@@ -261,3 +263,63 @@ What the five lenses agree on:
    multi-plate (confirmation); **G4** free-ride; **G2** both joints; G3
    dropped; **G7** physical-arc gate (new); **G5/G6** as the actual BC lane,
    gated on constructors and the τ checks.
+
+## 9. Resolution (2026-09-01)
+
+The §8.6 gate plan ran in full: eight beads, eight gated modules in
+`analysis/model/su2/` (PRs #45–#52), 31 rows, 0 failures. Condensed record:
+T2 `su2-gate-lane-results-2026-09-01` [23914]. What each gate returned:
+
+- **G0** (`lift.py`): the lift instrument calibrated — trivial loops +q, bare
+  2π −q, 4π +q; coarse or unclosed paths refused by the instrument itself.
+- **G1** (`plate_holonomy.py`): `q(300°) = −q(−60°)` for **432/432 plates**
+  on all three patches, cells and voids alike — §8.3's near-corollary is now
+  a measurement. Bonus: the spin law `R ≡ rot(u_f, σ_f(a+60°))` holds to
+  2e-15 through the whole cycle.
+- **G4** (`inside_out_cover.py`): `X(a+180°) = −X(a)` exact, the conjectured
+  const **zero**, inversion centre the lattice origin. Deck map (b) pinned.
+  New: sheet-touching in ambient space is patch geometry — a site-symmetric
+  patch's two sheets are ambiently indistinguishable at *every* angle.
+- **G2** (`joint_twist.py`, subsuming G3): the relative-rotation lift across
+  **both** co-located vertex joints is **+q** for every plate pair — the ℤ₂
+  cancels pairwise (sign(rel) = product of absolute signs, unjoined controls
+  included). Stronger than §8.2: there is no ℤ₂ in any pairwise relative
+  history *to* store; even a tether-capable joint would return untwisted.
+  The −q exists only against an external frame.
+- **G7** (`physical_arc.py`): the physical sixty degrees never exercises the
+  holonomy — crossing-free exactly on [−60°, 0°], walled within one degree
+  beyond both ends; oscillation of any amplitude lifts +q, only monotone
+  traversal reaches −q. §8.5's strongest objection is a gated fact.
+- **τ prerequisites** (`screw_prerequisites.py`): single applications of τ
+  leave the coherent family (the parity flip demands +60° and −60° at once);
+  τ⁶ is a pure lattice translation exactly; τ³ = translate ∘ per-body central
+  inversion; the action is free and properly discontinuous on the physical
+  arc only. The Bieberbach naming of §3a stays withdrawn.
+- **G5** (`doubled_block.py`): the §3c double **built** — every half-weld
+  closed onto the twin sheet, all cells at weld-degree six. It does *not*
+  lose the seven zero modes: its spectrum is exactly the free block's
+  (Neumann sector) plus a pinned-boundary Dirichlet sector with none. In
+  Kolmogorov distance to the Bloch density of states it runs at less than
+  half the free block's distance at every size and at the exact periodic
+  reference's level from side 3.
+- **G6** (`screw_sector.py`): resolved in the **negative** — odd multiples of
+  (1,1,1) put zero solid sites on solid sites (under DECISION 21 the screw
+  has nothing to act on); no isometry pairs the cell and void bodies at any
+  generic fold (0/48); the glide pairing at a = −30° (12+12 of 48) belongs
+  to the retired both-kinds covering.
+
+**Verdict of the lane.** The SU(2) intuition is correct kinematics (G1),
+physically inert (G7), with no mechanical carrier even under joint redesign
+(G2) and no spectral sector (G6). The ℤ₂ is a property of the fold circle's
+analytic continuation, visible only against an external frame. The original
+question of §1 is answered by G5's race: free boundaries are dominated; the
+double and the torus are spectrally equivalent closures at the sizes tried.
+
+**OWNER DECISION 22 (2026-09-01): the closure of record is the DOUBLE** —
+§3c's two-sided-plate closure, chosen over the torus ("double for sure. that
+is the most elegant"). It keeps all seven zero modes where the torus keeps
+four, it is a real assembly rather than operator surgery, and it realises the
+branched-cover picture this note began from as a buildable constraint system.
+Accepted cost: twice the cells of the box it closes. Constructor:
+`analysis/model/su2/doubled_block.py::double(side)`. Record: T2
+`DECISION-22-2026-09-01-closure-is-the-double` [23932].
