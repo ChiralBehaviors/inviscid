@@ -1,6 +1,6 @@
 # PhaseCMeasurement report -- C.5 Phase C measurement re-run and isotropy verdict data
 # bead=inviscid-0nx.22
-# generator=com.chiralbehaviors.inviscid.measure.PhaseCMeasurement
+# generator=com.chiralbehaviors.inviscid.automaton.measure.PhaseCMeasurement
 # gitCommit=cba46044c278aabc6135c64ea444af9098b559a0-dirty
 # atlasVersion=2
 # nLga=24

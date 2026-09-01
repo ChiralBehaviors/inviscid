@@ -321,13 +321,15 @@ is the most elegant"). It keeps all seven zero modes where the torus keeps
 four, it is a real assembly rather than operator surgery, and it realises the
 branched-cover picture this note began from as a buildable constraint system.
 **Scope (owner, same day): Necronomata is NOT the jitterbug medium.** The
-cellular-automaton / lattice-gas line (`Necronomata`, `lga/`) is its own
-layer and is not bound by this decision; the Necronomata half of §6's
-"(Necronomata, the honeycomb animations)" was a conflation. The honeycomb
-animations half stands: they are the medium's Java expression (alongside
-`Jitterbug`, `CubicGrid`, the reduced-coordinate integrations), and the
-decision binds finite-patch work on the jitterbug medium in both languages —
-`analysis/` today, and any Java animation that closes a patch of the medium.
+cellular-automaton line (now walled under
+`com.chiralbehaviors.inviscid.automaton` — Necronomata, QuantaField, lga,
+measure; boundary enforced by `ArchitectureWallTest`) is its own project and
+is not bound by this decision; only the *Necronomata* half of §6's
+"(Necronomata, the honeycomb animations)" was the conflation. The honeycomb
+animations visualize the medium (alongside `Jitterbug`, `CubicGrid`, the
+`jitterbug/` dynamics). This decision names the medium's closure of record;
+whether any particular visualization adopts it is per-work, the owner's
+call.
 Accepted cost: twice the cells of the box it closes. Constructor:
 `analysis/model/su2/doubled_block.py::double(side)`. Record: T2
 `DECISION-22-2026-09-01-closure-is-the-double` [23932].

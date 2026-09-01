@@ -9,7 +9,7 @@
 # frequencyDistribution=uniform integer in [-5,5] via new Random(seed).nextInt(11) + -5
 # window=RECTANGULAR
 # collisionRule=NONE (Necronomata.process(Point3i) is a no-op - K=0 baseline, predates inviscid-0nx.14)
-# generator=com.chiralbehaviors.inviscid.measure.BaselineSpectrumHarness
+# generator=com.chiralbehaviors.inviscid.automaton.measure.BaselineSpectrumHarness
 # gitCommit=UNCOMMITTED (see class javadoc "Provenance / golden-artifact convention")
 # comparisonTolerance=1.0E-6 (numeric, not byte-exact - see BaselineK0SpectrumTest#goldenArtifactMatchesRegeneration)
 # precision=%.9e

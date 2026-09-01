@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Inviscid — cellular automata based on "jitterbugs" (Buckminster Fuller's jitterbug transformation), visualized in JavaFX 3D. Single-module Maven project, JavaFX 20.
 
-**Two lines share the Java tree — never conflate them.** The **jitterbug medium** has both a Python and a Java expression: its model of record is `analysis/` (rigid struts, soft joints, voids empty), and its Java side is `Jitterbug` (the transformation itself), `CubicGrid`, `PhiCoordinates`/`LengthTable`/`QuadRay`, the `jitterbug/` package, and the medium animations (`HoneycombBreatheAnimation`, `ThreeCellPhaseAnimation`, `JitterbugAnimation`, `DrivenTriangle`/`InertialChain`/`SharedFace`/`ThreeCell*` — Java mirrors of analysis-layer experiments). The **CA line** — `Necronomata`, `QuantaField`, `lga/`, `NecronomataAnimation`/`NecronomataVisualization` — is a cellular automaton with its own dynamics: it renders jitterbug geometry but is **not the jitterbug medium**. Medium decisions (e.g. OWNER DECISION 22, the doubled-block closure, T2 `DECISION-22-2026-09-01-closure-is-the-double`) bind medium work in *both* languages — including animations that integrate closed patches — and do **not** bind the CA line; the CA's rules and boundary treatment do not constrain the medium. Necronomata was conflated with the medium once (note `analysis/notes/su2_boundary_conditions.md` §6, corrected §9, 2026-09-01); do not repeat it.
+**Two lines share this tree, and a build-enforced wall separates them.** The **jitterbug medium** — model of record in `analysis/` (rigid struts, soft joints, voids empty), Java expression in `Jitterbug` (the transformation itself), `CubicGrid`, the golden-ratio geometry, the `jitterbug/` package, and the medium animations. The **CA line** — everything under `com.chiralbehaviors.inviscid.automaton` (`Necronomata`, `QuantaField`, `lga`, `measure`, its animations) — is a cellular automaton with its own dynamics: it renders jitterbug geometry but is **not the jitterbug medium**. The dependency is one-way by construction (the automaton may import medium geometry; nothing outside `automaton` may reference it) and `ArchitectureWallTest` enforces it in `mvn test` — raw-text scan, so javadoc links count too. Decisions in one line do not bind the other: OWNER DECISION 22 (the doubled-block closure, T2 `DECISION-22-2026-09-01-closure-is-the-double`) is a medium decision; whether any particular visualization adopts it is per-work, owner's call. Necronomata was conflated with the medium once (note `analysis/notes/su2_boundary_conditions.md` §6, corrected §9, 2026-09-01); the wall exists so structure, not prose, prevents the next one.
 
 ## Commands
 
@@ -18,7 +18,7 @@ No exec/javafx Maven plugin is configured — the animation apps are launched by
 - `com.chiralbehaviors.inviscid.animations.HoneycombBreatheAnimation` (a compact honeycomb patch doing the medium's one motion, bounded by elastic contact)
 - `com.chiralbehaviors.inviscid.animations.ThreeCellPhaseAnimation` (three cells, each with its own phase, integrated in reduced coordinates) — a free tree fragment, so it tumbles and winds; see `inviscid-qvf.26`
 - `com.chiralbehaviors.inviscid.animations.JitterbugAnimation`
-- `com.chiralbehaviors.inviscid.animations.NecronomataAnimation`
+- `com.chiralbehaviors.inviscid.automaton.animations.NecronomataAnimation`
 - `com.javafx.experiments.jfx3dviewer.Jfx3dViewerApp` (generic 3D viewer)
 
 The build compiles at source/target 20 (pom properties; the old maven-compiler-plugin 1.8 override was removed in 3ae3f77), so Java 16+ features like records are available. JavaFX 20 requires a JDK 17+ runtime.
@@ -28,14 +28,15 @@ The build compiles at source/target 20 (pom properties; the old maven-compiler-p
 Three layers, top to bottom:
 
 1. **`com.chiralbehaviors.inviscid`** — the original code of this project.
-   - Core model: `Necronomata` is the cellular automaton state — flat float arrays (angle, frequency, deltas) over a 3D `Point3i` extent, 30 values per cell, updated via a `Processor` functional interface. `Jitterbug` renders one jitterbug: the 8 faces of an `Octahedron` given independent `Rotate`/`Translate` transforms so faces open/close with a rotation angle. `CubicGrid` lays out cells on a cubic lattice (SIX or EIGHT neighborhood). `PhiCoordinates` and `LengthTable`/`Constants` hold golden-ratio-based geometry constants; `QuadRay` is a quadray (tetrahedral) coordinate system.
+   - Medium geometry and dynamics: `Jitterbug` renders one jitterbug: the 8 faces of an `Octahedron` given independent `Rotate`/`Translate` transforms so faces open/close with a rotation angle. `CubicGrid` lays out cells on a cubic lattice (SIX or EIGHT neighborhood). `PhiCoordinates` and `LengthTable`/`Constants` hold golden-ratio-based geometry constants; `QuadRay` is a quadray (tetrahedral) coordinate system; `jitterbug/` holds the medium's Java dynamics (linkage, reduced coordinates, free dynamics, interpenetration).
+   - The CA line, walled under `automaton/`: `Necronomata` is the cellular automaton state — flat float arrays (angle, frequency, deltas) over a 3D `Point3i` extent, 30 values per cell, updated via a `Processor` functional interface — with `QuantaField`, the `lga/` lattice gas (collision rules, contact atlas, tick driver) and `measure/` (spectrum/conservation harnesses). See the wall paragraph above; `ArchitectureWallTest` enforces the boundary.
    - `animations/` — JavaFX apps. They extend `Jfx3dViewerApp` (the vendored viewer below) and override content creation; `PolyView` is the shared base that adds polyhedron edges/vertices to the scene. `Colors` holds shared materials.
 
 2. **`mesh.*`, `util.*`, `math.*`** — vendored polyhedra geometry library. `mesh.polyhedra.Polyhedron` is the base; `plato/` (Tetrahedron…Icosahedron) and `archimedes/` build specific solids; `Polyhedron.toTriangleMesh()` bridges to JavaFX meshes. Uses `javax.vecmath` types (`Vector3d`, `Point3i`), not JavaFX geometry — conversion happens at the rendering boundary.
 
 3. **`com.javafx.experiments.*`** — vendored Oracle JavaFX 3D sample code: the `jfx3dviewer` application (camera, timeline, FXML UI in `src/main/resources`), model importers (OBJ, Maya, 3DS Max, Collada), `shape3d` polygon meshes, and `utils3d` geometry/transform classes. Treat as third-party: don't restyle or refactor it; it changes only when the core layers need something from it.
 
-The single test (`AutomataTest`) covers `Necronomata` neighbor/iteration logic — the automaton model is testable headlessly; everything touching JavaFX scene graph is not.
+The Java test suite (~435 tests) covers both lines headlessly — `jitterbug/` tests for the medium's Java dynamics, `automaton/` tests for the CA (lga contact/collision, measure harnesses), and `ArchitectureWallTest` guarding the boundary between them; only code touching the JavaFX scene graph is untestable.
 
 ## Analysis (Python)
 
