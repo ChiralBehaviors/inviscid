@@ -143,12 +143,17 @@ def fold_cross_norms(M, C):
 
 
 def verlet_fold(mg, Hff, cell, rate, tmax, dt=DT, sample=0.25):
-    """Velocity Verlet on the scalar fold field. Returns
+    """Velocity Verlet on the scalar fold field. `cell` is a single index
+    (kicked at `rate`) or a list of (index, rate) pairs. Returns
     (times, fold frames (T, N), energy rows (T, 2): KE, PE)."""
     n = len(mg)
     g = np.zeros(n)
     v = np.zeros(n)
-    v[cell] = rate
+    if isinstance(cell, (list, tuple)):
+        for (ci, ri) in cell:
+            v[ci] = ri
+    else:
+        v[cell] = rate
     minv = 1.0 / mg
 
     def force(gg):
@@ -328,6 +333,18 @@ def centre_cell(side):
     return (c * side + c) * side + c
 
 
+def site_index(side, ix, iy, iz):
+    return (ix * side + iy) * side + iz
+
+
+def mirror_index(side, i):
+    """The x-mirror (ix -> side-1-ix) of a cell index, sheet-preserving."""
+    n = side * side * side
+    sheet, j = divmod(i, n)
+    ix, rest = divmod(j, side * side)
+    return sheet * n + (side - 1 - ix) * side * side + rest
+
+
 def axis_cells(side):
     """(distance in primitive steps, sheet-1 cell index) along +x from the
     kicked cell, out to the sheet boundary (the medium continues into the
@@ -402,6 +419,43 @@ def export(side, tmax, path, sample=0.3):
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(data))
     return p, times, frames, erows
+
+
+def export_pair(side, tmax, path, sample=0.6, x1=None):
+    """Frame data for the TWO-KICK page: ONE single-source run, kicked
+    off-centre at x-index `x1` (mirror partner at side-1-x1). The page
+    superposes g1 +/- mirror(g1) itself -- exactly the two-source field by
+    the linearity and mirror symmetry that R10 gates, so both phase
+    choices ride one dataset."""
+    if x1 is None:
+        x1 = max(1, side // 3)
+    c = side // 2
+    ctr2, mg, Hff = double_graph(side)
+    cell = site_index(side, x1, c, c)
+    times, frames, erows = verlet_fold(mg, Hff, cell, RATE, tmax,
+                                       sample=sample)
+    scales = np.max(np.abs(frames), axis=1)
+    scales[scales == 0.0] = 1.0
+    quant = np.clip(np.round(frames / scales[:, None] * 127.0),
+                    -127, 127).astype(np.int8)
+    data = {
+        "side": side,
+        "kicked": cell,
+        "kicked2": mirror_index(side, cell),
+        "sep": side - 1 - 2 * x1,
+        "rate": RATE,
+        "k": K_JOINT,
+        "sound": S_FOLD,
+        "times": [round(float(t), 4) for t in times],
+        "scales": [float(s) for s in scales],
+        "centres": base64.b64encode(
+            np.asarray(ctr2, np.float32).tobytes()).decode(),
+        "folds_i8": base64.b64encode(quant.tobytes()).decode(),
+    }
+    p = pathlib.Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data))
+    return p, times, frames
 
 
 # --------------------------------------------------------------------------
@@ -540,6 +594,27 @@ def gate():
        worst_h < 1e-12 and worst_v < 1e-12,
        f"operator diff {worst_h:.2e}, centres/mass diff {worst_v:.2e}"))
 
+    # R10: two kicks -- superposition and the x-mirror, measured against a
+    # direct two-source integration. What licenses the two-kick page to
+    # superpose g1 +/- mirror(g1) from one exported run.
+    sideT = 8
+    ctrT, mgT, HffT = double_graph(sideT)
+    cT = sideT // 2
+    i1 = site_index(sideT, 2, cT, cT)
+    i2 = site_index(sideT, sideT - 3, cT, cT)
+    _t, gA, _e = verlet_fold(mgT, HffT, i1, RATE, 16.0, sample=0.2)
+    _t, gB, _e = verlet_fold(mgT, HffT, i2, RATE, 16.0, sample=0.2)
+    _t, gD, _e = verlet_fold(mgT, HffT, [(i1, RATE), (i2, -RATE)], 0.0,
+                             16.0, sample=0.2)
+    sup = float(np.max(np.abs(gD - (gA - gB))))
+    mmap = np.array([mirror_index(sideT, i) for i in range(2 * sideT ** 3)])
+    mir = float(np.max(np.abs(gB - gA[:, mmap])))
+    out["r10"] = (sup, mir)
+    A(("R10 two kicks: direct two-source run == g1 - g2 (superposition), "
+       "and g2 == mirror(g1) (lattice symmetry), double(8)",
+       sup < 1e-10 and mir < 1e-10,
+       f"superposition {sup:.2e}, mirror {mir:.2e}"))
+
     return checks, out
 
 
@@ -551,6 +626,17 @@ def main():
         p, times, frames, erows = export(
             side, tmax, "analysis/.pages/data/kick.json", sample=sample)
         print(f"exported double({side}) kick, {len(times)} frames -> {p}")
+        return 0
+    if len(sys.argv) > 1 and sys.argv[1] == "export-pair":
+        side = int(sys.argv[2]) if len(sys.argv) > 2 else 28
+        tmax = float(sys.argv[3]) if len(sys.argv) > 3 else 72.0
+        sample = float(sys.argv[4]) if len(sys.argv) > 4 else 0.6
+        x1 = int(sys.argv[5]) if len(sys.argv) > 5 else 9
+        p, times, frames = export_pair(
+            side, tmax, "analysis/.pages/data/kick_pair.json",
+            sample=sample, x1=x1)
+        print(f"exported double({side}) pair source (x1={x1}), "
+              f"{len(times)} frames -> {p}")
         return 0
     checks, _ = gate()
     fails = 0
