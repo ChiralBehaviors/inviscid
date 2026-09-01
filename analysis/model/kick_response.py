@@ -627,6 +627,29 @@ def main():
             side, tmax, "analysis/.pages/data/kick.json", sample=sample)
         print(f"exported double({side}) kick, {len(times)} frames -> {p}")
         return 0
+    if len(sys.argv) > 1 and sys.argv[1] == "export-ref":
+        # Reference frames for the LIVE page's in-browser integrator
+        # self-check: double(8), centre kick, the FULL live-run duration
+        # (24,000 steps), sampled sparsely. Produced by the gated
+        # verlet_fold, so the page's float32 GPU pipeline is measured
+        # against the model itself at load.
+        side = 8
+        tmax = float(sys.argv[2]) if len(sys.argv) > 2 else 240.0
+        sample = float(sys.argv[3]) if len(sys.argv) > 3 else 8.0
+        ctr2, mg, Hff = double_graph(side)
+        cell = centre_cell(side)
+        times, frames, _e = verlet_fold(mg, Hff, cell, RATE, tmax,
+                                        sample=sample)
+        data = {
+            "side": side, "kicked": cell, "rate": RATE, "dt": DT,
+            "times": [round(float(t), 4) for t in times],
+            "frames": [[float(f"{v:.6e}") for v in fr] for fr in frames],
+        }
+        p = pathlib.Path("analysis/.pages/data/kick_ref.json")
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(data))
+        print(f"exported double(8) reference, {len(times)} frames -> {p}")
+        return 0
     if len(sys.argv) > 1 and sys.argv[1] == "export-pair":
         side = int(sys.argv[2]) if len(sys.argv) > 2 else 28
         tmax = float(sys.argv[3]) if len(sys.argv) > 3 else 72.0
