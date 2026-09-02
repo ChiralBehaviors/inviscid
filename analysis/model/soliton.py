@@ -119,6 +119,8 @@ EZ = np.array([0.0, 0.0, 1.0])
 Q0 = np.pi / 2
 SOL_W = 8.0
 SOL_AMP_DEG = 6.0
+#: the family's invariant, amplitude x width (S2)
+CONST_AW = SOL_AMP_DEG * SOL_W
 DT = 0.05
 
 
@@ -781,6 +783,55 @@ def gate():
        f"before the meeting {before:.4f}; harmonic shift {lshift:+.5f} with "
        f"superposition residual {sup:.1e}"))
 
+
+    # ---- S4/S5: how far the scaling goes, and what stops it ---------------
+    def _hold(w, amp, q0=Q0, widths=12.0):
+        """Run one family member for a fixed number of ITS OWN envelope widths,
+        so every scale is judged on the same dimensionless clock."""
+        vg = 0.5 * np.cos(q0 / 2.0)
+        tmax = widths * w / vg
+        nn = int(min(1400, max(200, 2.4 * vg * tmax + 14 * w)))
+        st = int(round(tmax / DT))
+        g0, gd0 = packet(nn, nn * 0.12, w, amp, q0=q0)
+        z = np.zeros(nn)
+        rec, _ = rk4(z, g0, z, gd0, DT, st, sample=max(1, st // 6))
+        h = [float(np.degrees(peak_width(envelope(r[2]))[0])) for r in rec]
+        return min(h) / h[0], max(h) / h[0]
+
+    fam = {}
+    for w in (2.0, 8.0, 16.0):
+        fam[w] = _hold(w, CONST_AW / w)
+    out["s4"] = fam
+    A(("S4 THE SCALING WINDOW: the family is one wave at many sizes -- amplitude "
+       "x width constant -- and it holds over that range until the ENVELOPE gets "
+       "down to a few cells, where the lattice stops being ignorable. Two-sided: "
+       "the wide members must hold AND the narrow one must visibly fail to. The "
+       "family forces the narrow member to be TALL -- at w = 2 it is 24 degrees "
+       "-- and that is still inside the physical +-60 window, so what fails "
+       "there is the lattice, not the range",
+       fam[8.0][0] > 0.95 and fam[16.0][0] > 0.95
+       and fam[8.0][1] < 1.12 and fam[16.0][1] < 1.12
+       and fam[2.0][0] < 0.9,
+       "; ".join(f"w = {w:g} (A = {CONST_AW / w:.1f} deg): {lo:.2f}-{hi:.2f}"
+                 for w, (lo, hi) in sorted(fam.items()))
+       + " of launch height over 12 own-widths of travel"))
+
+    car = {}
+    for nm, q in (("pi/2", np.pi / 2), ("pi/8", np.pi / 8)):
+        car[nm] = _hold(SOL_W, SOL_AMP_DEG, q0=q)
+    mism = {nm: abs(2 * np.sin(q / 2) - np.sin(q))
+            for nm, q in (("pi/2", np.pi / 2), ("pi/8", np.pi / 8))}
+    out["s5"] = (car, mism)
+    A(("S5 THE OTHER WALL IS ON THE CARRIER, NOT THE ENVELOPE. Widening the "
+       "envelope detunes nothing, but lengthening the CARRIER drives the fold "
+       "and strain branches into phase-match -- 2 omega(q) - omega(2q) falls "
+       "like q^3 -- and the packet pumps itself into the strain wave it drives. "
+       "Same envelope, same amplitude, only the carrier changed",
+       car["pi/2"][0] > 0.95 and car["pi/8"][0] < 0.9,
+       f"carrier pi/2 (4 cells, mismatch {mism['pi/2']:.2e}) keeps "
+       f"{car['pi/2'][0]:.2f}; carrier pi/8 (16 cells, mismatch "
+       f"{mism['pi/8']:.2e}) keeps {car['pi/8'][0]:.2f}"))
+
     return checks, out
 
 
@@ -872,7 +923,44 @@ def export(path="analysis/.pages/data/soliton.json"):
     return p, data
 
 
+def export_ref(path="analysis/.pages/data/soliton_ref.json"):
+    """A small FLOAT reference run for a page that integrates this model
+    itself: the same two-field chain, in full precision, so an in-browser
+    integrator can be measured against the gated one at load rather than
+    trusted. Same contract as the kick lane's export-ref."""
+    n, tmax, every = 120, 200.0, 20.0
+    steps = int(round(tmax / DT))
+    sample = int(round(every / DT))
+    g0, gd0 = packet(n, 30.0, SOL_W, SOL_AMP_DEG)
+    z = np.zeros(n)
+    rec, _ = rk4(z, g0, z, gd0, DT, steps, sample=sample)
+    data = {
+        "n": n, "dt": DT, "amp_deg": SOL_AMP_DEG, "width": SOL_W,
+        "q0": Q0, "x0": 30.0, "step": STEP, "a_ref": A_REF,
+        "times": [round(float(r[0]), 4) for r in rec],
+        "fold": [[float(f"{v:.7e}") for v in r[2]] for r in rec],
+        "u": [[float(f"{v:.7e}") for v in r[1]] for r in rec],
+        # the model's OWN constants, so a page that integrates this chain
+        # evaluates the same energy rather than a re-derivation of it
+        "coef": [[[float(x) for x in v] for v in blk] for blk in COEF],
+        "self": [[[float(x) for x in c] for c in row] for row in SELF],
+        "xp": [[int(a_), int(b_)] for (a_, b_) in XP],
+        "mc": [float(x) for x in MC],
+        "mu": float(MU),
+    }
+    p = pathlib.Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data))
+    return p, data
+
+
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "export-ref":
+        p, d = export_ref(sys.argv[2] if len(sys.argv) > 2
+                          else "analysis/.pages/data/soliton_ref.json")
+        print(f"exported reference: {len(d['times'])} frames of {d['n']} "
+              f"planes -> {p}")
+        return 0
     if len(sys.argv) > 1 and sys.argv[1] == "export":
         path = sys.argv[2] if len(sys.argv) > 2 else "analysis/.pages/data/soliton.json"
         p, d = export(path)

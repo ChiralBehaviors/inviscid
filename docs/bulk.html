@@ -1,0 +1,751 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Two Fields, A Million Cells</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #F4F4F0; --surface: #FBFBF8; --panel: #EBEDE6;
+    --ink: #20261F; --muted: #5A6156; --line: #D8DBD2; --line-strong: #B9BEB2;
+    --copper: #A6521B; --verdigris: #0A8168; --slate: #5B67C7;
+    --copper-soft: rgba(166, 82, 27, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #131715; --surface: #191E1B; --panel: #0E1210;
+      --ink: #E6E9E2; --muted: #98A093; --line: #2A302B; --line-strong: #3D453E;
+      --copper: #C0742F; --verdigris: #2E9E83; --slate: #6D7BD0;
+      --copper-soft: rgba(192, 116, 47, 0.16);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131715; --surface: #191E1B; --panel: #0E1210;
+    --ink: #E6E9E2; --muted: #98A093; --line: #2A302B; --line-strong: #3D453E;
+    --copper: #C0742F; --verdigris: #2E9E83; --slate: #6D7BD0;
+    --copper-soft: rgba(192, 116, 47, 0.16);
+  }
+  body {
+    background: var(--bg); color: var(--ink); margin: 0;
+    font-family: "Source Serif 4", Georgia, serif; font-size: 17px; line-height: 1.6;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 20px; }
+  .prose { max-width: 66ch; }
+  h1, h2, h3 {
+    font-family: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+    margin: 0; line-height: 1.02; text-wrap: balance;
+  }
+  h1 { font-size: clamp(3rem, 8vw, 5.6rem); font-weight: 700; text-transform: uppercase; }
+  h2 { font-size: clamp(1.7rem, 3.2vw, 2.3rem); font-weight: 600; text-transform: uppercase; }
+  p { margin: 0.85em 0; }
+  a { color: var(--copper); }
+  .mono, code { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 0.86em; }
+  .num { font-variant-numeric: tabular-nums; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.72rem;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.9rem;
+  }
+  .sub { color: var(--muted); font-size: 0.94rem; }
+  header { padding: 3rem 0 1.6rem; }
+  section { padding: 2.6rem 0 2.2rem; border-top: 1px solid var(--line); }
+  button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--slate); outline-offset: 2px; }
+
+  .law {
+    display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin: 1.2rem 0 0;
+  }
+  .law .fact {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.78rem;
+    border: 1px solid var(--line); border-radius: 999px; padding: 0.25rem 0.8rem;
+    color: var(--muted); background: var(--surface);
+  }
+  .law .fact b { color: var(--ink); font-weight: 500; }
+  .eq {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 1.02rem;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    padding: 0.8rem 1.1rem; margin-top: 1.2rem; display: inline-block;
+  }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 8px 28px rgba(0,0,0,0.05);
+    overflow: hidden; margin: 1.6rem 0;
+  }
+  .stage { display: block; width: 100%; height: 560px; touch-action: none; background: var(--panel); cursor: grab; touch-action: pan-y; }
+  .stage.dragging { cursor: grabbing; }
+  .controls { padding: 0.9rem 1.1rem 1rem; border-top: 1px solid var(--line); }
+  .modes { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .modes .grow { flex: 1; }
+  .btn {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.78rem;
+    background: transparent; color: var(--ink); border: 1px solid var(--line-strong);
+    border-radius: 4px; padding: 0.34rem 0.75rem; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--copper); }
+  .btn[aria-pressed="true"] { background: var(--copper); border-color: var(--copper); color: var(--bg); }
+  .readout {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.8rem;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .readout .dim { color: var(--muted); }
+  input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; margin: 0.5rem 0 0; background: transparent; cursor: pointer; }
+  input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--line-strong); }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -6px;
+    border-radius: 50%; background: var(--copper); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--copper);
+  }
+  input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line-strong); }
+  input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--copper); border: 2px solid var(--surface); }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin-top: 0.7rem; }
+  .legend .key { display: inline-flex; align-items: center; gap: 0.45rem; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.74rem; color: var(--muted); }
+  .swatch { width: 11px; height: 11px; border-radius: 50%; }
+  [hidden] { display: none !important; }
+  [hidden] { display: none !important; }
+
+  .figrow { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.4rem; }
+  @media (max-width: 760px) { .figrow { grid-template-columns: 1fr; } }
+  .fig { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1rem 1.1rem; }
+  .fig h3 { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .fig .cap { font-size: 0.85rem; color: var(--muted); margin: 0.5rem 0 0; }
+  .fig canvas, .fig svg { display: block; width: 100%; margin-top: 0.6rem; }
+
+  .tablewrap { overflow-x: auto; margin-top: 1.2rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; }
+  th, td { text-align: left; padding: 0.5rem 0.9rem; border-top: 1px solid var(--line); font-size: 0.88rem; vertical-align: top; }
+  thead th { border-top: none; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  td.g { font-family: "Big Shoulders Display", "Arial Narrow", sans-serif; font-size: 1.15rem; font-weight: 600; white-space: nowrap; }
+  td.v { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.76rem; color: var(--muted); white-space: nowrap; }
+
+  footer { border-top: 1px solid var(--line); margin-top: 2.6rem; padding: 1.4rem 0 2.4rem; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.74rem; color: var(--muted); }
+  @media (max-width: 560px) { .stage { height: 380px; } }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">Inviscid · the medium reacts · 2026-09-02</p>
+    <h1>Two Fields, A Million Cells</h1>
+    <div class="prose">
+      <p>The soliton is a <strong>plane wave</strong>: every cell in a plane across the
+      medium does the same thing, and what travels is a slab. So it belongs in bulk, and
+      here it is in bulk — a block of <strong id="cellCount">1,036,800</strong> cells with the
+      packet running through it.</p>
+      <p>But the interesting number is the other one. What this page <em>computes</em> is
+      <strong id="dofCount">256</strong> numbers: one fold angle and one displacement for
+      each of <span id="planeCount">128</span> planes. Everything else is drawing. That is
+      not a shortcut or a level of detail — it is <em>exact</em>, and it is gated: from any
+      state where the cells are unrotated and displaced along the axis, the full
+      seven-coordinate force has no torque and no transverse component, to 10⁻¹⁶, so the
+      coordinates the reduction drops can never be excited. A million cells of this medium,
+      doing this, <em>are</em> two hundred and fifty-six numbers.</p>
+      <p>That gap is the whole point, and it is the third time this project has used it. It
+      is why <a href="live.html">two million cells</a> integrate in a fragment shader, and it
+      is what lets a simulation be larger than anything we could draw cell by cell.</p>
+    </div>
+    <div class="law">
+      <span class="fact">drawn <b id="factCells">1,036,800</b> cells</span>
+      <span class="fact">integrated <b id="factDof">256</b> numbers</span>
+      <span class="fact">the reduction is exact: <b>10⁻¹⁶</b></span>
+      <span class="fact" id="checkFact">self-check <b id="checkVal">…</b></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">live in this page · the model's own energy · self-checked at load</p>
+      <h2>Watch it</h2>
+      <div class="prose">
+        <p>The block is one period of the ring the model integrates, cut away at the mid-plane
+        so the interior is visible. Copper is a cell folding open, slate one folding closed,
+        grey at rest. The packet travels at the group velocity, and its shape is its own:
+        drag to turn, scroll to zoom.</p>
+        <p>The <strong>family</strong> buttons launch different members of the soliton
+        family, all with amplitude × width = 48 — taller and narrower, or shorter and wider,
+        the same wave at different scales. <strong>Not a soliton</strong> launches a broad
+        pulse with no carrier, which is the case the medium refuses: it pumps itself into a
+        strain wave and comes apart. Compare what happens.</p>
+      </div>
+      <div class="panel">
+        <div class="stagewrap" style="position:relative">
+          <canvas id="gl" class="stage" role="img"
+            aria-label="A bar of over a million cells of the jitterbug medium, cut away lengthwise, with a compact band of folded cells travelling along it at constant shape."></canvas>
+          <canvas id="ov" class="stage" style="position:absolute;inset:0;pointer-events:none;background:none"></canvas>
+        </div>
+        <div class="controls">
+          <div class="modes">
+            <button class="btn" id="play" aria-pressed="true">⏸ Pause</button>
+            <button class="btn" id="pA">A = 6°, w = 8</button>
+            <button class="btn" id="pB">A = 3°, w = 16</button>
+            <button class="btn" id="pC">A = 12°, w = 4</button>
+            <button class="btn" id="pD">not a soliton</button>
+            <button class="btn" id="mCut" aria-pressed="true">cutaway</button>
+            <button class="btn" id="mSolid" aria-pressed="false">solid</button>
+            <span class="grow"></span>
+            <span class="readout">
+              <span class="dim">t =</span> <span id="tOut" class="num">0.0</span>
+              <span class="dim"> · peak |δγ| =</span> <span id="sOut" class="num">0</span><span class="dim">°</span>
+              <span class="dim"> · </span><span id="fpsOut" class="num">0</span><span class="dim"> fps</span>
+            </span>
+          </div>
+          <div class="legend">
+            <span class="key"><span class="swatch" style="background:var(--copper)"></span> fold opening (+)</span>
+            <span class="key"><span class="swatch" style="background:var(--slate)"></span> fold closing (−)</span>
+            <span class="key" id="checkNote">checking the in-page integrator against the model…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">what each rung costs, and what gates it</p>
+      <h2>The hierarchy</h2>
+      <div class="prose">
+        <p>Nothing here is a coarse-graining or an approximation with an error budget. Each
+        rung is an <em>exact</em> statement about the medium that some measurement pins to
+        machine precision, and each one is why a particular page in this project can exist at
+        the size it does.</p>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Rung</th><th>What it is</th><th>Cost</th><th>Gated by</th></tr></thead>
+          <tbody>
+            <tr><td class="g">0</td><td>The model of record: seven coordinates per cell, joints discovered by scanning every pair of sites</td><td class="v">7N, O(N²) to build</td><td class="v">the model itself</td></tr>
+            <tr><td class="g">1</td><td>The same operator built from the lattice <em>graph</em> instead of discovered</td><td class="v">7N, linear</td><td class="v">≡ the model's own constructor, exactly (0.0)</td></tr>
+            <tr><td class="g">2</td><td>The fold sector decouples, and its law is integer: mass 8, onsite 12k, six couplings −2k</td><td class="v">N, a scalar Laplacian</td><td class="v">cross-blocks 10⁻¹⁶; integer law 10⁻¹²</td></tr>
+            <tr><td class="g">3</td><td>Symmetry sectors. A plane wave in the bulk is two fields per plane</td><td class="v">2·N<sub>x</sub></td><td class="v">no torque, no transverse force: 10⁻¹⁶</td></tr>
+            <tr><td class="g">4</td><td>The envelope: separate the four-cell carrier from the envelope and evolve the amplitude alone — <em>not built</em></td><td class="v">≈ N<sub>x</sub>/10</td><td class="v">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="prose">
+        <p>Rung 2 is the one that bought the most. Once the fold law is known to be exactly
+        <span class="mono">8γ̈ = −k(12γ − 2Σγ)</span> with integer coefficients, the
+        simulation stops being a constrained multibody problem and becomes a scalar wave on a
+        graph — which is why the <a href="live.html">live page</a> integrates two million
+        cells in a fragment shader at 120 frames a second. Rung 3 is the one this page uses:
+        the wave is a plane wave, so the block's million cells are two arrays of
+        <span id="planeCount2">128</span>.</p>
+        <p>Rung 4 is the honest gap. The soliton's carrier is four cells and its envelope is
+        tens to hundreds, and those two scales separate cleanly — which is exactly the
+        condition for evolving the envelope on its own coarse grid and dropping the carrier
+        entirely. It would buy another order of magnitude and it is the level at which the
+        description becomes genuinely scale-free. It is not built, and this page does not
+        pretend otherwise.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">how far the scaling goes, and what stops it at each end</p>
+      <h2>Scale-free, between two walls</h2>
+      <div class="prose">
+        <p>The solitons are a one-parameter family with <span class="mono">A · w =
+        48</span>: double the amplitude and halve the width and you have another one. That
+        inverse law is a <em>scaling symmetry</em> — the same wave at different sizes — and it
+        is the sense in which this medium is scale-free.</p>
+        <p>How far does the scaling actually go? Judge every member on the same
+        dimensionless clock — let each travel twenty-six of its <em>own</em> envelope widths —
+        and the answer is measured, not assumed.</p>
+      </div>
+      <div class="tablewrap"><table><thead><tr><th>envelope w</th><th>amplitude</th><th>height, min / max</th><th></th></tr></thead><tbody>
+<tr><td class="g">2</td><td class="v">24.0°</td><td class="v">0.73 / 1.02</td><td class="v">lost</td></tr>
+<tr><td class="g">3</td><td class="v">16.0°</td><td class="v">0.91 / 1.20</td><td class="v">breathing hard</td></tr>
+<tr><td class="g">4</td><td class="v">12.0°</td><td class="v">1.00 / 1.26</td><td class="v">breathing hard</td></tr>
+<tr><td class="g">6</td><td class="v">8.0°</td><td class="v">1.00 / 1.09</td><td class="v">breathing</td></tr>
+<tr><td class="g">8</td><td class="v">6.0°</td><td class="v">1.00 / 1.04</td><td class="v">holds</td></tr>
+<tr><td class="g">12</td><td class="v">4.0°</td><td class="v">1.00 / 1.01</td><td class="v">holds</td></tr>
+<tr><td class="g">16</td><td class="v">3.0°</td><td class="v">1.00 / 1.01</td><td class="v">holds</td></tr>
+<tr><td class="g">24</td><td class="v">2.0°</td><td class="v">1.00 / 1.01</td><td class="v">holds</td></tr>
+<tr><td class="g">32</td><td class="v">1.5°</td><td class="v">1.00 / 1.00</td><td class="v">holds</td></tr>
+</tbody></table></div>
+      <div class="prose">
+        <p><strong>Below</strong>, the lattice bites. When the envelope is only a few cells
+        across, the packet can no longer ignore that space is discrete: at w = 4 it breathes
+        by a quarter of its height, at w = 3 more, and by w = 2 it has lost a quarter of its
+        height outright. That wall is the lattice constant, and it is not adjustable.</p>
+        <p><strong>Above, there is no wall</strong> — not along this axis, and that corrected
+        a guess. The fold and strain branches phase-match as the carrier gets long, so a
+        broad <em>carrier</em> is fatal; a broad <em>envelope</em> at a fixed carrier is not,
+        because widening the envelope detunes nothing. The family holds to w = 32 and an
+        amplitude of 1.5° with no measurable loss — a fivefold range of scale above
+        the discreteness wall, tested. The second wall is real but it lives on the
+        other axis — the carrier wavenumber, not the envelope width — and that is where the
+        broad pulse on <a href="soliton.html">the soliton page</a> dies: half its height gone
+        by t = 200, into the strain wave it drives.</p>
+      </div>
+      <div class="tablewrap"><table><thead><tr><th>carrier</th><th>wavelength</th><th>phase mismatch 2ω(q)−ω(2q)</th><th>height kept</th></tr></thead><tbody>
+<tr><td class="g">π/2</td><td class="v">4 cells</td><td class="v">4.1e-01</td><td class="v">1.00</td></tr>
+<tr><td class="g">π/3</td><td class="v">6 cells</td><td class="v">1.3e-01</td><td class="v">1.00</td></tr>
+<tr><td class="g">π/4</td><td class="v">8 cells</td><td class="v">5.8e-02</td><td class="v">0.99</td></tr>
+<tr><td class="g">π/6</td><td class="v">12 cells</td><td class="v">1.8e-02</td><td class="v">0.82</td></tr>
+<tr><td class="g">π/8</td><td class="v">16 cells</td><td class="v">7.5e-03</td><td class="v">0.72</td></tr>
+<tr><td class="g">π/16</td><td class="v">32 cells</td><td class="v">9.4e-04</td><td class="v">0.53</td></tr>
+</tbody></table></div>
+      <div class="prose">
+        <p>So the window is bounded by discreteness in the envelope and by resonance in the
+        carrier — two different parameters, two different mechanisms, and neither put in by
+        hand.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">honesty</p>
+      <h2>What this page is not</h2>
+      <div class="prose">
+        <p><strong>The million cells are a rendering of a one-dimensional field, not a
+        million independent degrees of freedom.</strong> Saying otherwise would be the exact
+        overclaim the gates exist to prevent. What is true, and is the point, is that for
+        this class of motion the two descriptions are the <em>same</em> — not approximately,
+        exactly — so the drawing costs a million and the physics costs seven hundred.</p>
+        <p><strong>This is a plane wave, not a three-dimensionally localized soliton.</strong>
+        Whether the medium carries a fully localized packet — one confined across the beam as
+        well as along it — is a different question and an open one. Focusing media generally
+        make such things unstable, and nothing here has been measured about it.</p>
+        <p><strong>The integrator in this page is checked, not trusted.</strong> At load it
+        runs the same two-field chain on a small ring against reference frames from the gated
+        Python model, and badges the worst deviation; it also re-runs the check with one
+        coupling deliberately wrong, to show the check can fail. Both numbers are in the
+        readout above.</p>
+        <p>The lane is <a href="soliton.html">The Wave That Holds</a>; the fold law is
+        <a href="kick.html">The Kick</a>; closure is the doubled block per
+        <a href="jitterbug-medium.html">Decision 22</a>.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    analysis/model/soliton.py · reference: python -m analysis.model.soliton export-ref ·
+    bead inviscid-sw8 · model of record unchanged: rigid struts, soft joints, voids empty
+  </div>
+</footer>
+
+<script type="application/json" id="refdata">{"n": 120, "dt": 0.05, "amp_deg": 6.0, "width": 8.0, "q0": 1.5707963267948966, "x0": 30.0, "step": 2.309401076758504, "a_ref": -30.0, "times": [0.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0], "fold": [[0.0049228224, 3.4151805e-19, -0.0063187632, -1.3149482e-18, 0.0081086602, 2.8119115e-18, -0.010401596, -5.0484819e-18, 0.013334525, 8.3173687e-18, -0.017076779, -4.7317151e-17, 0.021832228, -2.4177248e-17, -0.027834744, -8.4565726e-17, 0.035328307, -2.9196898e-17, -0.044515953, -1.4632046e-16, 0.055453522, -3.0170147e-17, -0.067864085, -2.3688365e-16, 0.080884458, -2.1396865e-17, -0.092867456, -3.3529688e-16, 0.10153037, -6.4316374e-20, -0.10471976, -3.8181216e-16, 0.10153037, 2.388494e-17, -0.092867456, -3.4154079e-16, 0.080884458, 3.6390515e-17, -0.067864085, -2.5616069e-16, 0.055453522, 3.9019817e-16, -0.044515953, -1.7505852e-16, 0.035328307, 3.0724686e-17, -0.027834744, 6.0450753e-17, 0.021832228, 1.6087353e-16, -0.017076779, -7.3941508e-17, 0.013334525, 1.730179e-17, -0.010401596, 1.8013288e-17, 0.0081086602, 6.3130805e-17, -0.0063187632, -3.005704e-17, 0.0049228224, 8.5108726e-18, -0.003834732, 4.9799038e-18, 0.0029868864, 2.453932e-17, -0.0023263757, -1.2069873e-17, 0.0018118712, 3.9154238e-18, -0.0014111283, 1.2223829e-18, 0.0010990074, 9.5038507e-18, -0.00085591711, -4.8106406e-18, 0.0006665933, 1.7286447e-18, -0.00051914545, 2.2527701e-19, 0.00040431186, 3.6711198e-18, -0.00031487886, 2.0430313e-18, 0.00024522812, 7.4194902e-19, -0.00019098395, -2.394824e-18, 0.0001487385, -4.5050262e-19, -0.00011583768, -9.645735e-19, 0.0001487385, 3.0555298e-18, -0.00019098395, -1.0560999e-19, 0.00024522812, 3.1313179e-18, -0.00031487886, 2.2737338e-18, 0.00040431186, 2.0195528e-18, -0.00051914545, -8.9350327e-18, 0.0006665933, -1.8524043e-18, -0.00085591711, -8.0773426e-18, 0.0010990074, 2.3796768e-17, -0.0014111283, -2.3468789e-18, 0.0018118712, 2.5146734e-17, -0.0023263757, 1.4215562e-17, 0.0029868864, 1.8234509e-17, -0.003834732, -7.0250333e-17], [-7.4979869e-05, 0.0022814383, 7.5553948e-05, -0.0029471601, -0.00013311525, 0.0037530506, 0.00011479465, -0.0048672525, -0.0002483935, 0.0061610092, 0.00016548491, -0.008043252, -0.00049849136, 0.010068559, 0.00021098828, -0.013292196, -0.0010665842, 0.016326244, 0.00016564698, -0.021910716, -0.0022269049, 0.026364258, -7.5521961e-05, -0.035704878, -0.0041966994, 0.042630826, 6.5833315e-05, -0.056040876, -0.0071647873, 0.066538805, 0.0019851409, -0.081508947, -0.011636872, 0.092392375, 0.0062196339, -0.10181075, -0.016293502, 0.10353445, 0.0088480123, -0.10040275, -0.014508679, 0.090935812, 0.0063262053, -0.079661379, -0.0080706795, 0.06693558, 0.0031068093, -0.055025175, -0.0035969932, 0.044405314, 0.0014777245, -0.035325212, -0.0016243344, 0.027945473, 0.00079398697, -0.02192478, -0.00081124415, 0.017189847, 0.00046859149, -0.013417666, -0.00044142753, 0.010480008, 0.00028659124, -0.0081662344, -0.00025271598, 0.0063681459, 0.00017645829, -0.0049596306, -0.00014860726, 0.0038649424, 0.00010840243, -0.003009728, -8.8610522e-05, 0.0023447019, 6.6347427e-05, -0.0018258732, -5.3221485e-05, 0.0014222637, 4.0678861e-05, -0.0011067695, -2.9763848e-05, 0.00086768095, 3.1680501e-05, -0.00066628132, -1.6005113e-05, 0.00052919259, 2.0612248e-05, -0.00040374187, -4.6154606e-06, 0.00031993938, 1.6945617e-05, -0.00024506697, 2.0023236e-06, 0.00019304363, 1.2663754e-05, -0.00013948507, -1.4047215e-05, 0.000135658, 2.4555799e-05, -0.00013670743, -2.4697593e-06, 0.00018853398, 7.1452631e-06, -0.00024121615, -9.2205047e-06, 0.00030955702, 1.1458447e-05, -0.00039780706, -1.5352101e-05, 0.00051024856, 1.8668295e-05, -0.00065606325, -2.5713255e-05, 0.00084091307, 3.0186202e-05, -0.0010821696, -4.3521485e-05, 0.0013854607, 4.8220846e-05, -0.0017855113], [-0.00094370654, -0.00015983235, 0.00098572032, -0.00011840258, -0.0016486822, -0.00036711133, 0.001503099, -0.00040279069, -0.002955542, -0.00083633598, 0.0022920488, -0.00095725974, -0.0051905188, -0.0016950429, 0.0037267008, -0.0014679205, -0.008174313, -0.0025842952, 0.0066603217, -0.0014979998, -0.011812493, -0.0031056538, 0.01223282, -0.001017901, -0.017401532, -0.0036574035, 0.021331107, -5.7300301e-05, -0.02709018, -0.0045930692, 0.035320624, 0.0016821204, -0.042963238, -0.0065492524, 0.05584835, 0.0048594519, -0.066165046, -0.011037473, 0.081789987, 0.010893643, -0.091715499, -0.019679832, 0.10218883, 0.018981615, -0.10267407, -0.026392678, 0.098576468, 0.01932178, -0.089745749, -0.021266218, 0.07663377, 0.011412435, -0.066349269, -0.011590045, 0.053270804, 0.0052012046, -0.044383018, -0.0052786839, 0.034786337, 0.0024247173, -0.028096587, -0.0024368986, 0.021850907, 0.0012899392, -0.017329247, -0.0012370693, 0.013452846, 0.00075386448, -0.010572861, -0.00067991856, 0.0082124115, 0.00046151052, -0.0064186804, -0.00038596593, 0.0049979837, 0.00028375693, -0.0038937699, -0.00022562502, 0.0030366248, 0.00017554893, -0.0023585772, -0.00013387038, 0.0018444269, 0.00011102312, -0.0014305092, -7.7517029e-05, 0.0011213863, 6.8677829e-05, -0.00086462313, -4.6053424e-05, 0.00068375696, 4.2908781e-05, -0.00052266862, -2.5371459e-05, 0.00041574847, 3.0976538e-05, -0.00032049083, -8.7542702e-06, 0.00025299237, 1.6159634e-05, -0.00018247446, -1.6553564e-05, 0.00015612202, 3.3597144e-05, -0.00013658448, -2.6748192e-05, 0.0001527435, 2.2935736e-05, -0.0001825238, -9.8539579e-06, 0.00024550886, 9.4031156e-06, -0.000328065, -3.5244923e-05, 0.00039211661, 3.495039e-06, -0.00055284016, -7.2887548e-05, 0.0006282522, -2.241551e-05], [-0.00068674658, -0.0012164638, -0.0012612734, -0.00097884917, -0.0012161684, -0.001854215, -0.0017427396, -0.0011845145, -0.0014737885, -0.0023081492, -0.001646787, -0.00043248493, -0.0010802961, -0.0027251584, -0.0012244468, 0.0010278534, -0.00034457891, -0.0035729385, -0.00070494123, 0.0029197897, 0.00061144622, -0.0053384182, -4.2941225e-05, 0.005347075, 0.0018602792, -0.0086486618, 0.00044633518, 0.0090035424, 0.0030189858, -0.013985746, 0.00010260708, 0.015335125, 0.0038076698, -0.022123996, -0.0014845037, 0.026108013, 0.0045407284, -0.034769333, -0.00447989, 0.042988457, 0.0063470778, -0.054120253, -0.0093734158, 0.066704957, 0.011145508, -0.079353781, -0.018167897, 0.092720696, 0.02093325, -0.099509708, -0.030325967, 0.10335021, 0.03065096, -0.096090838, -0.033349913, 0.087436237, 0.026248048, -0.075180315, -0.023617915, 0.062498448, 0.014232655, -0.053291215, -0.012777111, 0.041730089, 0.0062172883, -0.035285596, -0.006054449, 0.026976029, 0.0028366448, -0.022239277, -0.0028643046, 0.016980144, 0.0015066084, -0.013670968, -0.0014611332, 0.010491672, 0.00088438581, -0.0083193755, -0.00080075599, 0.0064180997, 0.00054157433, -0.0050452441, -0.00046010358, 0.0039116254, 0.00033277816, -0.0030547313, -0.00027050582, 0.0023789585, 0.00020555984, -0.0018488576, -0.00016042295, 0.0014452672, 0.00012640193, -0.0011171673, -9.7227496e-05, 0.00087743992, 7.6022717e-05, -0.00067442652, -5.9636388e-05, 0.00052483727, 4.8579262e-05, -0.00041522908, -3.9019683e-05, 0.00030593936, 1.0678929e-05, -0.00024960378, -5.0228468e-05, 0.00013929367, -7.0801045e-06, -0.00019230714, -0.00011923002, 2.0150836e-05, -7.893234e-05, -0.00028424702, -0.00025974696, -0.00013471955, -0.00029551735, -0.0006140147, -0.00060761775, -0.00043758579], [-0.00077197549, -0.0011454514, -0.0015832042, -0.00094714966, -0.00024259857, -0.00061082733, -0.0010767606, -0.00037984486, 0.0003321512, -6.4494184e-05, -0.00064076574, 0.00012487733, 0.00093286562, 0.0004706485, -0.00050588646, 0.00048292978, 0.0015342657, 0.0008831459, -0.00091658907, 0.00057964193, 0.0021861802, 0.0010180343, -0.0017857411, 0.0002286321, 0.0033426891, 0.00081147242, -0.0031380564, -0.00051768172, 0.0052042351, 0.00062468525, -0.0056327732, -0.001286166, 0.0078980924, 0.00093432597, -0.010039823, -0.0019797071, 0.012270268, 0.0018000855, -0.0169478, -0.0031107288, 0.020023411, 0.0030435646, -0.027358334, -0.0053106789, 0.033047602, 0.0051603742, -0.043279148, -0.0091008541, 0.052846094, 0.0094409868, -0.0659264, -0.01623615, 0.078607899, 0.01796482, -0.09077441, -0.028851876, 0.099624798, 0.031314864, -0.10072369, -0.040623116, 0.096054294, 0.037958715, -0.084308146, -0.036522705, 0.073127318, 0.028733611, -0.060423171, -0.023236488, 0.049856371, 0.015249416, -0.041686057, -0.012512786, 0.032451614, 0.00660052, -0.027715299, -0.00621798, 0.020772528, 0.0029226742, -0.017553396, -0.0030442442, 0.013110283, 0.0015311409, -0.010788771, -0.0015636375, 0.008141062, 0.00090399044, -0.0065567891, -0.00085559793, 0.0049987929, 0.00055342881, -0.003976928, -0.00049344265, 0.0030472733, 0.00033329764, -0.0024236773, -0.00030496815, 0.001839009, 0.00017646796, -0.001508082, -0.00022941708, 0.0010685237, 2.6508135e-05, -0.0010219909, -0.00026156247, 0.00049582307, -0.00018806424, -0.00089695262, -0.00046206573, -5.9374751e-05, -0.00060895211, -0.0011078384, -0.00085026968, -0.00069033859, -0.0011905646, -0.0015729303, -0.0012617356, -0.0010123175, -0.0014792151, -0.001869755, -0.001344752], [0.00018861594, 0.00038120238, 0.0005985229, 0.00060118611, 0.00058210331, 0.00083379266, 0.00091026314, 0.00078972704, 0.00077155578, 0.0010552754, 0.0009144548, 0.00072447207, 0.00071281052, 0.0011520309, 0.00070691964, 0.00050110696, 0.00034861221, 0.0013661802, 0.00023612386, 0.00031876144, -0.00036457888, 0.0017809871, -0.00042791034, -2.2915308e-05, -0.0011189761, 0.0022989284, -0.00088079543, -0.00078334578, -0.0016829422, 0.003015151, -0.0010305823, -0.002053075, -0.0021423729, 0.0042571129, -0.00088221392, -0.0040771589, -0.0025136567, 0.0063081633, -0.00023165825, -0.0074481196, -0.0027721083, 0.0096881267, 0.001012619, -0.012785964, -0.0033519912, 0.01565735, 0.0026332809, -0.020897117, -0.0049002445, 0.025845272, 0.0049228448, -0.03352904, -0.0078534887, 0.041885473, 0.0087614446, -0.052540581, -0.013479865, 0.064781788, 0.015737623, -0.077233585, -0.024208597, 0.090059049, 0.028030126, -0.097531879, -0.039608612, 0.1002877, 0.041360937, -0.093995163, -0.046417323, 0.08340951, 0.040640052, -0.070247362, -0.036049234, 0.058677736, 0.027986086, -0.047400114, -0.021413338, 0.039146451, 0.015050292, -0.03197274, -0.011422374, 0.025206789, 0.0066692928, -0.021481773, -0.0059607548, 0.015922357, 0.0028432043, -0.013829365, -0.0030973486, 0.0099869748, 0.0013883584, -0.0086023907, -0.0017234792, 0.0061043052, 0.00067362496, -0.0054017899, -0.0012024402, 0.0034571531, 7.996778e-05, -0.0036735822, -0.0012105161, 0.0015422553, -0.00052437311, -0.0028600184, -0.0014900946, 0.00018591321, -0.00089482437, -0.0022144239, -0.0015154725, -0.00052445037, -0.00082403939, -0.0013147879, -0.0009755514, -0.00049201183, -0.00045379671, -0.00047026623, -0.00031539424, -0.000120684, 5.9967214e-05, 0.0001640122], [0.00051988191, 0.0010449256, 0.0015268442, 0.0010887042, 0.00066319515, 0.00090240804, 0.0011529967, 0.00088372604, 0.00056229239, 0.00063574303, 0.00079015307, 0.00058697261, 0.00032965007, 0.00028881708, 0.00049632109, 0.00027098487, -1.4588338e-05, 8.9833395e-05, 0.00013294828, 0.00025033303, -0.00067603162, 0.00026788397, -0.00036887781, 0.00059728779, -0.0015562602, 0.00058969508, -0.00071544815, 0.0010054641, -0.0022951789, 0.00074730799, -0.00055353064, 0.0011833131, -0.0028177618, 0.00054035187, 0.00032320021, 0.0010904895, -0.0032391498, -6.4428506e-05, 0.0019845581, 0.00087090239, -0.0039937369, -0.00086748341, 0.0043459992, 0.00095802713, -0.0058882251, -0.001576815, 0.0074823063, 0.0016896376, -0.0096225969, -0.0024049403, 0.012304588, 0.0029377995, -0.015780122, -0.0039371068, 0.020222732, 0.004870389, -0.025710028, -0.0065858827, 0.032861344, 0.0080974812, -0.041183289, -0.011255446, 0.05194819, 0.013764288, -0.063181564, -0.019910183, 0.076805028, 0.024011755, -0.087563286, -0.034411006, 0.097304234, 0.039230989, -0.097830065, -0.048543842, 0.093479075, 0.04788762, -0.081612027, -0.04709029, 0.068966232, 0.039561039, -0.056376161, -0.033289628, 0.045727457, 0.025359981, -0.036808252, -0.019304293, 0.030081389, 0.01389602, -0.024450722, -0.010480544, 0.019142187, 0.0061552649, -0.016944174, -0.0061693996, 0.011470411, 0.0019930832, -0.011649144, -0.0038080405, 0.0068572018, 0.0004577133, -0.007627885, -0.0021468371, 0.0045275409, 0.00034720272, -0.0046639785, -0.00099393925, 0.0033148546, 0.00064609968, -0.0025335616, -0.00013826075, 0.0026460056, 0.00094975753, -0.00099607279, 0.0005762045, 0.0022529381, 0.0011653748, 2.0996182e-05, 0.00097405301, 0.0019042586, 0.0012012976], [0.001140806, -0.00039005967, 0.00040537493, 0.0014616835, 0.00073527628, -0.00025030184, 0.00024985062, 0.00084303008, 0.00039244991, -0.00021613545, 0.00010699134, 0.00036698582, 0.00024853885, -0.00033350641, 0.00013198047, -7.9454047e-05, 0.00035067129, -0.00055529473, 0.00025230862, -0.00031306492, 0.00040950684, -0.00057204756, 0.00020702069, -0.00014573848, 0.00026713491, -0.00037632762, 3.5364702e-05, 0.00024104209, 0.0001362874, -0.00028879626, -1.6546384e-05, 0.00057458259, 0.00028968492, -0.00055061276, 0.00013301785, 0.00074929678, 0.00069910263, -0.0011328335, 0.00034747287, 0.0010610196, 0.0010650669, -0.0018827313, 0.00022142089, 0.0019402094, 0.0011645674, -0.0027626579, -0.0003516489, 0.0035524089, 0.0012404322, -0.0043376363, -0.0010855556, 0.0058655417, 0.0017315519, -0.0072815751, -0.0019925146, 0.0094852045, 0.0026786931, -0.012104153, -0.0034699504, 0.015495478, 0.0042877596, -0.019897098, -0.0058462135, 0.025287425, 0.0070355966, -0.032221669, -0.0097943579, 0.040643654, 0.011758757, -0.050666906, -0.016818996, 0.062547956, 0.020140998, -0.074663376, -0.029304003, 0.086842233, 0.034135239, -0.094539907, -0.046327163, 0.096918706, 0.049236399, -0.090982758, -0.054294769, 0.080398857, 0.0499485, -0.066796437, -0.044705732, 0.054674234, 0.036750471, -0.043576928, -0.029555867, 0.035108175, 0.022987044, -0.027383429, -0.016480618, 0.023472316, 0.013715838, -0.016855862, -0.0078346404, 0.015943128, 0.0076364246, -0.010653261, -0.0034746427, 0.01052428, 0.0041698822, -0.0066386657, -0.00136729, 0.0070339914, 0.0027193803, -0.0037625266, -0.00022878177, 0.0048815551, 0.0020722981, -0.0019085457, 0.00032832575, 0.0034175061, 0.0015879955, -0.00087122388, 0.00049903468, 0.0023029793], [0.0030261592, 0.00083527511, -0.0023464478, -0.00058715922, 0.0019270018, 0.00053119091, -0.0013675599, -0.00028868894, 0.001225703, 0.00041551875, -0.00079247414, -7.0920951e-05, 0.00086068472, 0.00027990455, -0.00023436433, -0.00011227753, 0.00092846462, -4.9237838e-05, 0.00046806607, -0.00041238913, 0.0012796834, -0.00039324223, 0.0010759063, -0.0006715338, 0.001591014, -0.00056933236, 0.0014011762, -0.0007635546, 0.0017661958, -0.0006085794, 0.0014876384, -0.00077013728, 0.0018690899, -0.00059416749, 0.0013701823, -0.00072800888, 0.0019007488, -0.00045416002, 0.00093897078, -0.00056414194, 0.001774399, -5.0654455e-05, 0.00012517684, -0.0002817468, 0.0015821614, 0.00046184952, -0.00089503976, -0.00015316089, 0.001823202, 0.00076390555, -0.0019425309, -0.00049228827, 0.002772665, 0.00093053856, -0.0033427515, -0.0010839737, 0.0044110552, 0.0013742038, -0.0056820813, -0.0018889652, 0.0071318501, 0.0021868202, -0.0094197594, -0.003197704, 0.011697792, 0.0036069758, -0.015454169, -0.0053091944, 0.019237716, 0.0060851806, -0.025056523, -0.0087152446, 0.031420608, 0.01039202, -0.039754893, -0.014427321, 0.049877754, 0.017851484, -0.060572977, -0.024492555, 0.073852766, 0.030080025, -0.083953373, -0.040445887, 0.093627536, 0.04656278, -0.094297379, -0.055497051, 0.090264412, 0.055991991, -0.078259737, -0.053463636, 0.067290281, 0.048557982, -0.05204898, -0.038428569, 0.044080359, 0.032937812, -0.033051237, -0.024481051, 0.027393007, 0.01937563, -0.021331754, -0.01419637, 0.017782193, 0.011230671, -0.013387776, -0.0071556908, 0.012104987, 0.0062976248, -0.0086335931, -0.0035408131, 0.0078532538, 0.0030979385, -0.0058868927, -0.0019876608, 0.004839705, 0.0014731464, -0.0038442794, -0.001115992], [-0.0036582829, 0.0055703794, 0.0023983822, -0.0047332589, -0.001978712, 0.0035257412, 0.0012025579, -0.0030153605, -0.0010210772, 0.0024559621, 0.00077098404, -0.0014743281, -0.0004202638, 0.0019901421, 0.00068077994, -0.00048801209, 9.0827781e-05, 0.0015173555, 0.00088611717, -0.00018651696, 0.00070668192, 0.00085696688, 0.0012901637, -0.00028730619, 0.0012530232, 0.00023652662, 0.001636801, -0.0004589645, 0.0015310374, -0.00012939707, 0.0017304919, -0.00050879921, 0.0014749682, -0.00016922346, 0.0015058857, -0.00036402051, 0.0011000132, 0.0001064185, 0.0010048294, -7.1691928e-05, 0.00052093714, 0.00057287932, 0.00044165884, 0.00011753672, 1.1025207e-05, 0.00095422813, 0.00017875261, -0.0001262396, -0.0001969506, 0.00108782, 0.00032385372, -0.00077995721, -0.00027386986, 0.0012907402, 0.00051517515, -0.0015770016, -0.0005713788, 0.0020092084, 0.00070045757, -0.0026391302, -0.0010337297, 0.0033024599, 0.0012173615, -0.0042845834, -0.0015695921, 0.0055991354, 0.0022265083, -0.0068250843, -0.0023886868, 0.0094176418, 0.0038073432, -0.011214021, -0.0040621623, 0.015343766, 0.0060869042, -0.018717508, -0.0072741554, 0.024456719, 0.0094791119, -0.03059707, -0.012373608, 0.0387592, 0.015144926, -0.048310367, -0.020819395, 0.059440613, 0.024883514, -0.071481642, -0.034869922, 0.08256202, 0.040089039, -0.091070427, -0.053009367, 0.092163049, 0.055061042, -0.088771266, -0.061619681, 0.075942487, 0.054744867, -0.065687555, -0.051257872, 0.05141268, 0.041561954, -0.041573317, -0.034305923, 0.032283656, 0.026326441, -0.026469532, -0.021936566, 0.019171899, 0.014671166, -0.017655132, -0.013551996, 0.011882921, 0.008159905, -0.011301898, -0.0073277365, 0.0081789971, 0.0046556291, -0.0071210507], [-0.013062817, -0.010885404, 0.0091655869, 0.0071008062, -0.008348511, -0.0059933468, 0.0063946136, 0.0042371818, -0.0050316022, -0.0027565849, 0.0045509171, 0.0026506895, -0.0033771962, -0.0010487048, 0.0027146624, 0.0018016922, -0.0024951048, -7.1467976e-05, 0.0015374267, 0.0015512827, -0.0015823161, 0.00050085067, 0.0011043708, 0.0013709126, -0.00075714686, 0.00069625458, 0.00092625266, 0.001125998, -0.00022745655, 0.00071520883, 0.00070196053, 0.00099091492, -6.7600441e-05, 0.00076300304, 0.00036497754, 0.0010270812, -0.00019971658, 0.00087286133, 1.0241293e-05, 0.0010984094, -0.00040089327, 0.00087832612, -0.00014853503, 0.00096985174, -0.00042394704, 0.00059691636, 4.7570297e-05, 0.0005823947, -0.00025928367, 0.00016943404, 0.00047118453, 0.00030445521, -0.00018734384, 1.7047163e-05, 0.00090248655, 0.00052371672, -0.00034334514, 0.00017405404, 0.0014579692, 0.00099272962, -0.00061611952, 0.00014173047, 0.002174442, 0.0012444573, -0.0013746633, -0.00026786563, 0.00295012, 0.0012795629, -0.0030478806, -0.0010222536, 0.0044003336, 0.0015905235, -0.005592521, -0.0021560321, 0.0070469678, 0.0026054946, -0.0092784447, -0.0038007839, 0.011506103, 0.0045537917, -0.014922259, -0.0061559013, 0.018984298, 0.0078224917, -0.023790236, -0.0098054478, 0.03087106, 0.013082645, -0.037585635, -0.016238973, 0.048483937, 0.021610003, -0.057558156, -0.027615702, 0.071289936, 0.035156971, -0.080172357, -0.0448491, 0.090301678, 0.052724504, -0.090394345, -0.060574263, 0.086884971, 0.061536733, -0.075974602, -0.059541571, 0.063201733, 0.051943619, -0.051415273, -0.044318762, 0.040446271, 0.036158985, -0.031230522, -0.027907565, 0.025360207, 0.022524862, -0.019506944, -0.017395005, 0.015132498, 0.012691395]], "u": [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.00018872101, 0.00024333171, 0.00030963649, 0.00039861839, 0.00050644488, 0.00065075902, 0.00082419332, 0.0010549811, 0.0013305196, 0.0016945698, 0.002120776, 0.0026763091, 0.0033150386, 0.0041342735, 0.0050338368, 0.0061559146, 0.0073382298, 0.0087750367, 0.010132376, 0.01171157, 0.013089189, 0.014677282, 0.015647011, 0.016715853, 0.017199845, 0.017844649, 0.01712985, 0.016386568, 0.015093932, 0.013824954, 0.010656771, 0.0072980856, 0.0039898162, 0.00057873161, -0.0042680405, -0.0090067945, -0.01243641, -0.015579452, -0.018198789, -0.020274857, -0.020394472, -0.020280384, -0.019052692, -0.01780339, -0.015631831, -0.013866931, -0.011670047, -0.0099514075, -0.0081001131, -0.0067599012, -0.0053795061, -0.0043911282, -0.0034441205, -0.0027918153, -0.0021674522, -0.0017374434, -0.0013413614, -0.0010738174, -0.0008254992, -0.00065725359, -0.0005042686, -0.00040163831, -0.00030761628, -0.00024434363, -0.00018702416, -0.00014865332, -0.00011369926, -9.0244373e-05, -6.9012242e-05, -5.4806401e-05, -4.1898794e-05, -3.3248584e-05, -2.5417363e-05, -2.0177842e-05, -1.542304e-05, -1.2238455e-05, -9.3546259e-06, -7.4250371e-06, -5.6750506e-06, -4.5028073e-06, -3.4413781e-06, -2.7333815e-06, -2.086055e-06, -1.6460065e-06, -1.2554891e-06, -9.9555962e-07, -7.4379061e-07, -5.6603058e-07, -4.1465645e-07, -3.0707312e-07, -1.8885464e-07, -9.1480681e-08, -5.9180254e-09, 7.6866762e-08, 1.8130392e-07, 2.9883653e-07, 4.208971e-07, 5.6976042e-07, 7.6035788e-07, 1.0026288e-06, 1.281604e-06, 1.6550631e-06, 2.1121734e-06, 2.7288039e-06, 3.4823041e-06, 4.4988255e-06, 5.7408318e-06, 7.4162452e-06, 9.4636192e-06, 1.2225443e-05, 1.5599057e-05, 2.0149099e-05, 2.5708088e-05, 3.3205104e-05, 4.2357315e-05, 5.4695234e-05, 6.9758781e-05, 9.0059996e-05, 0.00011480559, 0.00014812332], [0.0022708441, 0.002848586, 0.0035574882, 0.0044069044, 0.0054223297, 0.0066037438, 0.0079682389, 0.0094825112, 0.011152101, 0.012916977, 0.014768707, 0.016581745, 0.018372675, 0.020034939, 0.021624579, 0.022921461, 0.024104623, 0.025059603, 0.026005188, 0.026496586, 0.026989614, 0.027319979, 0.02782071, 0.027667889, 0.027604491, 0.027547218, 0.027736005, 0.026952714, 0.026211309, 0.025700985, 0.025398993, 0.023549868, 0.021569098, 0.020075088, 0.018508342, 0.014606698, 0.010220005, 0.0065565677, 0.0024521721, -0.0046561967, -0.01227302, -0.018554707, -0.024820295, -0.032971422, -0.040873519, -0.044888681, -0.047702532, -0.050373305, -0.052121568, -0.049715533, -0.046356802, -0.042976815, -0.039478808, -0.034332247, -0.029464906, -0.02506182, -0.02127677, -0.017435535, -0.014245123, -0.011518391, -0.0093524259, -0.0074186097, -0.0059097335, -0.0046606964, -0.0037052136, -0.0028959936, -0.0022817519, -0.0017802447, -0.0014027099, -0.0010899427, -0.00085517074, -0.00066432657, -0.00052152209, -0.00040438005, -0.0003168619, -0.00024568843, -0.00019252863, -0.00014918989, -0.00011687294, -9.0504067e-05, -7.0801484e-05, -5.4829063e-05, -4.2924077e-05, -3.3127794e-05, -2.5778151e-05, -1.9848282e-05, -1.5395817e-05, -1.1645389e-05, -8.7578086e-06, -6.3893812e-06, -4.5079816e-06, -2.7774137e-06, -1.2664515e-06, 1.4681932e-07, 1.5399706e-06, 3.0997709e-06, 4.8419264e-06, 6.8548904e-06, 9.2981713e-06, 1.2360308e-05, 1.6207435e-05, 2.1030903e-05, 2.7186638e-05, 3.5043502e-05, 4.5128515e-05, 5.796266e-05, 7.447184e-05, 9.5562449e-05, 0.0001226864, 0.00015725714, 0.00020169571, 0.00025829935, 0.00033093564, 0.0004232628, 0.00054139344, 0.00069087868, 0.00088121723, 0.001120747, 0.0014234518, 0.0018002778], [0.014766908, 0.016611943, 0.018415838, 0.020114906, 0.021674508, 0.023057765, 0.024279959, 0.02530727, 0.02616604, 0.02684714, 0.027447372, 0.027901542, 0.028281683, 0.02851611, 0.028807509, 0.028956283, 0.029145343, 0.02911642, 0.029346938, 0.029308917, 0.029480281, 0.029226234, 0.029520041, 0.029362017, 0.029515452, 0.029104877, 0.029372698, 0.029251807, 0.029171579, 0.028709605, 0.028718688, 0.028760177, 0.028131912, 0.027554754, 0.027042326, 0.027080225, 0.025529268, 0.024295691, 0.022941681, 0.022177832, 0.019031138, 0.015934548, 0.012810276, 0.0097312469, 0.0035329988, -0.0029663944, -0.0096680463, -0.016662502, -0.026646117, -0.036882731, -0.045900028, -0.054477519, -0.063577595, -0.071925464, -0.075431838, -0.077057105, -0.078558434, -0.07879416, -0.074215992, -0.068180577, -0.06299231, -0.057669904, -0.050318423, -0.043033929, -0.036879863, -0.031454921, -0.025975, -0.021200905, -0.017288029, -0.014084719, -0.011247654, -0.0089427783, -0.0070979503, -0.0056452961, -0.0044346025, -0.0034837066, -0.0027307243, -0.0021479742, -0.0016756346, -0.0013100138, -0.0010210232, -0.00079870651, -0.00062078425, -0.00048370724, -0.00037487989, -0.00029095156, -0.00022388825, -0.00017176818, -0.00012946919, -9.5852129e-05, -6.7962937e-05, -4.4700999e-05, -2.3769767e-05, -4.543991e-06, 1.4395529e-05, 3.4081995e-05, 5.614018e-05, 8.1602515e-05, 0.00011208311, 0.00014942943, 0.00019612938, 0.00025479985, 0.00032896198, 0.00042294319, 0.00054230773, 0.0006935485, 0.00088497448, 0.0011263884, 0.0014299021, 0.0018090753, 0.0022800795, 0.0028599217, 0.0035673555, 0.0044192058, 0.0054316969, 0.006614063, 0.0079702674, 0.0094900316, 0.01115529, 0.01292843], [0.027458618, 0.027926596, 0.028296901, 0.028582617, 0.028808977, 0.028994332, 0.029134245, 0.029248109, 0.029337443, 0.029405791, 0.029448538, 0.029502063, 0.029539318, 0.029566691, 0.029568012, 0.029604716, 0.029628142, 0.029625189, 0.029630183, 0.02961895, 0.029701102, 0.029603133, 0.02967907, 0.029576395, 0.029746212, 0.029566418, 0.029639396, 0.029556389, 0.029676362, 0.029559338, 0.029428816, 0.029520306, 0.029462646, 0.029442887, 0.029013782, 0.029211061, 0.029068579, 0.028859965, 0.028191982, 0.028158206, 0.028071071, 0.027191211, 0.026074238, 0.025467072, 0.025082559, 0.022940382, 0.020506127, 0.018705057, 0.016923144, 0.012270814, 0.0071369924, 0.0023928066, -0.0027598164, -0.011576468, -0.021039587, -0.030425818, -0.040188496, -0.052158196, -0.064485003, -0.074334545, -0.083471822, -0.09191291, -0.099057614, -0.10120256, -0.10132208, -0.10134335, -0.099908213, -0.093940071, -0.086349393, -0.079796465, -0.073095788, -0.064341417, -0.055443874, -0.047882202, -0.04110375, -0.034281527, -0.028166173, -0.023139819, -0.01895048, -0.015237655, -0.012151529, -0.0096844396, -0.0077114839, -0.0060700281, -0.0047556752, -0.0037158826, -0.0028955447, -0.0022271698, -0.0016926405, -0.0012600501, -0.00090653234, -0.00060435462, -0.00034066151, -9.7839159e-05, 0.00013684268, 0.00037912505, 0.00064134008, 0.00093865005, 0.0012854093, 0.0016988033, 0.0021961682, 0.0027965256, 0.0035187729, 0.0043818891, 0.0054014005, 0.0065878126, 0.0079442772, 0.0094643639, 0.011127914, 0.012901029, 0.014738775, 0.01658931, 0.018396798, 0.020107314, 0.021674811, 0.023071346, 0.024289029, 0.025329623, 0.026192171, 0.02689048], [0.029453022, 0.029502241, 0.029533569, 0.029565629, 0.02958543, 0.029610729, 0.029620854, 0.029642965, 0.029641407, 0.029665019, 0.029654279, 0.029683613, 0.029655002, 0.029706013, 0.029647885, 0.029727863, 0.029634022, 0.029755581, 0.029626124, 0.029762286, 0.029626972, 0.029770786, 0.029640878, 0.02974799, 0.029654899, 0.029751987, 0.029667608, 0.029718906, 0.029664786, 0.029743991, 0.029662368, 0.02968146, 0.029646826, 0.029714725, 0.029649749, 0.029548098, 0.029625425, 0.029588775, 0.029606686, 0.029240227, 0.029470866, 0.029348614, 0.029290754, 0.028671262, 0.028830756, 0.028800935, 0.028271953, 0.027309758, 0.027137863, 0.027079429, 0.02563049, 0.023731173, 0.022862943, 0.022094169, 0.018777402, 0.014917328, 0.012127075, 0.0090521083, 0.0022368894, -0.0052341192, -0.012292051, -0.019931978, -0.031339627, -0.043700838, -0.055088319, -0.066654294, -0.079209994, -0.09186437, -0.10077358, -0.10854923, -0.11551475, -0.12078599, -0.1214086, -0.12011836, -0.11892422, -0.11625917, -0.10968406, -0.10147315, -0.094053143, -0.086385488, -0.076846229, -0.066958233, -0.058244818, -0.050243736, -0.042205086, -0.034797789, -0.028521184, -0.023117815, -0.018226667, -0.013969035, -0.010369994, -0.0072622729, -0.0044526039, -0.0019033064, 0.00044359834, 0.002673901, 0.0048723289, 0.0070577565, 0.0092358698, 0.011408342, 0.013570528, 0.015679725, 0.017683404, 0.019546748, 0.021249154, 0.022755999, 0.024044147, 0.025133212, 0.026053385, 0.026803044, 0.027385546, 0.027852157, 0.028248278, 0.028563897, 0.028787429, 0.028961748, 0.029119352, 0.029245529, 0.029327113, 0.029393459], [0.029568719, 0.029601088, 0.029624981, 0.029638897, 0.029648488, 0.029663802, 0.029671467, 0.029679537, 0.029681733, 0.0296902, 0.029694106, 0.02969967, 0.029695463, 0.029716109, 0.029688125, 0.029744106, 0.029665909, 0.029780078, 0.029642061, 0.029815138, 0.029620849, 0.029837304, 0.029618684, 0.029843637, 0.029624833, 0.029830177, 0.029655835, 0.029807121, 0.029678961, 0.029767074, 0.029734772, 0.029727891, 0.029757068, 0.029669872, 0.029833576, 0.02962982, 0.029822104, 0.029575012, 0.029895104, 0.029571171, 0.029775572, 0.029546445, 0.029827472, 0.029578421, 0.029539895, 0.02951032, 0.029641152, 0.029461787, 0.029120711, 0.029175805, 0.029299648, 0.028896206, 0.028236846, 0.028166942, 0.028293871, 0.027325488, 0.025979418, 0.025548627, 0.025330608, 0.023095455, 0.020370623, 0.018828574, 0.017169091, 0.012343509, 0.0070404176, 0.0024215966, -0.0028207471, -0.011884972, -0.02173295, -0.031539631, -0.042052119, -0.055056418, -0.068934149, -0.080909636, -0.092765364, -0.10416167, -0.11485151, -0.12156031, -0.12691576, -0.13179119, -0.13481389, -0.13366853, -0.13069883, -0.12788835, -0.12362562, -0.11593059, -0.1064626, -0.097228931, -0.087478936, -0.075976255, -0.063879734, -0.052646932, -0.042056024, -0.03151672, -0.021670633, -0.013189671, -0.0058774931, 0.00066387212, 0.0062811126, 0.010822382, 0.014502455, 0.017608625, 0.020157756, 0.02214244, 0.023699657, 0.024980999, 0.026009227, 0.026792478, 0.027398976, 0.027897121, 0.028294811, 0.028590416, 0.028816204, 0.029009529, 0.029167459, 0.029277619, 0.029359381, 0.029437646, 0.029501157, 0.029539804], [0.0285083, 0.028773194, 0.028980528, 0.02913676, 0.029268996, 0.029368113, 0.029448467, 0.029503511, 0.02956289, 0.029586213, 0.02964266, 0.029629098, 0.029697566, 0.02965749, 0.029729782, 0.029683927, 0.029738349, 0.029716957, 0.029728427, 0.029754232, 0.029710888, 0.029786006, 0.02969671, 0.029806651, 0.029695629, 0.029806976, 0.029709264, 0.029794366, 0.029738041, 0.029761905, 0.029774248, 0.029733922, 0.029813531, 0.029693682, 0.029840894, 0.029689139, 0.029855158, 0.029675307, 0.029836172, 0.029729321, 0.02980509, 0.029740279, 0.029744062, 0.02983092, 0.029713815, 0.029786006, 0.029670352, 0.029856253, 0.029689862, 0.02968063, 0.029644361, 0.02977343, 0.029645728, 0.029440111, 0.029475017, 0.029618441, 0.029369219, 0.028943827, 0.028943229, 0.029146001, 0.028574416, 0.027692343, 0.027551105, 0.027701568, 0.026363563, 0.024579567, 0.023974409, 0.023493727, 0.020480534, 0.017128579, 0.014888455, 0.012278257, 0.0063126006, -5.8312868e-05, -0.006173124, -0.012988712, -0.022981189, -0.033811523, -0.044211776, -0.055198445, -0.06670722, -0.078493883, -0.087795577, -0.096758938, -0.10476089, -0.11152532, -0.11500216, -0.11746404, -0.12035803, -0.1219397, -0.12006, -0.11671134, -0.1140439, -0.110467, -0.1041297, -0.096267727, -0.088533502, -0.080288735, -0.070563473, -0.060206782, -0.050368336, -0.040885668, -0.031337, -0.022270181, -0.014262744, -0.0071755878, -0.0007600117, 0.0048204429, 0.0094636139, 0.013329753, 0.0165845, 0.019257732, 0.021407056, 0.023132535, 0.02452177, 0.025627854, 0.026506399, 0.027199154, 0.027742983, 0.028167695], [0.016547135, 0.019215217, 0.021391502, 0.023125145, 0.024515091, 0.025633777, 0.026523552, 0.027220199, 0.027763858, 0.028193478, 0.028557437, 0.028785551, 0.029049774, 0.029132176, 0.029370214, 0.029341268, 0.029564462, 0.029470342, 0.029680683, 0.029561484, 0.029740082, 0.029628229, 0.029768458, 0.029679563, 0.029780213, 0.029715127, 0.029787526, 0.029738199, 0.029794146, 0.029752177, 0.029799765, 0.029763504, 0.029801023, 0.029779782, 0.029791855, 0.0298059, 0.029773508, 0.029844969, 0.029742564, 0.02989016, 0.029721036, 0.02993418, 0.029704669, 0.029959094, 0.029739898, 0.029970275, 0.029784268, 0.029961632, 0.02990398, 0.029986956, 0.029982362, 0.030041042, 0.030175648, 0.030211275, 0.030290435, 0.03044101, 0.030705114, 0.030881939, 0.031032713, 0.031437881, 0.032016723, 0.032432325, 0.032817246, 0.033660304, 0.034830068, 0.035603691, 0.036260905, 0.037657532, 0.039495178, 0.040310115, 0.040709722, 0.042188873, 0.043897144, 0.04336609, 0.042243066, 0.042278301, 0.041902357, 0.038198473, 0.03391628, 0.030160412, 0.025482966, 0.017054506, 0.0077519959, -0.0017302167, -0.01235101, -0.02521557, -0.038913538, -0.051614385, -0.065037143, -0.077154056, -0.088095967, -0.097138949, -0.10621439, -0.11355541, -0.11841157, -0.12117812, -0.12367177, -0.12619933, -0.12711584, -0.12556252, -0.12296706, -0.12048915, -0.11702544, -0.11165957, -0.1050102, -0.097769169, -0.089679108, -0.08052346, -0.070713639, -0.060751014, -0.050771595, -0.04085099, -0.031312888, -0.022471731, -0.014420667, -0.0071710313, -0.00078600529, 0.0047181708, 0.0093911954, 0.013304342], [-0.050854465, -0.040872684, -0.031376723, -0.022546315, -0.014451055, -0.0071850882, -0.00082127168, 0.0046992953, 0.0093413401, 0.013292037, 0.016522634, 0.01922707, 0.021380302, 0.023108524, 0.02455634, 0.025617902, 0.026599731, 0.027166277, 0.027877954, 0.028147901, 0.028674683, 0.028744216, 0.029152585, 0.029133445, 0.029438651, 0.029377031, 0.029599102, 0.029548485, 0.029688225, 0.029666546, 0.029730486, 0.029763343, 0.029749839, 0.029844816, 0.029757877, 0.029926135, 0.029772037, 0.030007217, 0.029809248, 0.030097867, 0.029893135, 0.030202957, 0.030051235, 0.030349964, 0.030313314, 0.030581658, 0.030719088, 0.030973868, 0.031317007, 0.031636464, 0.032196237, 0.032678229, 0.03346594, 0.034254261, 0.03528789, 0.036411314, 0.037742189, 0.03926487, 0.040867349, 0.042582478, 0.044405553, 0.046303059, 0.048084213, 0.04970953, 0.051328534, 0.052855296, 0.054004756, 0.054837795, 0.055721915, 0.05658534, 0.056915902, 0.05690809, 0.057217963, 0.057706745, 0.057362533, 0.056549161, 0.056488517, 0.056721607, 0.055348131, 0.05350955, 0.052856955, 0.052148747, 0.048944139, 0.045457587, 0.042861763, 0.039636369, 0.033235654, 0.026325808, 0.019394559, 0.011458718, 0.00034561171, -0.011851826, -0.023789351, -0.036643939, -0.050172634, -0.064037554, -0.075970307, -0.087943449, -0.097997033, -0.10609463, -0.11278118, -0.11956514, -0.1249447, -0.12789535, -0.12924294, -0.13047521, -0.13212278, -0.13274646, -0.1312451, -0.1286193, -0.12621797, -0.12325928, -0.11865995, -0.11273397, -0.10614585, -0.098718056, -0.090188445, -0.080819831, -0.071039365, -0.06100949], [-0.12819913, -0.12434058, -0.11918707, -0.11340422, -0.10678173, -0.099028172, -0.09031509, -0.08095014, -0.071165982, -0.060964706, -0.050839589, -0.040798838, -0.031405787, -0.022460683, -0.01446344, -0.0071328467, -0.00082021356, 0.0047031509, 0.0093521835, 0.013281666, 0.016590346, 0.019207666, 0.021436679, 0.023133144, 0.02464149, 0.025697357, 0.02665906, 0.027338473, 0.027965348, 0.028422819, 0.028794475, 0.029160363, 0.029392217, 0.029734177, 0.029879584, 0.030252916, 0.030405358, 0.030839498, 0.031073854, 0.031598961, 0.032025254, 0.032674146, 0.033385979, 0.0342072, 0.035292709, 0.03634159, 0.037819809, 0.039140642, 0.040951609, 0.042528477, 0.044501294, 0.046233277, 0.048138173, 0.049834956, 0.051457285, 0.05291925, 0.054144293, 0.055243852, 0.056100671, 0.056832166, 0.057390578, 0.057842267, 0.058224136, 0.058488577, 0.058695119, 0.058867565, 0.05903252, 0.059123376, 0.059144156, 0.059211027, 0.059317737, 0.059306541, 0.059199205, 0.05922865, 0.059355313, 0.05922317, 0.058934536, 0.058923208, 0.05910501, 0.05876971, 0.058075247, 0.057968881, 0.058231127, 0.057301948, 0.055878783, 0.055586407, 0.055446791, 0.053215979, 0.050721408, 0.049393623, 0.047593521, 0.04306912, 0.038369669, 0.033970237, 0.028524805, 0.020007582, 0.010860114, 0.0012870992, -0.0096190401, -0.022585094, -0.036455705, -0.049150473, -0.062396833, -0.075099745, -0.087285277, -0.097033653, -0.10614197, -0.11392161, -0.11974704, -0.12410126, -0.12840598, -0.13236312, -0.13451234, -0.13486643, -0.13492245, -0.13596244, -0.13663764, -0.13533053, -0.13280515, -0.13061617]], "coef": [[[0.719539858902028, -0.032888276357403406, -0.5436093606804651], [-0.5436093606804651, 0.719539858902028, -0.032888276357403406], [-0.032888276357403406, -0.5436093606804651, 0.6752519680977348], [0.719539858902028, -0.032888276357403406, 0.5436093606804651], [-0.032888276357403406, -0.5436093606804651, -0.6752519680977348], [-0.5436093606804651, -0.719539858902028, -0.032888276357403406], [-0.032888276357403406, 0.5436093606804651, 0.6752519680977348], [-0.032888276357403406, 0.5436093606804651, -0.6752519680977348], [-0.719539858902028, -0.032888276357403406, -0.5436093606804651], [0.5436093606804651, 0.719539858902028, -0.032888276357403406], [-0.719539858902028, -0.032888276357403406, 0.5436093606804651], [0.5436093606804651, -0.719539858902028, -0.032888276357403406]], [[-0.09157905531000238, 0.05696416562438894, -0.2131415062106506], [-0.2131415062106506, -0.09157905531000238, 0.05696416562438894], [0.05696416562438894, -0.2131415062106506, -0.014870178276903984], [-0.09157905531000238, 0.05696416562438894, 0.2131415062106506], [0.05696416562438894, -0.2131415062106506, 0.014870178276903984], [-0.2131415062106506, 0.09157905531000238, 0.05696416562438894], [0.05696416562438894, 0.2131415062106506, -0.014870178276903984], [0.05696416562438894, 0.2131415062106506, 0.014870178276903984], [0.09157905531000238, 0.05696416562438894, -0.2131415062106506], [0.2131415062106506, -0.09157905531000238, 0.05696416562438894], [0.09157905531000238, 0.05696416562438894, 0.2131415062106506], [0.2131415062106506, 0.09157905531000238, 0.05696416562438894]], [[1.709190613482823e-16, -4.0628341923012754e-18, 4.3603908253528806e-17], [4.3603908253528806e-17, 1.709190613482823e-16, -4.0628341923012754e-18], [-4.0628341923012754e-18, 4.3603908253528806e-17, 2.0884779940139746e-16], [1.709190613482823e-16, -4.0628341923012754e-18, -4.3603908253528806e-17], [-4.0628341923012754e-18, 4.3603908253528806e-17, -2.0884779940139746e-16], [4.3603908253528806e-17, -1.709190613482823e-16, -4.0628341923012754e-18], [-4.0628341923012754e-18, -4.3603908253528806e-17, 2.0884779940139746e-16], [-4.0628341923012754e-18, -4.3603908253528806e-17, -2.0884779940139746e-16], [-1.709190613482823e-16, -4.0628341923012754e-18, 4.3603908253528806e-17], [-4.3603908253528806e-17, 1.709190613482823e-16, -4.0628341923012754e-18], [-1.709190613482823e-16, -4.0628341923012754e-18, -4.3603908253528806e-17], [-4.3603908253528806e-17, -1.709190613482823e-16, -4.0628341923012754e-18]], [[0.5609202821959438, 0.06577655271480701, 1.0872187213609306], [1.0872187213609306, 0.5609202821959438, 0.06577655271480701], [0.06577655271480701, 1.0872187213609306, 0.6494960638045303], [0.5609202821959438, 0.06577655271480701, -1.0872187213609306], [0.06577655271480701, 1.0872187213609306, -0.6494960638045303], [1.0872187213609306, -0.5609202821959438, 0.06577655271480701], [0.06577655271480701, -1.0872187213609306, 0.6494960638045303], [0.06577655271480701, -1.0872187213609306, -0.6494960638045303], [-0.5609202821959438, 0.06577655271480701, 1.0872187213609306], [-1.0872187213609306, 0.5609202821959438, 0.06577655271480701], [-0.5609202821959438, 0.06577655271480701, -1.0872187213609306], [-1.0872187213609306, -0.5609202821959438, 0.06577655271480701]]], "self": [[[0.0, -1.0872187213609301, 0.0], [0.0, -0.4262830124213012, 0.0], [0.0, 8.720781650705761e-17, 0.0], [0.0, 2.174437442721861, 0.0], [0.0, 2.309401076758504, 0.0]], [[0.0, -1.0872187213609301, 0.0], [0.0, -0.4262830124213012, 0.0], [0.0, 8.720781650705761e-17, 0.0], [0.0, 2.174437442721861, 0.0], [0.0, 2.309401076758504, 0.0]], [[0.0, 0.0, -1.0872187213609301], [0.0, 0.0, -0.4262830124213012], [0.0, 0.0, 8.720781650705761e-17], [0.0, 0.0, 2.174437442721861], [0.0, 0.0, 2.309401076758504]], [[0.0, 0.0, -1.0872187213609301], [0.0, 0.0, -0.4262830124213012], [0.0, 0.0, 8.720781650705761e-17], [0.0, 0.0, 2.174437442721861], [0.0, 0.0, 2.309401076758504]]], "xp": [[1, 9], [5, 11]], "mc": [6.349916705975785, 0.4347125932000392, 12.293924191331612, -1.067445951427382, -2.8467955076173803, 4.24719365108846], "mu": 8.0}</script>
+<script>
+(function () {
+  "use strict";
+  var R = JSON.parse(document.getElementById("refdata").textContent);
+  var STEP = R.step, A_REF = R.a_ref, DT = R.dt, Q0 = R.q0;
+  var P = R.coef[0], Q = R.coef[1], SS = R.coef[2], TT = R.coef[3];
+  var SELF = R.self, XP = R.xp, MC = R.mc, MU = R.mu;
+  var PI3 = Math.PI / 3;
+
+  /* ---------------- the two-field chain, the model's own energy ---------- */
+  function Chain(n) {
+    this.n = n;
+    this.u = new Float64Array(n); this.g = new Float64Array(n);
+    this.ud = new Float64Array(n); this.gd = new Float64Array(n);
+    this.dVu = new Float64Array(n); this.dVg = new Float64Array(n);
+    this.t = 0;
+    this.bad = 0;           /* fractional error planted in one coupling */
+  }
+  Chain.prototype.grad = function (u, g) {
+    var n = this.n, dVu = this.dVu, dVg = this.dVg, i, j, k;
+    for (i = 0; i < n; i++) { dVu[i] = 0; dVg[i] = 0; }
+    for (i = 0; i < n; i++) {
+      var a = A_REF * Math.PI / 180 + g[i];
+      var c1 = Math.cos(a - PI3), s1 = Math.sin(a - PI3);
+      var c2 = Math.cos(a), s2 = Math.sin(a);
+      for (k = 0; k < SELF.length; k++) {
+        var e = SELF[k], dP = e[0], dQ = e[1], dS = e[2], dT = e[3], Tg = e[4];
+        var rx = c1 * dP[0] + s1 * dQ[0] + dS[0] + c2 * dT[0] - Tg[0];
+        var ry = c1 * dP[1] + s1 * dQ[1] + dS[1] + c2 * dT[1] - Tg[1];
+        var rz = c1 * dP[2] + s1 * dQ[2] + dS[2] + c2 * dT[2] - Tg[2];
+        var ax = -s1 * dP[0] + c1 * dQ[0] - s2 * dT[0];
+        var ay = -s1 * dP[1] + c1 * dQ[1] - s2 * dT[1];
+        var az = -s1 * dP[2] + c1 * dQ[2] - s2 * dT[2];
+        dVg[i] += rx * ax + ry * ay + rz * az;
+      }
+    }
+    var scale = 1.0 + this.bad;
+    for (i = 0; i < n; i++) {
+      j = (i + 1) % n;
+      var ai = A_REF * Math.PI / 180 + g[i], aj = A_REF * Math.PI / 180 + g[j];
+      var ci1 = Math.cos(ai - PI3), si1 = Math.sin(ai - PI3);
+      var ci2 = Math.cos(ai), si2 = Math.sin(ai);
+      var cj1 = Math.cos(aj - PI3), sj1 = Math.sin(aj - PI3);
+      var cj2 = Math.cos(aj), sj2 = Math.sin(aj);
+      for (k = 0; k < XP.length; k++) {
+        var va = XP[k][0], vb = XP[k][1];
+        var pax = ci1 * P[va][0] + si1 * Q[va][0] + SS[va][0] + ci2 * TT[va][0];
+        var pay = ci1 * P[va][1] + si1 * Q[va][1] + SS[va][1] + ci2 * TT[va][1];
+        var paz = ci1 * P[va][2] + si1 * Q[va][2] + SS[va][2] + ci2 * TT[va][2];
+        var dax = -si1 * P[va][0] + ci1 * Q[va][0] - si2 * TT[va][0];
+        var day = -si1 * P[va][1] + ci1 * Q[va][1] - si2 * TT[va][1];
+        var daz = -si1 * P[va][2] + ci1 * Q[va][2] - si2 * TT[va][2];
+        var pbx = cj1 * P[vb][0] + sj1 * Q[vb][0] + SS[vb][0] + cj2 * TT[vb][0];
+        var pby = cj1 * P[vb][1] + sj1 * Q[vb][1] + SS[vb][1] + cj2 * TT[vb][1];
+        var pbz = cj1 * P[vb][2] + sj1 * Q[vb][2] + SS[vb][2] + cj2 * TT[vb][2];
+        var dbx = -sj1 * P[vb][0] + cj1 * Q[vb][0] - sj2 * TT[vb][0];
+        var dby = -sj1 * P[vb][1] + cj1 * Q[vb][1] - sj2 * TT[vb][1];
+        var dbz = -sj1 * P[vb][2] + cj1 * Q[vb][2] - sj2 * TT[vb][2];
+        var rx = (u[i] - u[j] - STEP) + (pax - pbx);
+        var ry = pay - pby, rz = paz - pbz;
+        rx *= scale; ry *= scale; rz *= scale;
+        dVu[i] += rx; dVu[j] -= rx;
+        dVg[i] += rx * dax + ry * day + rz * daz;
+        dVg[j] -= rx * dbx + ry * dby + rz * dbz;
+      }
+    }
+  };
+  function massFold(g) {
+    var a = A_REF * Math.PI / 180 + g;
+    var c1 = Math.cos(a - PI3), s1 = Math.sin(a - PI3);
+    var c2 = Math.cos(a), s2 = Math.sin(a);
+    var m = MC[0] * s1 * s1 + MC[1] * c1 * c1 + MC[2] * s2 * s2
+          + MC[3] * s1 * c1 + MC[4] * s1 * s2 + MC[5] * c1 * s2;
+    var dm = 2 * MC[0] * s1 * c1 - 2 * MC[1] * c1 * s1 + 2 * MC[2] * s2 * c2
+           + MC[3] * (c1 * c1 - s1 * s1) + MC[4] * (c1 * s2 + s1 * c2)
+           + MC[5] * (c1 * c2 - s1 * s2);
+    return [m, dm];
+  }
+  Chain.prototype.deriv = function (u, g, ud, gd, au, ag) {
+    this.grad(u, g);
+    for (var i = 0; i < this.n; i++) {
+      au[i] = -this.dVu[i] / MU;
+      var md = massFold(g[i]);
+      ag[i] = (-0.5 * md[1] * gd[i] * gd[i] - this.dVg[i]) / md[0];
+    }
+  };
+  Chain.prototype.step = function (dt) {
+    /* plain RK4 on y = (u, g, udot, gdot); f(y) = (udot, gdot, au, ag) */
+    var n = this.n, i;
+    if (!this._s) {
+      this._s = {};
+      ["u", "g", "ud", "gd", "au", "ag",
+       "su", "sg", "sud", "sgd"].forEach(function (k) {
+        this._s[k] = new Float64Array(n);
+      }, this);
+      this._s.k = [];
+      for (i = 0; i < 4; i++) {
+        this._s.k.push({ u: new Float64Array(n), g: new Float64Array(n),
+                         ud: new Float64Array(n), gd: new Float64Array(n) });
+      }
+    }
+    var S = this._s, K = S.k;
+    var W = [0, 0.5, 0.5, 1.0];
+    for (var st = 0; st < 4; st++) {
+      var h = W[st] * dt;
+      for (i = 0; i < n; i++) {
+        S.u[i] = this.u[i] + (st ? h * K[st - 1].u[i] : 0);
+        S.g[i] = this.g[i] + (st ? h * K[st - 1].g[i] : 0);
+        S.ud[i] = this.ud[i] + (st ? h * K[st - 1].ud[i] : 0);
+        S.gd[i] = this.gd[i] + (st ? h * K[st - 1].gd[i] : 0);
+      }
+      this.deriv(S.u, S.g, S.ud, S.gd, S.au, S.ag);
+      for (i = 0; i < n; i++) {
+        K[st].u[i] = S.ud[i]; K[st].g[i] = S.gd[i];
+        K[st].ud[i] = S.au[i]; K[st].gd[i] = S.ag[i];
+      }
+    }
+    var c = dt / 6;
+    for (i = 0; i < n; i++) {
+      this.u[i] += c * (K[0].u[i] + 2 * K[1].u[i] + 2 * K[2].u[i] + K[3].u[i]);
+      this.g[i] += c * (K[0].g[i] + 2 * K[1].g[i] + 2 * K[2].g[i] + K[3].g[i]);
+      this.ud[i] += c * (K[0].ud[i] + 2 * K[1].ud[i] + 2 * K[2].ud[i] + K[3].ud[i]);
+      this.gd[i] += c * (K[0].gd[i] + 2 * K[1].gd[i] + 2 * K[2].gd[i] + K[3].gd[i]);
+    }
+    this.t += dt;
+  };
+
+  Chain.prototype.launch = function (x0, w, ampDeg, carrier) {
+    var n = this.n, i;
+    var A = ampDeg * Math.PI / 180;
+    var w0 = Math.sin(Q0 / 2), vg = 0.5 * Math.cos(Q0 / 2);
+    for (i = 0; i < n; i++) {
+      var d = ((i - x0 + n / 2) % n + n) % n - n / 2;
+      var psi, dpsi;
+      if (carrier) { psi = A / Math.cosh(d / w); dpsi = -psi * Math.tanh(d / w) / w; }
+      else { psi = A * Math.exp(-(d / w) * (d / w)); dpsi = -2 * d / (w * w) * psi; }
+      this.u[i] = 0; this.ud[i] = 0;
+      if (carrier) {
+        this.g[i] = psi * Math.cos(Q0 * i);
+        this.gd[i] = -vg * dpsi * Math.cos(Q0 * i) + w0 * psi * Math.sin(Q0 * i);
+      } else {
+        this.g[i] = psi;
+        this.gd[i] = -0.5 * dpsi;
+      }
+    }
+    this.t = 0;
+  };
+  Chain.prototype.peak = function () {
+    var m = 0;
+    for (var i = 0; i < this.n; i++) { var a = Math.abs(this.g[i]); if (a > m) m = a; }
+    return m;
+  };
+
+  /* ---------------- the self-check: this integrator vs the model --------- */
+  function selfCheck(bad) {
+    var c = new Chain(R.n);
+    c.bad = bad;
+    c.launch(R.x0, R.width, R.amp_deg, true);
+    var per = Math.round((R.times[1] - R.times[0]) / DT);
+    var worst = 0, peak = 0, fi, i;
+    for (fi = 0; fi < R.fold.length; fi++) {
+      if (fi > 0) for (var s = 0; s < per; s++) c.step(DT);
+      for (i = 0; i < R.n; i++) {
+        var ref = R.fold[fi][i];
+        peak = Math.max(peak, Math.abs(ref));
+        worst = Math.max(worst, Math.abs(c.g[i] - ref));
+      }
+    }
+    return worst / peak;
+  }
+  var relOk = selfCheck(0), relBad = selfCheck(0.005);
+  var THRESH = 1e-6;
+  var checkPass = relOk < THRESH && relBad > THRESH;
+  (function () {
+    function fmt(x) { return x.toExponential(1).replace("e-", "·10⁻").replace("e+", "·10"); }
+    document.getElementById("checkVal").textContent = fmt(relOk);
+    var note = document.getElementById("checkNote");
+    if (checkPass) {
+      note.textContent = "self-check " + fmt(relOk) + " of peak against the model; "
+        + "a 0.5% wrong coupling gives " + fmt(relBad) + ", so the check can fail";
+    } else {
+      note.textContent = "DO NOT TRUST THIS PAGE — self-check " + fmt(relOk)
+        + " (planted-error control " + fmt(relBad) + ")";
+      note.style.color = "var(--copper)";
+      document.getElementById("checkFact").style.borderColor = "var(--copper)";
+    }
+  })();
+
+  /* ---------------- the bulk: WebGL --------------------------------------- */
+  var NX = 128, NY = 90, NZ = 90, NCELL = NX * NY * NZ;
+  document.getElementById("cellCount").textContent = NCELL.toLocaleString();
+  document.getElementById("factCells").textContent = NCELL.toLocaleString();
+  document.getElementById("dofCount").textContent = (2 * NX).toLocaleString();
+  document.getElementById("factDof").textContent = (2 * NX).toLocaleString();
+  document.getElementById("planeCount").textContent = String(NX);
+  var pc2 = document.getElementById("planeCount2");
+  if (pc2) pc2.textContent = String(NX);
+
+  var sim = new Chain(NX);
+  sim.launch(NX * 0.14, 8, 6, true);
+
+  var cv = document.getElementById("gl");
+  var ov = document.getElementById("ov");
+  var octx = ov.getContext("2d");
+  var gl = cv.getContext("webgl2", { antialias: false, depth: true });
+  var PAL = { panel: [0.95, 0.95, 0.94], copper: [0.65, 0.32, 0.11],
+              slate: [0.36, 0.40, 0.78], body: [0.72, 0.73, 0.70] };
+  function readPal() {
+    var cs = getComputedStyle(document.documentElement);
+    function rgb(nm) {
+      var h = cs.getPropertyValue(nm).trim().replace("#", "");
+      return [parseInt(h.substr(0, 2), 16) / 255, parseInt(h.substr(2, 2), 16) / 255,
+              parseInt(h.substr(4, 2), 16) / 255];
+    }
+    PAL.panel = rgb("--panel"); PAL.copper = rgb("--copper");
+    PAL.slate = rgb("--slate");
+    var b = rgb("--panel"), m = rgb("--muted");
+    PAL.body = [b[0] + (m[0] - b[0]) * 0.42, b[1] + (m[1] - b[1]) * 0.42,
+                b[2] + (m[2] - b[2]) * 0.42];
+  }
+  readPal();
+  new MutationObserver(readPal).observe(document.documentElement,
+    { attributes: true, attributeFilter: ["data-theme"] });
+  var mmD = matchMedia("(prefers-color-scheme: dark)");
+  if (mmD.addEventListener) mmD.addEventListener("change", readPal);
+
+  if (!gl) {
+    document.getElementById("checkNote").textContent =
+      "this browser has no WebGL2, so the bulk view cannot be drawn";
+  } else {
+    var VS = "#version 300 es\n" +
+      "uniform highp sampler2D uG;\n" +
+      "uniform mat4 uMVP; uniform float uSizeK; uniform float uMaxAbs;\n" +
+      "uniform int uNX; uniform int uNY; uniform int uNZ; uniform int uMode;\n" +
+      "uniform float uCutY; uniform float uSpacing;\n" +
+      "uniform vec3 uCopper; uniform vec3 uSlate; uniform vec3 uBody;\n" +
+      "out vec4 vCol;\n" +
+      "void main(){\n" +
+      "  int i = gl_VertexID;\n" +
+      "  int per = uNY*uNZ;\n" +
+      "  int ix = i / per; int rem = i - ix*per;\n" +
+      "  int iy = rem / uNZ; int iz = rem - iy*uNZ;\n" +
+      "  vec3 w = vec3(float(ix) - float(uNX-1)*0.5,\n" +
+      "                float(iy) - float(uNY-1)*0.5,\n" +
+      "                float(iz) - float(uNZ-1)*0.5) * uSpacing;\n" +
+      "  if (uMode == 0 && w.y > uCutY) { gl_Position = vec4(2e3,0,0,1); gl_PointSize=0.0; vCol=vec4(0.); return; }\n" +
+      "  vec4 clip = uMVP * vec4(w, 1.0);\n" +
+      "  gl_Position = clip;\n" +
+      "  float g = texelFetch(uG, ivec2(ix, 0), 0).r;\n" +
+      "  float q = uMaxAbs > 0.0 ? clamp(g / uMaxAbs, -1.0, 1.0) : 0.0;\n" +
+      "  float a = abs(q);\n" +
+      "  float px = uSizeK / max(clip.w, 0.001);\n" +
+      "  gl_PointSize = max(px, 1.0);\n" +
+      "  float tint = a < 0.02 ? 0.0 : min(1.0, 1.25*pow(a, 0.45));\n" +
+      "  vec3 sgn = q > 0.0 ? uCopper : uSlate;\n" +
+      "  vCol = vec4(mix(uBody, sgn, tint), 1.0);\n" +
+      "}";
+    var FS = "#version 300 es\nprecision mediump float;\n" +
+      "in vec4 vCol;\nout vec4 o;\nvoid main(){\n" +
+      "  vec2 p = gl_PointCoord * 2.0 - 1.0;\n" +
+      "  if (abs(p.y) > 0.92 || abs(p.x)*0.866 + abs(p.y)*0.5 > 0.9) discard;\n" +
+      "  float shade = 1.0 - 0.20 * gl_FragCoord.z;\n" +
+      "  o = vec4(vCol.rgb * shade, 1.0);\n}";
+    function sh(t, src) {
+      var s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    }
+    var prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    var vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    var tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.R32F, NX, 1);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    var buf = new Float32Array(NX);
+
+    var yaw = 0.72, pitch = 0.42, zoom = 1.0, mode = 0, playing = true;
+    var W = 0, H = 0, dpr = 1;
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = cv.clientWidth; H = cv.clientHeight;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ov.width = cv.width; ov.height = cv.height;
+      ov.style.width = W + "px"; ov.style.height = H + "px";
+    }
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(cv);
+    resize();
+
+    function camera() {
+      var ext = NX * STEP;
+      var dist = ext * 1.15 / zoom;
+      var cp = Math.cos(pitch), sp = Math.sin(pitch);
+      var cy = Math.cos(yaw), sy = Math.sin(yaw);
+      var Ry = [cy, 0, -sy, 0, 0, 1, 0, 0, sy, 0, cy, 0, 0, 0, 0, 1];
+      var Rx = [1, 0, 0, 0, 0, cp, sp, 0, 0, -sp, cp, 0, 0, 0, 0, 1];
+      function mul(a, b) {
+        var o = new Array(16);
+        for (var r = 0; r < 4; r++) for (var c = 0; c < 4; c++) {
+          var s = 0;
+          for (var k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+          o[c * 4 + r] = s;
+        }
+        return o;
+      }
+      var V = mul(Rx, Ry);
+      V[14] = -dist;
+      var f = 1.0 / Math.tan(0.45), asp = W / Math.max(H, 1);
+      var near = dist * 0.02, far = dist * 4.0;
+      var Pm = [f / asp, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) / (near - far), -1,
+                0, 0, 2 * far * near / (near - far), 0];
+      /* a cell of size STEP at depth w projects to STEP*f*(pixelHeight/2)/w
+         device pixels, and gl_PointSize is in DEVICE pixels -- half of this
+         and the cells stop touching and the bar reads as dots */
+      return { mvp: mul(Pm, V), sizeK: STEP * f * cv.height * 0.5, dist: dist };
+    }
+    cv.addEventListener("pointerdown", function (e) {
+      cv.setPointerCapture(e.pointerId); cv._d = [e.clientX, e.clientY];
+    });
+    cv.addEventListener("pointermove", function (e) {
+      if (!cv._d) return;
+      yaw += (e.clientX - cv._d[0]) * 0.006;
+      pitch += (e.clientY - cv._d[1]) * 0.006;
+      pitch = Math.max(-1.4, Math.min(1.4, pitch));
+      cv._d = [e.clientX, e.clientY];
+    });
+    ["pointerup", "pointercancel"].forEach(function (k) {
+      cv.addEventListener(k, function () { cv._d = null; });
+    });
+    cv.addEventListener("wheel", function (e) {
+      e.preventDefault();
+      zoom = Math.max(0.35, Math.min(6, zoom * (e.deltaY < 0 ? 1.12 : 0.89)));
+    }, { passive: false });
+
+    function setPressed(id, on) {
+      var el = document.getElementById(id);
+      if (el) el.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    document.getElementById("play").addEventListener("click", function () {
+      playing = !playing;
+      this.setAttribute("aria-pressed", playing ? "true" : "false");
+      this.textContent = playing ? "⏸ Pause" : "▸ Play";
+    });
+    function preset(w, amp, carrier) {
+      sim.launch(NX * 0.14, w, amp, carrier);
+    }
+    document.getElementById("pA").addEventListener("click", function () { preset(8, 6, true); });
+    document.getElementById("pB").addEventListener("click", function () { preset(16, 3, true); });
+    document.getElementById("pC").addEventListener("click", function () { preset(4, 12, true); });
+    document.getElementById("pD").addEventListener("click", function () { preset(16, 4, false); });
+    document.getElementById("mCut").addEventListener("click", function () {
+      mode = 0; setPressed("mCut", true); setPressed("mSolid", false);
+    });
+    document.getElementById("mSolid").addEventListener("click", function () {
+      mode = 1; setPressed("mCut", false); setPressed("mSolid", true);
+    });
+
+    var STEPS_PER_FRAME = 14;
+    var lastT = 0, fpsAcc = 0, fpsN = 0;
+    function frame(now) {
+      requestAnimationFrame(frame);
+      if (lastT) { fpsAcc += 1000 / Math.max(now - lastT, 1); fpsN++; }
+      lastT = now;
+      if (fpsN >= 30) {
+        document.getElementById("fpsOut").textContent = String(Math.round(fpsAcc / fpsN));
+        fpsAcc = 0; fpsN = 0;
+      }
+      if (playing) for (var s = 0; s < STEPS_PER_FRAME; s++) sim.step(DT);
+      var mx = sim.peak();
+      for (var i = 0; i < NX; i++) buf[i] = sim.g[i];
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, NX, 1, gl.RED, gl.FLOAT, buf);
+      var cam = camera();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, cv.width, cv.height);
+      gl.clearColor(PAL.panel[0], PAL.panel[1], PAL.panel[2], 1);
+      gl.clearDepth(1);
+      gl.enable(gl.DEPTH_TEST);
+      gl.disable(gl.BLEND);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.useProgram(prog);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniform1i(gl.getUniformLocation(prog, "uG"), 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(prog, "uMVP"), false, new Float32Array(cam.mvp));
+      gl.uniform1f(gl.getUniformLocation(prog, "uSizeK"), cam.sizeK);
+      gl.uniform1f(gl.getUniformLocation(prog, "uMaxAbs"), mx > 0 ? mx : 1);
+      gl.uniform1i(gl.getUniformLocation(prog, "uNX"), NX);
+      gl.uniform1i(gl.getUniformLocation(prog, "uNY"), NY);
+      gl.uniform1i(gl.getUniformLocation(prog, "uNZ"), NZ);
+      gl.uniform1i(gl.getUniformLocation(prog, "uMode"), mode);
+      gl.uniform1f(gl.getUniformLocation(prog, "uCutY"), 0.05 * STEP);
+      gl.uniform1f(gl.getUniformLocation(prog, "uSpacing"), STEP);
+      gl.uniform3fv(gl.getUniformLocation(prog, "uCopper"), PAL.copper);
+      gl.uniform3fv(gl.getUniformLocation(prog, "uSlate"), PAL.slate);
+      gl.uniform3fv(gl.getUniformLocation(prog, "uBody"), PAL.body);
+      gl.bindVertexArray(vao);
+      gl.drawArrays(gl.POINTS, 0, NCELL);
+      document.getElementById("tOut").textContent = sim.t.toFixed(0);
+      document.getElementById("sOut").textContent = (mx * 180 / Math.PI).toFixed(2);
+      octx.clearRect(0, 0, ov.width, ov.height);
+    }
+    requestAnimationFrame(frame);
+
+    window.__cap = {
+      pause: function () { playing = false; },
+      play: function () { playing = true; },
+      cam: function (y, p, z) { yaw = y; pitch = p; if (z) zoom = z; },
+      preset: preset,
+      mode: function (m) { mode = m; },
+      steps: function (k) { for (var i = 0; i < k; i++) sim.step(DT); },
+      t: function () { return sim.t; },
+      check: function () { return [relOk, relBad, checkPass]; }
+    };
+  }
+})();
+</script>
