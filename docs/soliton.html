@@ -614,7 +614,9 @@
       ctx.globalAlpha = 0.4;
       ctx.setLineDash([3, 3]);
       ctx.lineWidth = 1;
-      [lo, lo + s.win].forEach(function (x) {
+      /* the window wraps with the ring, so both edges are taken mod n --
+         otherwise the far edge runs off the right and only one is drawn */
+      [lo % n, (lo + s.win) % n].forEach(function (x) {
         var px = x / n * W;
         ctx.beginPath(); ctx.moveTo(px, 2 * hr); ctx.lineTo(px, H); ctx.stroke();
       });
