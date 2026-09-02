@@ -516,11 +516,11 @@
     } else { c = S.centre; }
     var lo = Math.max(0, Math.min(n - win, Math.round(c - win / 2)));
     var sx = W / win;
-    var scale = sx * 0.62;
+    var scale = sx * 0.72;
     var rows = 3;
     var body = mix(PAL.panelRgb, PAL.mutedRgb, 0.42);
     for (var r = rows - 1; r >= 0; r--) {
-      var oy = y0 + h * 0.5 + (r - 1) * scale * 0.92;
+      var oy = y0 + h * 0.54 + (r - 1) * scale * 0.9;
       var ox = (r - 1) * scale * 0.42;
       for (var j = 0; j < win; j++) {
         var idx = lo + j;
@@ -551,7 +551,7 @@
     ctx.fillStyle = PAL.panel;
     ctx.fillRect(0, 0, W, H);
     setBlend(pos, T());
-    var hCells = showCells ? Math.round(H * 0.40) : 0;
+    var hCells = showCells ? Math.round(H * 0.32) : 0;
     var rest = H - hCells;
     if (showCells) drawCells(S.nl, 0, hCells, n);
     drawProfile(S.nl, hCells, rest / 2, n, "EXACT — the medium", PAL.copper);
