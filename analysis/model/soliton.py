@@ -705,55 +705,81 @@ def gate():
     # ---- S3: THE COLLISION -------------------------------------------------
     n3, st3, win = 500, 13000, 60
     xa, xb = 130.0, 370.0
+    samp = st3 // 90
 
     def _pair(right):
         return packet(n3, xa if right else xb, SOL_W, SOL_AMP_DEG, right=right)
 
-    def _two(g):
-        e = envelope(g)
-        e2 = e.copy()
-        got = []
-        for _ in range(2):
-            i = int(np.argmax(e2))
-            got.append((float(np.degrees(e[i])), centroid(e, i, win)))
-            d = (np.arange(n3) - i + n3 // 2) % n3 - n3 // 2
-            e2[np.abs(d) < 110] = 0
-        return sorted(got, key=lambda t: t[1])
+    def _series(lin):
+        """Per frame: how far each packet is from where it would have been had
+        the other never existed. The packet BREATHES about the exact lattice
+        soliton, so a single end-of-run reading lands wherever that breath
+        happens to be -- measured, it ranges over about 0.2 of a cell. The
+        shift is therefore the MEAN over the post-collision frames, and the
+        spread is reported rather than hidden."""
+        ga, va = _pair(True)
+        gb, vb = _pair(False)
+        z = np.zeros(n3)
+        rc, _ = rk4(z, ga + gb, z, va + vb, DT, st3, sample=samp, linear=lin)
+        rr, _ = rk4(z, ga, z, va, DT, st3, sample=samp, linear=lin)
+        rl, _ = rk4(z, gb, z, vb, DT, st3, sample=samp, linear=lin)
+        rows = []
+        idx = np.arange(n3)
+        for k in range(len(rc)):
+            er, el = envelope(rr[k][2]), envelope(rl[k][2])
+            ec = envelope(rc[k][2])
+            cr = centroid(er, int(np.argmax(er)), win)
+            cl = centroid(el, int(np.argmax(el)), win)
+            if abs(cr - cl) < 110:
+                rows.append((rc[k][0], None, None, None))
+                continue
+            got = []
+            for c0 in (cr, cl):
+                d = (idx - int(round(c0)) + n3 // 2) % n3 - n3 // 2
+                i = int(np.argmax(np.where(np.abs(d) < 50, ec, -1.0)))
+                got.append((centroid(ec, i, win) - c0, float(ec[i])))
+            hr = float(er[int(round(cr)) % n3])
+            rows.append((rc[k][0], got[0][0], got[1][0],
+                         got[0][1] / hr if hr > 0 else 0.0))
+        return rows
 
+    rows = _series(False)
+    tmax3 = rows[-1][0]
+    post = [r for r in rows if r[1] is not None and r[0] > 0.72 * tmax3]
+    pre = [r for r in rows if r[1] is not None and r[0] < 0.25 * tmax3]
+    shift_r = float(np.mean([r[1] for r in post]))
+    shift_l = float(np.mean([r[2] for r in post]))
+    spread = float(np.std([r[1] for r in post]))
+    before = float(np.mean([abs(r[1]) for r in pre]))
+    keep = float(np.mean([r[3] for r in post]))
+    lrows = _series(True)
+    lpost = [r for r in lrows if r[1] is not None and r[0] > 0.72 * tmax3]
+    lshift = float(np.mean([r[1] for r in lpost]))
+    lkeep = float(np.mean([r[3] for r in lpost]))
+    # the harmonic model's zero shift is an identity, not a coincidence:
+    # superposition holds exactly there
     ga, va = _pair(True)
     gb, vb = _pair(False)
-    z3 = np.zeros(n3)
-    _o, fin = rk4(z3, ga + gb, z3, va + vb, DT, st3)
-    after = _two(fin[1])
-    freep = {}
-    for right in (True, False):
-        g1, v1 = _pair(right)
-        _o, f1 = rk4(z3, g1, z3, v1, DT, st3)
-        e = envelope(f1[1])
-        i = int(np.argmax(e))
-        freep[right] = (float(np.degrees(e[i])), centroid(e, i, win))
-    keep = [after[0][0] / freep[False][0], after[1][0] / freep[True][0]]
-    shift = [after[0][1] - freep[False][1], after[1][1] - freep[True][1]]
-    # the harmonic control: superposition is exact, so its shift is identically
-    # zero -- measured as an identity rather than asserted
-    _o, fboth = rk4(z3, ga + gb, z3, va + vb, DT, 4000, linear=True)
-    _o, fA = rk4(z3, ga, z3, va, DT, 4000, linear=True)
-    _o, fB = rk4(z3, gb, z3, vb, DT, 4000, linear=True)
+    z = np.zeros(n3)
+    _o, fboth = rk4(z, ga + gb, z, va + vb, DT, 4000, linear=True)
+    _o, fA = rk4(z, ga, z, va, DT, 4000, linear=True)
+    _o, fB = rk4(z, gb, z, vb, DT, 4000, linear=True)
     sup = float(np.abs(fboth[1] - (fA[1] + fB[1])).max())
-    out["s3"] = (keep, shift, sup)
+    out["s3"] = (shift_r, shift_l, spread, before, keep, lshift, sup)
     A(("S3 THE COLLISION -- what separates a soliton from a merely solitary "
-       "wave. Two packets meet head-on, pass through, and come out with their "
-       "heights INTACT and displaced from where free propagation would have "
-       "left them. The harmonic control cannot do this: there, superposition "
-       "is exact, so the two pass through with IDENTICALLY zero shift",
-       all(0.9 < k < 1.1 for k in keep) and min(abs(x) for x in shift) > 0.3
-       and shift[0] * shift[1] < 0
-       and abs(abs(shift[0]) - abs(shift[1])) < 0.25 * max(abs(x) for x in shift)
-       and sup < 1e-12,
-       f"heights kept {100 * keep[0]:.0f}% and {100 * keep[1]:.0f}% of free "
-       f"propagation; shifts {shift[0]:+.3f} and {shift[1]:+.3f} planes "
-       f"(equal and opposite -- each advanced along its own direction); "
-       f"harmonic superposition residual {sup:.1e}, so its shift is exactly 0"))
+       "wave. Two packets meet head-on, pass through, and come out at full "
+       "height but PERMANENTLY DISPLACED from where free propagation would "
+       "have left them, each advanced along its own direction. The harmonic "
+       "control cannot do this: there superposition is exact, so the two "
+       "never interact and the shift is identically zero",
+       keep > 0.93 and shift_r > 0.3 and shift_r * shift_l < 0
+       and abs(abs(shift_l) - shift_r) < 0.25 * shift_r
+       and before < 0.02 and abs(lshift) < 1e-3 and sup < 1e-12,
+       f"height kept {100 * keep:.0f}% (harmonic {100 * lkeep:.0f}%); shift "
+       f"{shift_r:+.3f} and {shift_l:+.3f} cells, mean over {len(post)} "
+       f"post-collision frames, spread {spread:.3f} (the packet breathes); "
+       f"before the meeting {before:.4f}; harmonic shift {lshift:+.5f} with "
+       f"superposition residual {sup:.1e}"))
 
     return checks, out
 
@@ -798,21 +824,46 @@ def export(path="analysis/.pages/data/soliton.json"):
             "width": SOL_W, "vg": 0.5 * np.cos(Q0 / 2.0),
             "omega0": np.sin(Q0 / 2.0), "a_ref": A_REF}
 
-    n, steps, sample = 700, 18000, 60
-    g0, gd0 = packet(n, 120.0, SOL_W, SOL_AMP_DEG)
+    # ring sizes are chosen so the packet crosses nearly the whole lattice
+    # WITHOUT wrapping, and so a cell is still a few pixels wide when the
+    # page draws the medium at this length
+    n, steps, sample = 360, 18000, 60
+    g0, gd0 = packet(n, 25.0, SOL_W, SOL_AMP_DEG)
     z = np.zeros(n)
     for name, lin in (("solitonNL", False), ("solitonLin", True)):
         t, G, U = _run(z, g0, z, gd0, n, steps, sample, lin)
         data[name] = _pack(t, G, U)
     data["n_one"] = n
 
-    n2, steps2, sample2 = 1200, 22000, 74
-    ga, va = packet(n2, 380.0, SOL_W, SOL_AMP_DEG, right=True)
-    gb, vb = packet(n2, 800.0, SOL_W, SOL_AMP_DEG, right=False)
+    n2, steps2, sample2 = 420, 12400, 41
+    ga, va = packet(n2, 110.0, SOL_W, SOL_AMP_DEG, right=True)
+    gb, vb = packet(n2, 310.0, SOL_W, SOL_AMP_DEG, right=False)
     z2 = np.zeros(n2)
     for name, lin in (("collideNL", False), ("collideLin", True)):
         t, G, U = _run(z2, ga + gb, z2, va + vb, n2, steps2, sample2, lin)
         data[name] = _pack(t, G, U)
+        # THE SIGNATURE, frame by frame: where the right-moving packet is
+        # against where it would have been had it never met the other one.
+        # Undefined while the two overlap, and emitted as null there rather
+        # than as a number the tracker cannot actually resolve.
+        _t, GR, _u = _run(z2, ga, z2, va, n2, steps2, sample2, lin)
+        _t, GL, _u = _run(z2, gb, z2, vb, n2, steps2, sample2, lin)
+        off = []
+        for f in range(len(t)):
+            er, el = envelope(GR[f]), envelope(GL[f])
+            cr = centroid(er, int(np.argmax(er)), 60)
+            cl = centroid(el, int(np.argmax(el)), 60)
+            sep = abs(cr - cl)
+            if sep < 95:
+                off.append(None)
+                continue
+            ec = envelope(G[f])
+            lo = int(round(cr)) - 45
+            w = np.zeros(n2, bool)
+            w[[(lo + j) % n2 for j in range(90)]] = True
+            i = int(np.argmax(np.where(w, ec, -1.0)))
+            off.append(round(float(centroid(ec, i, 45) - cr), 4))
+        data[name]["shift"] = off
     data["n_two"] = n2
 
     p = pathlib.Path(path)
