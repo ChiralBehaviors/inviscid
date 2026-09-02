@@ -307,7 +307,7 @@ def linear_blocks(k=K_JOINT):
     ~1e-10 of its own error, which is larger than the nonlinearity R6 is
     trying to see at small amplitude.
     """
-    c1, s1, c2, s2 = (float(x) for x in _trig(np.zeros(1)))
+    c1, s1, c2, s2 = (float(x) for x in _trig(0.0))
     Hnn = np.zeros((2, 2))
     Hnp = np.zeros((2, 2))
     # self bonds: fold only, on-site
