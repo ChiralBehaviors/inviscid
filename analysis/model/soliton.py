@@ -770,10 +770,16 @@ def gate():
     out["s3"] = (shift_r, shift_l, spread, before, keep, lshift, sup)
     A(("S3 THE COLLISION -- what separates a soliton from a merely solitary "
        "wave. Two packets meet head-on, pass through, and come out at full "
-       "height but PERMANENTLY DISPLACED from where free propagation would "
-       "have left them, each advanced along its own direction. The harmonic "
-       "control cannot do this: there superposition is exact, so the two "
-       "never interact and the shift is identically zero",
+       "height but displaced from where free propagation would have left "
+       "them, each advanced along its own direction. The harmonic control "
+       "cannot do this: there superposition is exact, so the two never "
+       "interact and the shift is identically zero. WHAT THE SHIFT IS "
+       "(envelope S1, 2026-09-02): these packets are launched COLD, with the "
+       "strain at rest, and each radiates a strain pulse at c = 1/2 while its "
+       "dent forms; that pulse outruns it and passes through the OTHER packet. "
+       "Most of this row's shift is that pulse. Launched warm, with the dents "
+       "in place, the collision's own shift is a tenth of a cell, and the "
+       "envelope equation predicts it",
        keep > 0.93 and shift_r > 0.3 and shift_r * shift_l < 0
        and abs(abs(shift_l) - shift_r) < 0.25 * shift_r
        and before < 0.02 and abs(lshift) < 1e-3 and sup < 1e-12,
