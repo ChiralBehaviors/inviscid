@@ -775,9 +775,9 @@ def gate():
        "cannot do this: there superposition is exact, so the two never "
        "interact and the shift is identically zero. WHAT THE SHIFT IS "
        "(envelope S1, 2026-09-02): these packets are launched COLD, with the "
-       "strain at rest, and each radiates a strain pulse at c = 1/2 while its "
-       "dent forms; that pulse outruns it and passes through the OTHER packet. "
-       "Most of this row's shift is that pulse. Launched warm, with the dents "
+       "strain at rest, and each radiates strain at c = 1/2 while its dent "
+       "forms. Most of this row's shift is that launch transient: launched "
+       "warm, with the dents "
        "in place, the collision's own shift is a tenth of a cell, and the "
        "envelope equation predicts it",
        keep > 0.93 and shift_r > 0.3 and shift_r * shift_l < 0
