@@ -20,7 +20,7 @@ mkdir -p "$OUT"
 LIVE=(
   model.jitterbug model.plates model.linkage_variety model.strut_clearance model.interpenetration_check model.cell model.cluster
   model.assembly model.dispersion model.block_spectrum model.joint_exponent
-  model.kick_response model.shear_response model.soliton
+  model.kick_response model.shear_response model.soliton model.envelope
   model.double_covering.dispersion model.double_covering.soft_joint_spectrum
   model.double_covering.joint_exponent model.double_covering.asymmetric_joint
   model.first_principles.one_cell model.first_principles.face_to_face model.first_principles.vertex_point

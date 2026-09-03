@@ -215,7 +215,7 @@
             <tr><td class="g">1</td><td>The same operator built from the lattice <em>graph</em> instead of discovered</td><td class="v">7N, linear</td><td class="v">≡ the model's own constructor, exactly (0.0)</td></tr>
             <tr><td class="g">2</td><td>The fold sector decouples, and its law is integer: mass 8, onsite 12k, six couplings −2k</td><td class="v">N, a scalar Laplacian</td><td class="v">cross-blocks 10⁻¹⁶; integer law 10⁻¹²</td></tr>
             <tr><td class="g">3</td><td>Symmetry sectors. A plane wave in the bulk is two fields per plane</td><td class="v">2·N<sub>x</sub></td><td class="v">no torque, no transverse force: 10⁻¹⁶</td></tr>
-            <tr><td class="g">4</td><td>The envelope: separate the four-cell carrier from the envelope and evolve the amplitude alone — <em>not built</em></td><td class="v">≈ N<sub>x</sub>/10</td><td class="v">—</td></tr>
+            <tr><td class="g">4</td><td>The envelope: separate the four-cell carrier from the envelope and evolve the amplitude alone — <a href="envelope.html">built, 2026-09-02</a></td><td class="v">N<sub>x</sub>/2 points, 10× the step</td><td class="v">A·w predicted 49.6 vs the chain's 48; envelope vs chain to 5%</td></tr>
           </tbody>
         </table>
       </div>
@@ -227,12 +227,13 @@
         cells in a fragment shader at 120 frames a second. Rung 3 is the one this page uses:
         the wave is a plane wave, so the block's million cells are two arrays of
         <span id="planeCount2">128</span>.</p>
-        <p>Rung 4 is the honest gap. The soliton's carrier is four cells and its envelope is
-        tens to hundreds, and those two scales separate cleanly — which is exactly the
-        condition for evolving the envelope on its own coarse grid and dropping the carrier
-        entirely. It would buy another order of magnitude and it is the level at which the
-        description becomes genuinely scale-free. It is not built, and this page does not
-        pretend otherwise.</p>
+        <p>Rung 4 was the honest gap when this page was written, and it is now
+        <a href="envelope.html">built</a>: the envelope obeys a nonlinear Schrödinger
+        equation whose two coefficients are the band's curvature and a measured frequency
+        shift — the latter two-thirds cancelled by the contraction a moving packet drags along
+        with it — and with nothing fitted it predicts the soliton family this page measured.
+        It also says where it stops: at the lattice below, and at the resonance above, where
+        the strain stops being a coefficient and becomes a field of its own.</p>
       </div>
     </div>
   </section>
