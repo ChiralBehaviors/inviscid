@@ -161,8 +161,13 @@
         per a² at one degree and at two. That number holds the on-site quartic, the fold's
         configuration-dependent inertia, the inter-plane terms, and the strain the wave drives
         at its second harmonic. Across four carriers it is
-        (1 + 4sin²(q/2))/(12 sin³(q/2)) to four digits — a closed form matched to the
-        measurement, not derived from the energy.</p>
+        (1 + 4sin²(q/2))/(12 sin³(q/2)) to four digits — and that is derived, not matched: a
+        Lindstedt expansion of the chain's own plane wave, with the fold's inertia, its cubic
+        and quartic terms and the strain it drives at 2q each measured from the energy, gives
+        four third-order contributions whose sum is 4(1 + 4s²)/(3s²) as an identity. Two
+        things fall out on the way: the mean fold is not driven by a plane wave, because the
+        inertia gradient is exactly −4·STEP and cancels the cubic's source; and the strain's
+        second harmonic is sourced by sin 2q, so at the soliton's carrier there is none.</p>
         <p>But a ring of fixed length cannot contract, and a packet in an open medium does.
         The fold-to-strain coupling is a <em>gradient</em> coupling —
         V₃ = (STEP/2) Σ γ²ₙ(u<sub>n+1</sub> − u<sub>n−1</sub>), measured term by term — so a
@@ -327,7 +332,7 @@
 
   <section>
     <div class="wrap">
-      <p class="eyebrow">analysis/model/envelope.py · 10 rows · in gates.sh live</p>
+      <p class="eyebrow">analysis/model/envelope.py · 11 rows · in gates.sh live</p>
       <h2>The gates</h2>
       <div class="tablewrap">
         <table>
@@ -335,13 +340,14 @@
           <tbody>
             <tr><td class="g">R1</td><td>The fold-strain cubic is a gradient coupling: ±STEP on the two neighbours, zero on the plane itself</td><td class="v">2.309401, −2.309401, 0</td></tr>
             <tr><td class="g">R2</td><td>P is the band's curvature from the chain's own linear blocks, and v<sub>g</sub> its slope</td><td class="v">−0.0883883 both ways</td></tr>
-            <tr><td class="g">R3</td><td>The ring shift is quadratic in amplitude; its closed form holds at four carriers; the cross shift exceeds the self shift</td><td class="v">0.7070 vs 0.7071; Q<sub>x,ring</sub> 1.89</td></tr>
+            <tr><td class="g">R3</td><td>The ring shift is quadratic in amplitude; the derived closed form holds at four carriers; the cross shift exceeds the self shift</td><td class="v">0.7070 vs 0.7071; Q<sub>x,ring</sub> 1.89</td></tr>
             <tr><td class="g">R4</td><td>The packet drags a dent of the predicted depth, and the dent rides with the peak</td><td class="v">1.03 ± 0.09; within 2 cells</td></tr>
             <tr><td class="g">R5</td><td>The family, predicted with nothing fitted, against the chain's stationary amplitude at w = 16</td><td class="v" id="tR5">49.6 vs 48.1 deg·cells</td></tr>
             <tr><td class="g">R6</td><td>The envelope model reproduces the chain's envelope after 140 cells: height, width, position — and the harmonic chain's with Q = 0</td><td class="v">6.18° vs 5.90°, 21 vs 23, Δx 0.0</td></tr>
             <tr><td class="g">R7</td><td>One point per two cells, ten times the time step: same envelope, a thousandth of the cost</td><td class="v" id="tR7">2·10⁻⁷ of peak; 1286×</td></tr>
             <tr><td class="g">R8a</td><td>The discreteness wall is invisible from rung 4: at w = 2 the envelope model holds where the chain fails</td><td class="v" id="tR8a">chain keeps 0.83, envelope model 1.00</td></tr>
             <tr><td class="g">R8b</td><td>The resonance wall from rung 4's side: Q vanishes at π/3, the dent takes 2w/(c − v<sub>g</sub>) to form, and at π/4 the chain focuses on the bare ring coefficient</td><td class="v">Q(π/3) = +0.0006; dent 0.59 formed at t = 600; peak 1.28×</td></tr>
+            <tr><td class="g">R9</td><td>The closed form is derived: Lagrangian coefficients by central differences, four Lindstedt pieces summing to 4(1 + 4s²)/(3s²), no strain at 2q on the π/2 ring</td><td class="v" id="tR9">coefficients to 3·10⁻⁸; identity to 10⁻¹⁴; 0.7071 vs 0.7070, 1.3333 vs 1.3331</td></tr>
             <tr><td class="g">S1</td><td>The collision: envelope model, warm chain and cold chain, and what the cold number was</td><td class="v" id="tS1">—</td></tr>
           </tbody>
         </table>
@@ -351,11 +357,10 @@
         except where a row says otherwise; the plane-symmetric restriction is inherited from
         the chain, and the chain's own gate against the seven-coordinate medium is what makes
         this page a reduction of the model of record rather than of a model of it. The
-        closed forms for the ring shift and for Q are matched to measurement at four carriers,
-        not derived from the energy. The mean fold — the breathe, which is gapless — is not
-        driven by a plane wave at this order (the fold's inertia gradient is exactly
-        −4·STEP, and the two sources cancel), but near the resonance the chain shows it pumped
-        to degrees; it belongs to the larger equation beyond the wall. The lanes this builds
+        closed forms for the ring shift and for Q are derived from the energy and measured at
+        four carriers. The mean fold — the breathe, which is gapless — is not driven by a
+        plane wave at this order, but near the resonance the chain shows it pumped to
+        degrees; it belongs to the larger equation beyond the wall. The lanes this builds
         on: <a href="soliton.html">The Wave That Holds</a>,
         <a href="bulk.html">Two Fields, A Million Cells</a>.</p>
       </div>
