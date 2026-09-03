@@ -79,10 +79,11 @@ chain launched COLD, as soliton S3 launched it, gives 0.56-0.63, and that
 is the number the soliton page published as the collision's signature. It
 is mostly not the collision. A packet born without its dent radiates a
 strain pulse at c = 1/2 while the dent forms; the pulse outruns the packet
-(c > v_g), crosses the ring, and passes through the OTHER packet, which is
-shifted by it. Two packets launched cold each get the other's pulse; a
-single packet launched cold gets only its own, and the difference was read
-as the collision. The collision's own shift is a tenth of a cell, and rung
+(c > v_g) and reaches the other packet before the two meet. The strain's
+initial state is the entire difference -- warm and cold launches differ in
+nothing else -- but HOW the transient produces the shift is open: an
+envelope coupled to the strain as a linear field (rung 4b, not shipped)
+reproduces the dent's formation and not this shift. The collision's own shift is a tenth of a cell, and rung
 4 predicts it. Every number in soliton S3 stands as measured; what changes
 is what it measures.
 
@@ -761,10 +762,10 @@ def gate():
        "with Q_x from the ring plus the dent the other one carries, pass "
        "through and come out displaced by less than a tenth of a cell. The "
        "chain agrees -- WHEN ITS PACKETS ARE LAUNCHED WITH THEIR DENTS. "
-       "Launched cold, as soliton S3 launched them, each packet radiates a "
-       "strain pulse at c = 1/2 while its dent forms, that pulse runs ahead "
-       "and passes through the OTHER packet, and the 0.63 cells S3 published "
-       "is mostly that: the launch, not the collision. The collision's own "
+       "Launched cold, as soliton S3 launched them, each packet radiates "
+       "strain at c = 1/2 while its dent forms, and the 0.63 cells S3 "
+       "published is mostly that: the launch transient, not the collision "
+       "(the strain's initial state is the only difference). The collision's own "
        "shift is the small one, and rung 4 predicts it",
        abs(np.mean(ehs) - 1.0) < 0.05 and abs(warm_h - 1.0) < 0.05
        and abs(warm.mean() - esh.mean()) < 0.04 and cold.mean() > 0.4
