@@ -86,11 +86,28 @@ as the collision. The collision's own shift is a tenth of a cell, and rung
 4 predicts it. Every number in soliton S3 stands as measured; what changes
 is what it measures.
 
-THE CLOSED FORMS, matched not derived. Across four carriers the ring shift
-is (1 + 4 s^2) / (12 s^3) with s = sin(q0/2), and the dent is exactly
--1/(6 s^3), so Q(q0) = (1 - 2 cos q0) / (12 s^3): it VANISHES at q0 = pi/3
-(ring 4/3 against dent -4/3) and is defocusing below it in the adiabatic
-limit -- but see R8b for why the chain does not see that limit there.
+THE CLOSED FORMS, DERIVED (R9). Lindstedt-Poincare on the exact chain's
+plane wave, gamma = a cos th + a^2 g2 cos 2th + ..., u = a^2 d2 sin 2th,
+th = q n - w t, w = s + a^2 w2, s = sin(q/2), with the Lagrangian's own
+coefficients (each measured in R9 by central differences):
+    M(g) = 8 - 4 STEP g + (16/3) g^2 + ...          (M1 = -4 STEP exactly)
+    V3_fold = -(STEP/4) sum (dg)^2 (g_n + g_n+1)     (-3 STEP, STEP/2)
+    V3_ug   = (STEP/2) sum g_n^2 (u_n+1 - u_n-1)
+    V4      = sum 17/6 g^4 + 1/2 g_n^2 g_n+1^2 + 1/3 (g_n^3 g_n+1 + g_n g_n+1^3)
+Order a^2: the DC fold source is M1 s^2/4 + STEP s^2 = 0 -- the breathe is
+not driven -- and the second harmonics are g2 = STEP/16 (independent of q)
+and d2 = STEP cos(q/2) cos q / (16 s^3), which VANISHES at q = pi/2: the
+strain's second-harmonic source is sin 2q. Order a^3, the cos th
+component that must vanish:
+    16 s w2 = [mass] + [fold cubic x g2] + [strain 2q] + [quartic]
+           = -(2/3)s^2 - (2/3)s^2(1 + 2c^2) + (4/3)c^2 cos^2 q / s^2
+             + 12 - 8 s^2 + 4 s^4                       (c = cos(q/2))
+           = 4 (1 + 4 s^2) / (3 s^2)                    (an identity)
+so Q_ring = (1 + 4 s^2) / (12 s^3). The dent is R4's closed form in the
+strain chain, Q_dent = -STEP^2 / (32 s^3) = -1/(6 s^3) (STEP^2 = 16/3),
+and Q(q0) = (1 - 2 cos q0) / (12 s^3): it VANISHES at q0 = pi/3 and is
+defocusing below it in the adiabatic limit -- but see R8b for why the
+chain does not see that limit there.
 
 UNITS as soliton.py: k = 1, distance in lattice steps, fold in radians
 internally and degrees in every printed number. SCOPE: everything is at
@@ -196,9 +213,8 @@ def ring_coefficient(q0=Q0, N=None, cross=False, T=200.0):
 
 
 def q_ring_closed(q0=Q0):
-    """The ring shift's closed form, MATCHED to the measurement at four
-    carriers (R3) rather than derived here: (1 + 4 s^2) / (12 s^3),
-    s = sin(q0/2)."""
+    """The ring shift, (1 + 4 s^2) / (12 s^3), s = sin(q0/2): derived in the
+    docstring and R9, measured in R3."""
     s = np.sin(q0 / 2.0)
     return (1.0 + 4.0 * s * s) / (12.0 * s ** 3)
 
@@ -208,6 +224,23 @@ def q_total_closed(q0=Q0):
     Vanishes at q0 = pi/3 and changes sign below it."""
     s = np.sin(q0 / 2.0)
     return (4.0 * s * s - 1.0) / (12.0 * s ** 3)
+
+
+def q_ring_pieces(q0=Q0):
+    """The four cos(theta) contributions to 16 s w2 in the Lindstedt
+    expansion (docstring), from the Lagrangian coefficients as measured, so
+    R9 can gate the derivation piece by piece. Returns (mass, fold cubic
+    through g2, strain second harmonic, quartic), summing to 16 s Q_ring."""
+    s2 = np.sin(q0 / 2.0) ** 2
+    c2 = 1.0 - s2
+    cq = 1.0 - 2.0 * s2
+    M1, M2 = -4.0 * STEP, 32.0 / 3.0
+    g2 = STEP / 16.0
+    mass = s2 * (-1.5 * g2 * M1 - 0.25 * M2)
+    fold3 = -2.0 * STEP * g2 * s2 * (1.0 + 2.0 * c2)
+    strain2 = (4.0 / 3.0) * c2 * cq * cq / s2
+    quartic = 12.0 - 8.0 * s2 + 4.0 * s2 * s2
+    return mass, fold3, strain2, quartic
 
 
 def nls_coefficients(q0=Q0, N=None):
@@ -355,8 +388,8 @@ def gate():
     out["r3"] = (qr, s1, s2, qx, x1, x2, closed)
     A(("R3 A UNIFORM WAVE ON A RING RUNS FAST BY Q_ring a^2 -- the shift per "
        "a^2 the same at one and two degrees -- and across four carriers the "
-       "measurement is (1 + 4 sin^2(q/2)) / (12 sin^3(q/2)), a closed form "
-       "matched to the ring, not derived. A counter-propagating wave adds "
+       "measurement is (1 + 4 sin^2(q/2)) / (12 sin^3(q/2)), the closed form "
+       "R9 derives from the energy. A counter-propagating wave adds "
        "Q_x,ring b^2, larger than the self shift because the pair also stands "
        "a static strain at the zone boundary",
        abs(s2 / s1 - 1.0) < 0.01 and abs(x2 / x1 - 1.0) < 0.05
@@ -567,6 +600,101 @@ def gate():
        f"= {t_form2:.0f} at pi/2, {t_form4:.0f} at pi/4; at pi/4 the dent is "
        f"{form[-1]:.2f} formed at t = 600 (pi/2 reaches {out['r4'][1]:.2f} by "
        f"200) and the packet peaks at {max(hts8):.2f} of launch -- focusing"))
+
+    # ---- R9: the closed form is DERIVED from the chain's own energy -------
+    def cd(f, h):
+        return (f(h) - f(-h)) / (2 * h)
+
+    def cd2(f, h):
+        return (f(h) - 2 * f(0.0) + f(-h)) / (h * h)
+
+    def rich(fn, h):
+        return (4 * fn(h / 2) - fn(h)) / 3.0
+
+    m1 = float(SL.mass_fold(np.zeros(1), deriv=True)[1][0])
+    m2 = rich(lambda h: cd2(lambda x: float(SL.mass_fold(np.array([x]))[0]), h), 1e-3)
+    N9, k9 = 11, 5
+
+    def Vg(**kw):
+        g = np.zeros(N9)
+        for idx, val in kw.items():
+            g[k9 + int(idx[1:]) * (1 if idx[0] == "p" else -1) if idx != "n" else k9] += val
+        return energy_grad(np.zeros(N9), g)[0]
+
+    def d4_on(h):
+        return (Vg(n=2 * h) - 4 * Vg(n=h) + 6 * Vg() - 4 * Vg(n=-h) + Vg(n=-2 * h)) / h ** 4
+
+    def d4_22(h):
+        def f(a, b):
+            g = np.zeros(N9)
+            g[k9] += a
+            g[k9 + 1] += b
+            return energy_grad(np.zeros(N9), g)[0]
+        return (f(h, h) - 2 * f(h, 0) + f(h, -h) - 2 * (f(0, h) - 2 * f(0, 0) + f(0, -h))
+                + f(-h, h) - 2 * f(-h, 0) + f(-h, -h)) / h ** 4
+
+    def d4_31(h):
+        def f(a, b):
+            g = np.zeros(N9)
+            g[k9] += a
+            g[k9 + 1] += b
+            return energy_grad(np.zeros(N9), g)[0]
+        return ((f(2 * h, h) - f(2 * h, -h)) - 2 * (f(h, h) - f(h, -h))
+                + 2 * (f(-h, h) - f(-h, -h)) - (f(-2 * h, h) - f(-2 * h, -h))) / (4 * h ** 4)
+
+    def d3_nnn(h):
+        return (Vg(n=2 * h) - 2 * Vg(n=h) + 2 * Vg(n=-h) - Vg(n=-2 * h)) / (2 * h ** 3)
+
+    def d3_nnp(h):
+        def f(a, b):
+            g = np.zeros(N9)
+            g[k9] += a
+            g[k9 + 1] += b
+            return energy_grad(np.zeros(N9), g)[0]
+        return ((f(h, h) - 2 * f(0, h) + f(-h, h)) - (f(h, -h) - 2 * f(0, -h) + f(-h, -h))) / (2 * h ** 3)
+
+    c40 = rich(d4_on, 2e-2) / 24.0
+    c22 = rich(d4_22, 2e-2) / 4.0
+    c31 = rich(d4_31, 2e-2) / 6.0
+    k3n = rich(d3_nnn, 1e-2)
+    k3p = rich(d3_nnp, 1e-2)
+    coeffs = {"M1 + 4 STEP": m1 + 4 * STEP, "M2 - 32/3": m2 - 32.0 / 3.0,
+              "c40 - 17/6": c40 - 17.0 / 6.0, "c22 - 1/2": c22 - 0.5, "c31 - 1/3": c31 - 1.0 / 3.0,
+              "V_ggg + 3 STEP": k3n + 3 * STEP, "V_ggg' - STEP/2": k3p - STEP / 2}
+    cworst = max(abs(v) for v in coeffs.values())
+    derived, dworst = {}, 0.0
+    for q, meas in [(Q0, qr)] + [(q, m) for q, (m, _c) in closed.items()]:
+        pieces = q_ring_pieces(q)
+        w2 = sum(pieces) / (16.0 * np.sin(q / 2.0))
+        derived[q] = (w2, meas, pieces)
+        dworst = max(dworst, abs(w2 / meas - 1.0))
+    # the identity: the four pieces sum to 4(1 + 4 s^2)/(3 s^2)
+    idw = max(abs(sum(q_ring_pieces(q)) - 4 * (1 + 4 * np.sin(q / 2) ** 2) / (3 * np.sin(q / 2) ** 2))
+              for q in np.linspace(0.3, 3.0, 28))
+    # and the strain's second harmonic vanishes at pi/2: its source is sin 2q
+    nn9 = 64
+    nn = np.arange(nn9)
+    a9 = np.radians(3.0)
+    rec9, _ = rk4(np.zeros(nn9), a9 * np.cos(Q0 * nn), np.zeros(nn9), a9 * omega(Q0) * np.sin(Q0 * nn),
+                  DT, 2000, sample=200)
+    u2q = max(float(np.abs(np.fft.fft(r[1])[nn9 // 2]) * 2 / nn9) for r in rec9) / a9 ** 2
+    out["r9"] = (coeffs, derived, idw, u2q)
+    pp = derived[Q0][2]
+    A(("R9 THE CLOSED FORM IS DERIVED, NOT MATCHED: Lindstedt on the chain's "
+       "plane wave with the Lagrangian's own coefficients -- fold inertia "
+       "8 - 4 STEP g + (16/3) g^2, fold cubic -(STEP/4)(dg)^2 (g + g'), "
+       "quartics 17/6, 1/2, 1/3, all measured here by central differences -- "
+       "gives four cos(theta) contributions at third order whose sum is "
+       "4(1 + 4 s^2)/(3 s^2), an identity, so Q_ring = (1 + 4 s^2)/(12 s^3); "
+       "the DC fold source cancels (M1 = -4 STEP, the breathe is not driven) "
+       "and the strain's second harmonic is sourced by sin 2q, so at pi/2 "
+       "there is none",
+       cworst < 2e-3 and dworst < 3e-3 and idw < 1e-12 and u2q < 1e-6,
+       "coefficients off by at most " + f"{cworst:.1e}; derived vs measured "
+       + ", ".join(f"q = {q:.3f}: {w2:.4f} vs {m:.4f}" for q, (w2, m, _p) in derived.items())
+       + f"; pieces at pi/2 (mass, fold cubic, strain 2q, quartic) = "
+       f"{pp[0]:+.4f}, {pp[1]:+.4f}, {pp[2]:+.4f}, {pp[3]:+.4f}; identity residual "
+       f"{idw:.1e}; strain at 2q on the pi/2 ring {u2q:.1e} a^2"))
 
     # ---- S1: the collision -- envelope model, warm chain, cold chain ------
     Qx = -(qx + qd)
