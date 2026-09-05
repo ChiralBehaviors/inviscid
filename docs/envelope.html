@@ -263,7 +263,9 @@
       <div class="prose">
         <p>Two envelopes travelling opposite ways couple through cross-phase modulation
         alone: each sees the other's |B|² with a coefficient Q<sub>x</sub>, measured the same
-        way Q was — two waves on a ring, plus the dent the other packet carries. Run the
+        way Q was — two waves on a ring, plus the dent the other packet carries. (That ring
+        value is the one at relative carrier phase zero; at π/2 the collision is in fact a
+        phase-dependent energy exchange through an umklapp term, and rung 4b carries it.) Run the
         coupled envelope model's head-on collision and each soliton comes out displaced by
         <span class="mono" id="eShift">—</span> cells. The soliton page measured
         <strong>0.63</strong> in the chain. The envelope model is not wrong; the 0.63 was
@@ -321,12 +323,15 @@
         group velocity approaches the sound speed. The adiabatic Q, ring plus dent, is
         (1 − 2cos q)/(12 sin³(q/2)): it <em>vanishes</em> at carrier π/3 — the ring's 4/3
         against the dent's −4/3, measured — and turns defocusing below it. Yet at carrier
-        π/4 the chain packet focuses, hard, for hundreds of time units: its dent is only
+        π/4 the chain packet does not defocus for hundreds of time units: its dent is only
         half formed by t = 600, and until it forms the packet runs on the bare ring
         coefficient. The single-envelope equation assumes its long-wave fields keep up with
         it instantly, and that assumption is exactly what fails at the resonance. Beyond it
         the strain is a slow field of its own, coupled to the envelope, not a coefficient
-        inside it — a different and larger equation, which this page does not build.</p>
+        inside it — a different and larger equation, which this page does not build. Rung 4b
+        (<span class="mono">longwave.py</span>) builds it, and finds that what the chain does
+        next at π/4 — focus to 1.3× and beyond — is not the dent at all but an instability of
+        the packet to its own mean fold, a third slow field with a gap set by the carrier.</p>
       </div>
     </div>
   </section>

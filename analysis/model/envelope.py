@@ -62,17 +62,24 @@ than caveats. It has no lattice, so at w = 2 it holds where the chain
 loses a fifth of its height (the discreteness wall, soliton S4). And it
 assumes the strain follows the packet instantly: the dent takes
 2w/(c - v_g) to form, which diverges toward the resonance, so at carrier
-pi/4 the chain packet focuses on the bare ring coefficient for hundreds
+pi/4 the chain packet runs on the bare ring coefficient for hundreds
 of time units while the adiabatic Q says defocusing. That is the resonance
 wall from rung 4's side: beyond it the strain is a slow field of its own,
 not a coefficient. Both walls are real and both are where the
 single-envelope description stops -- the same places the hierarchy page
-said it would.
+said it would. What the chain then does at pi/4 -- focus to 1.3x and
+beyond -- is NOT the half-built dent: it is an instability of the packet
+to its own mean fold, which grows exponentially under it (rung 4b,
+longwave.py L6, T2 [24273]); the dent story ends where R8b's row does.
 
 THE COLLISION (S1), AND A CORRECTION TO THE SOLITON LANE. Two
 counter-propagating envelopes couple only through cross-phase modulation,
 Q_x |B|^2 A, with Q_x measured the same way Q is: two waves on a ring (R3
-again), plus the dent the other packet carries. The envelope model's
+again), plus the dent the other packet carries. R3's Q_x,ring is the value
+at RELATIVE CARRIER PHASE ZERO (both waves launched as cos(q n)); the
+phase-averaged value is 1.47, and the difference is the umklapp four-wave
+term at 4 q0 = 2 pi, which makes the pi/2 collision a phase-dependent
+energy exchange (rung 4b, longwave.py L1). The envelope model's
 collision displaces each soliton by 0.09 cells. The chain, with its
 packets launched WARM -- their dents already in place -- gives 0.08. The
 chain launched COLD, as soliton S3 launched it, gives 0.56-0.63, and that
@@ -81,11 +88,13 @@ is mostly not the collision. A packet born without its dent radiates a
 strain pulse at c = 1/2 while the dent forms; the pulse outruns the packet
 (c > v_g) and reaches the other packet before the two meet. The strain's
 initial state is the entire difference -- warm and cold launches differ in
-nothing else -- but HOW the transient produces the shift is open: an
-envelope coupled to the strain as a linear field (rung 4b, not shipped)
-reproduces the dent's formation and not this shift. The collision's own shift is a tenth of a cell, and rung
-4 predicts it. Every number in soliton S3 stands as measured; what changes
-is what it measures.
+nothing else -- and rung 4b (longwave.py L3) has the mechanism: the cold
+launch detunes its own carrier through the strain transient, and the
+detuned packet meets the other in the umklapp exchange regime. The
+collision's own shift is a tenth of a cell, and rung 4 predicts it at
+phase zero; with the umklapp term carried, the displacement is the one
+number rung 4b does not yet reproduce (T2 [24240]). Every number in
+soliton S3 stands as measured; what changes is what it measures.
 
 THE CLOSED FORMS, DERIVED (R9). Lindstedt-Poincare on the exact chain's
 plane wave, gamma = a cos th + a^2 g2 cos 2th + ..., u = a^2 d2 sin 2th,
@@ -588,12 +597,13 @@ def gate():
     A(("R8b THE RESONANCE WALL, SEEN FROM RUNG 4: the dent grows like "
        "1/sin^3(q/2) and the adiabatic Q = (1 - 2 cos q) / (12 sin^3(q/2)) "
        "VANISHES at carrier pi/3 (ring 4/3 against dent -4/3, measured) and "
-       "changes sign below it -- yet at pi/4 the chain packet FOCUSES, "
-       "because the dent has not formed: it takes 2w/(c - v_g), which "
-       "diverges as v_g -> c, and at t = 600 it is still half-built. The "
-       "single envelope assumes its long-wave fields follow it instantly, and "
-       "that is exactly what fails at the resonance; beyond it the strain is "
-       "a field of its own",
+       "changes sign below it -- yet at pi/4 the chain packet does not "
+       "defocus, because the dent has not formed: it takes 2w/(c - v_g), "
+       "which diverges as v_g -> c, and at t = 600 it is still half-built. "
+       "The single envelope assumes its long-wave fields follow it instantly, "
+       "and that is exactly what fails at the resonance; beyond it the strain "
+       "is a field of its own (and the focusing that follows is the mean-fold "
+       "instability, longwave L6, not a dent effect)",
        abs(meas3) < 0.01 and qt4 < 0 and form[-1] < 0.75
        and max(hts8) > 1.1,
        f"Q(pi/3): closed form {qt3:.4f}, measured {meas3:+.4f}; Q(pi/4) = "
