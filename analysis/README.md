@@ -37,6 +37,12 @@ neighbour). One fold angle per cell.
 | `linkage_variety.py` | the jitterbug as a linkage, early facts | jb_b_variety |
 | `strut_clearance.py` | the 60–120 interference without faces | jb_g_strut_clearance |
 | `interpenetration_check.py` | independent edge-through-face count that `strut_clearance` cross-checks against | verify_critic |
+| `kick_response.py` | one cell driven, the medium's reaction: a scalar fold wave at speed 1/2 | — |
+| `shear_response.py` | one cell shoved sideways or stirred: polarized translational waves; the longitudinal one degenerate with the fold at 1/2 | — |
+| `soliton.py` | the plane-symmetric medium as an exact two-field lattice (strain, fold): both branches ω = sin(q/2), the strain exactly harmonic, the fold's on-site quartic; the envelope soliton and its collision | — |
+| `envelope.py` | rung 4: the envelope equation with every coefficient the chain's own (P, Q_ring, Q_dent, Q_x); where it stops toward long carriers | — |
+| `longwave.py` | rung 4b, three fields: envelope + strain field + the gapped mean fold; the umklapp exchange, the cold launch, the dent's schedule, the gap K_d(q), the π/4 instability at a 6 | — |
+| `instability.py` | rung 4b, five fields: + the second-harmonic envelope C (the plane wave's four-wave decay) and the strain envelope U at the carrier (the packet's strain-mediated growth, resonant because the two branches are degenerate), + the on-site quartic; the rates at a 1.5–6 and π/3, the π/2 null, live strain's damping, buckling | — |
 
 ### model/double_covering/
 
