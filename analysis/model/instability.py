@@ -78,15 +78,30 @@ cos q + cos 2q)/2 - (10/3) sin^2(q/2) the |A|^2 |C|^2 cross term (moves
 nothing measurable, kept for completeness). `strain=False` freezes eps AND
 U (G = 0), as the chain's frozen u freezes every strain band.
 
-WHAT IT CARRIES (I1-I5), against the chain: the ring drive; the kicked
+WHAT IT CARRIES (I1-I6), against the chain: the ring drive; the kicked
 packet's purely growing fold with U co-located, and none with G off; the
 packet rates at a 1.5 / 3 / 6 and pi/3 with the pi/2 null; live strain's
 damping of the plane wave's seeded decay, the frozen rate the chain's;
-the buckled fold in a static dent. RESIDUALS, as measured: the kicked rate
-is 1.5x the chain's at a 3, the unkicked a 3 onset is ~100 t late (chain
-t 50), pi/3 is 0.7x, U's amplitude is half the chain's at the same fold,
-and the a 3 ring carrier scan peaks one step low (0.25 vs 0.29 pi). Open
-with the bead: the pi/2 collision displacement (T2 [24240]).
+the buckled fold in a static dent; the cold-launch onset. WHAT THE
+RESIDUAL CHASE FOUND (T2 [24496]): the growing mode's SHAPE is the chain's
+(|U|/delta 1.5-1.7 at the peak in both, U anti-phase with A in both, the
+same lag trend); the frozen-strain kick rings identically in both, so the
+fold sector under the dent is right; the model's own gap is the chain's
+at every carrier and amplitude (2.63 vs 2.66 at pi/4 a 3, both dropping
+~12% with the strain live); and the onset differences were the LAUNCH:
+the chain's packet is warm only in its slow dent and cold in C (and in
+the 2q strain), and launched the same way the model's onset is the
+chain's (I6). The I1 gap (0.29 vs 0.40 per radian) is the same thing on
+the ring: the cold 2q strain, launched at zero, rings at 10e-3 and
+modulates the carrier parametrically; a sixth field V for it is derived
+(Gv = G cos q; its driven value is Lindstedt's d2 to 3%, and its shift on
+A is R9's [strain 2q] term inside Q_ring, so only the free part V - V_d
+may act on A) and gives 0.38 on the cold ring, but it is neutral for the
+warm packet rows and is not carried here. Left: pi/3 at 0.65x of the
+chain's rate (its cold launch beats at Dl = 0.134 and does not settle the
+question), and the a 3 ring carrier scan peak one step low (0.25 vs
+0.29 pi; the C sector). Open with the bead: the pi/2 collision
+displacement (T2 [24240]).
 
 UNITS as longwave.py: chain rows use soliton.py's exact chain; model rows
 the split-step below (dX 2, dt 0.25). Chain constants quoted from T2 are
@@ -262,11 +277,12 @@ def ring_drive(q0, adeg, d0deg, N=800, T=300.0):
     return ch / d0, md / d0
 
 
-def packet_track(q0, w, adeg, T, kick_deg=0.0, N=800, nsamp=12, gu=1.0):
+def packet_track(q0, w, adeg, T, kick_deg=0.0, N=800, nsamp=12, gu=1.0, warmC=True):
     """A warm w-wide packet (C warm, U cold), optionally with a fold kick of
     kick_deg sech^2(X/10) under its peak: (t, h/a, fold at the peak in
     degrees, max |delta| in degrees, its X, the peak's X, eps(q) = 2s|U| max,
-    its X) every T/nsamp."""
+    its X) every T/nsamp. `warmC=False` launches the second harmonic COLD
+    (C = 0), which is how the chain's packet rows are launched."""
     a = np.radians(adeg)
     n = N // 2
     X = np.arange(n) * DXM
@@ -276,7 +292,7 @@ def packet_track(q0, w, adeg, T, kick_deg=0.0, N=800, nsamp=12, gu=1.0):
     stm = int(round(T / DTM))
     rows = []
     for t, A, _e, _C, dl, U in run(A0, N, q0, DTM, stm, stm // nsamp, e, ed, d0=d0,
-                                    C0=(STEP / 16.0) * A0 * A0, gu=gu):
+                                    C0=(STEP / 16.0) * A0 * A0 if warmC else None, gu=gu):
         ea = np.abs(A)
         if not np.all(np.isfinite(ea)):
             break
@@ -423,6 +439,28 @@ def gate():
        all(abs(v[0] - chain_bk[k]) < 0.3 and abs(v[0] - v[2]) < 0.4 for k, v in bk.items()),
        "; ".join(f"{k}: {v[0]:.2f} +- {v[1]:.2f} deg (buckled {v[2]:.2f}, chain {chain_bk[k]})"
                  for k, v in bk.items())))
+
+    # ---- I6: the chain's launch is cold in the second harmonic ---------------
+    kc = packet_track(q, 16.0, 3.0, 300.0, kick_deg=0.3, warmC=False)
+    kcd = {r[0]: r for r in kc}
+    early = min(r[2] for r in kc if 50 <= r[0] <= 100)
+    mono6 = all(b > a_ for a_, b in zip([r[2] for r in kc if 100 <= r[0] <= 200], [r[2] for r in kc if 100 <= r[0] <= 200][1:]))
+    r6 = float(np.log(kcd[200.0][2] / kcd[100.0][2]) / 100.0)
+    uk = packet_track(q, 16.0, 3.0, 400.0, nsamp=8, warmC=False)
+    ukd = {r[0]: r for r in uk}
+    r6u = float(np.log(ukd[300.0][3] / ukd[100.0][3]) / 200.0)
+    out["i6"] = (kc, uk, r6, r6u)
+    A(("I6 THE CHAIN'S PACKET IS LAUNCHED COLD IN ITS SECOND HARMONIC, AND THAT "
+       "SETS THE ONSET: the chain's carrier at the peak breathes by 7% with "
+       "period 2 pi / Dl ~ 100 t (T2 [24496]); launched the same way (C = 0) "
+       "this model's kicked fold bottoms where the chain's does (0.056 deg at "
+       "t 75) and grows from there at the chain's rate (0.020/t over t "
+       "100..200), and the unkicked a 3 packet's growth begins by t 100 (chain "
+       "t 50) at 0.015/t -- the warm-C rows of I2/I3 start ~50 t late",
+       0.02 < early < 0.08 and mono6 and 0.012 < r6 < 0.03 and 0.01 < r6u < 0.025,
+       f"kicked, C cold: fold at peak " + " ".join(f"{r[2]:.3f}" for r in kc if 25 <= r[0] <= 200)
+       + f" (t 25..200; chain 0.124 0.081 0.056 0.086 0.191 0.346 0.507 0.611), rate {r6:.4f}/t; "
+       f"unkicked: max fold {ukd[100.0][3]:.4f} -> {ukd[300.0][3]:.4f} deg over t 100..300, {r6u:.4f}/t"))
 
     out["elapsed"] = time.time() - t_start
     return checks, out
