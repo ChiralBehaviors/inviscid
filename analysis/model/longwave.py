@@ -70,10 +70,13 @@ This system's instability needs a ~ 2 at pi/4 (the trapped mode's length
 c/(sqrt(K_d) a) must fit under the packet), is 5x slow at pi/3, and leaves
 the ring pulse oscillating in its gap without growth. The averaged
 delta^2 |A|^2 theory is right about the mean fold's local dynamics and
-misses a process that needs neither envelope nor strain -- open, with the
-fold cubic acting on the pulse's own gradients (a delta^3 term) the cheapest
-candidate (T2 [24363]). The pi/2 collision DISPLACEMENT (0.3 cells too
-positive at a 6) is the other open item (T2 [24240]) and is not gated here.
+misses two processes it integrated out: the plane wave's four-wave decay
+into the second-harmonic band, and the packet's strain-mediated growth
+through the strain envelope at the carrier's own wavenumber. Both are
+carried, with the chain's coefficients, by instability.py (the fold cubic
+on the pulse's gradients, the first candidate, was tried and does nothing:
+T2 [24442]). The pi/2 collision DISPLACEMENT (0.3 cells too positive at
+a 6) is the open item (T2 [24240]) and is not gated here.
 
 UNITS as envelope.py. The chain rows use soliton.py's exact two-field
 chain; the model rows use the split-step integrator below (dX 2, dt 0.25;
@@ -467,7 +470,7 @@ def gate():
        "keeps the a 1.5 packet's mean fold below a hundredth of a degree for "
        "1800 time units and leaves the ring pulse oscillating in its gap. A "
        "process that needs neither envelope nor strain is missing at order "
-       "delta^2 |A|^2 -- open (T2 [24363])",
+       "delta^2 |A|^2 -- carried by instability.py (T2 [24443] [24472])",
        lo15 < 0.01 and pulse[-1] < 2.0 * pulse[0],
        f"a 1.5 pi/4: mean fold max {lo15:.4f} deg to t 1800 (chain: 1 deg by ~t 700); "
        f"ring pulse sum delta^2 {pulse[0]:.1f} -> {pulse[1]:.1f} -> {pulse[2]:.1f} deg^2 "
